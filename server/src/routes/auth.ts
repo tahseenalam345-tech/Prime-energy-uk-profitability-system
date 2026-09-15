@@ -83,7 +83,7 @@ authRouter.get('/me', authenticateToken, (req: AuthenticatedRequest, res: Respon
 authRouter.get('/users', authenticateToken, requireRole('ADMIN'), async (req: Request, res: Response) => {
   try {
     const users = await db.all(`
-      SELECT u.id, u.name, u.email, u.role_id, u.active, u.created_at, u.updated_at, r.name as role_name, r.description as role_description
+      SELECT u.id, u.name, u.email, u.role_id, u.active, u.created_at, r.name as role_name, r.description as role_description
       FROM users u
       JOIN roles r ON u.role_id = r.id
       ORDER BY u.created_at DESC
@@ -186,7 +186,7 @@ authRouter.put('/users/:id/role', authenticateToken, requireRole('ADMIN'), async
       return res.status(404).json({ error: 'User not found' });
     }
 
-    await db.run('UPDATE users SET role_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [targetRoleId, userId]);
+    await db.run('UPDATE users SET role_id = ? WHERE id = ?', [targetRoleId, userId]);
 
     // Audit log
     await db.run(
@@ -226,7 +226,7 @@ authRouter.patch('/users/:id/status', authenticateToken, requireRole('ADMIN'), a
       return res.status(404).json({ error: 'User not found' });
     }
 
-    await db.run('UPDATE users SET active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [isActive, userId]);
+    await db.run('UPDATE users SET active = ? WHERE id = ?', [isActive, userId]);
 
     // Audit log
     await db.run(
@@ -266,7 +266,7 @@ authRouter.post('/users/:id/reset-password', authenticateToken, requireRole('ADM
     }
 
     const passwordHash = bcrypt.hashSync(newPassword.trim(), 10);
-    await db.run('UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [passwordHash, userId]);
+    await db.run('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, userId]);
 
     // Audit log
     await db.run(

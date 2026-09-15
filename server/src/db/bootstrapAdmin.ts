@@ -23,28 +23,37 @@ export async function bootstrapInitialAdmin() {
     }
 
     const adminEmail = (process.env.ADMIN_EMAIL || 'tahseenamal345@gmail.com').toLowerCase().trim();
-    
-    // Check if initial admin user already exists
-    const existingAdmin = await db.get('SELECT id, email FROM users WHERE email = ?', [adminEmail]);
-    if (existingAdmin) {
-      console.log(`[Admin Bootstrap]: Initial admin user (${adminEmail}) already exists. Preserving account.`);
-      return;
-    }
+    const rawPassword = process.env.ADMIN_PASSWORD || 'PrimePassword2026!';
+    const passwordHash = bcrypt.hashSync(rawPassword, 10);
 
     // Get ADMIN role ID
     const adminRole = await db.get("SELECT id FROM roles WHERE name = 'ADMIN'");
     const roleId = adminRole?.id || 'role_admin';
 
-    // Password from environment variable (ADMIN_PASSWORD) or secure bootstrap default
-    const rawPassword = process.env.ADMIN_PASSWORD || 'PrimePassword2026!';
-    const passwordHash = bcrypt.hashSync(rawPassword, 10);
-
+    // 1. Deactivate legacy admin accounts (admin@primeenergy.co.uk or any other admin email != adminEmail)
     await db.run(
-      `INSERT INTO users (id, name, email, role_id, password_hash, active) VALUES (?, ?, ?, ?, ?, ?)`,
-      ['user_admin_initial', 'System Admin', adminEmail, roleId, passwordHash, 1]
+      'UPDATE users SET active = 0 WHERE LOWER(email) = ? OR (role_id = ? AND LOWER(email) != ?)',
+      ['admin@primeenergy.co.uk', roleId, adminEmail]
     );
 
-    console.log(`[Admin Bootstrap]: Initial admin user (${adminEmail}) created successfully.`);
+    // 2. Check if configured admin email exists
+    const existingAdmin = await db.get('SELECT id FROM users WHERE LOWER(email) = ?', [adminEmail]);
+
+    if (existingAdmin) {
+      // Synchronize existing admin account password, role, and active status
+      await db.run(
+        'UPDATE users SET password_hash = ?, role_id = ?, active = 1 WHERE id = ?',
+        [passwordHash, roleId, existingAdmin.id]
+      );
+      console.log(`[Admin Bootstrap]: Updated & activated single owner admin user (${adminEmail}). Legacy admin deactivated.`);
+    } else {
+      // Create new initial owner admin account
+      await db.run(
+        `INSERT INTO users (id, name, email, role_id, password_hash, active) VALUES (?, ?, ?, ?, ?, 1)`,
+        ['user_admin_initial', 'System Admin', adminEmail, roleId, passwordHash]
+      );
+      console.log(`[Admin Bootstrap]: Created single owner admin user (${adminEmail}). Legacy admin deactivated.`);
+    }
   } catch (err: any) {
     console.error('[Admin Bootstrap]: Error checking/creating initial admin:', err?.message || err);
   }
