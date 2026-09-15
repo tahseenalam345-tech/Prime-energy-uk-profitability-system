@@ -59,6 +59,8 @@ export interface ASHPSelectorOptions {
   preferredBrand?: string;
   preferredManufacturer?: string;
   requireMcsVerified?: boolean;
+  designOutdoorTemp?: number; // e.g. -2, -3, -5, -7 °C
+  designFlowTemp?: number;    // e.g. 35, 45, 50, 55 °C
   maxFlowTemperature?: number;
   overrideProductId?: string; // Manual user selection override
 }
@@ -75,7 +77,10 @@ export async function selectRecommendedASHP(
       ? { preferredBrand: optionsOrBrand, preferredManufacturer: optionsOrBrand }
       : (optionsOrBrand || {});
 
-  // Query all active products with current pricing
+  const designOutdoor = options.designOutdoorTemp ?? -3;
+  const designFlow = options.designFlowTemp ?? options.maxFlowTemperature ?? 45;
+
+  // Query all active products with current pricing and performance curves
   const query = `
     SELECT 
       p.id, p.brand, p.manufacturer, p.product_family, p.model, p.sku,
@@ -83,6 +88,7 @@ export async function selectRecommendedASHP(
       COALESCE(p.rated_output_kw, p.rated_output_at_design) as rated_output_kw,
       COALESCE(p.rated_output_condition, p.design_condition, '-2°C / 45°C flow') as design_condition,
       COALESCE(p.flow_temperature, 45) as flow_temperature,
+      p.output_a_minus_7_w35, p.output_a7_w45, p.output_w55,
       p.refrigerant, p.phase, p.electrical_requirements, p.product_type,
       p.mcs_status, p.mcs_product_reference, p.mcs_directory_url,
       p.ofgem_pel_status, p.ofgem_source_url,
@@ -107,6 +113,9 @@ export async function selectRecommendedASHP(
     rated_output_kw: number | null;
     design_condition: string;
     flow_temperature: number;
+    output_a_minus_7_w35: number | null;
+    output_a7_w45: number | null;
+    output_w55: number | null;
     refrigerant: string | null;
     phase: number | null;
     electrical_requirements: string | null;
@@ -129,7 +138,21 @@ export async function selectRecommendedASHP(
   }>;
 
   const allAshpProducts: ASHPProductItem[] = rawProducts.map(p => {
-    const rated = p.rated_output_kw || p.nominal_capacity || 0;
+    // Dynamic rated output selection based on design flow and outdoor temperatures
+    let rated = p.rated_output_kw || p.nominal_capacity || 0;
+    let condStr = p.design_condition || `${designOutdoor}°C / ${designFlow}°C flow`;
+
+    if (designFlow >= 55 && p.output_w55 && p.output_w55 > 0) {
+      rated = p.output_w55;
+      condStr = `A${designOutdoor}°C / W55°C flow`;
+    } else if (designOutdoor <= -7 && designFlow <= 35 && p.output_a_minus_7_w35 && p.output_a_minus_7_w35 > 0) {
+      rated = p.output_a_minus_7_w35;
+      condStr = `A-7°C / W35°C flow`;
+    } else if (p.output_a7_w45 && p.output_a7_w45 > 0 && designOutdoor >= 7) {
+      rated = p.output_a7_w45;
+      condStr = `A7°C / W45°C flow`;
+    }
+
     const nominal = p.nominal_capacity || rated;
     const priceEx = p.price_ex_vat ?? 3500.00;
     const priceInc = p.price_inc_vat ?? Math.round(priceEx * 1.20 * 100) / 100;
@@ -143,8 +166,8 @@ export async function selectRecommendedASHP(
       sku: p.sku,
       nominalCapacity: nominal,
       ratedOutputAtDesign: rated,
-      designCondition: p.design_condition,
-      flowTemperature: p.flow_temperature,
+      designCondition: condStr,
+      flowTemperature: designFlow,
       refrigerant: p.refrigerant || 'R290',
       phase: p.phase || 1,
       electricalRequirements: p.electrical_requirements || '230V 1-Phase 32A',
@@ -204,7 +227,7 @@ export async function selectRecommendedASHP(
     });
 
     recommendedProduct = candidates[0];
-    notes.push(`[AUTHORITATIVE SIZING] Selected ${recommendedProduct.brand} ${recommendedProduct.model} (${recommendedProduct.ratedOutputAtDesign} kW rated @ ${recommendedProduct.designCondition}).`);
+    notes.push(`[AUTHORITATIVE SIZING] Selected ${recommendedProduct.brand} ${recommendedProduct.model} (${recommendedProduct.ratedOutputAtDesign} kW rated @ design condition ${designOutdoor}°C outdoor / ${designFlow}°C flow).`);
 
     if (recommendedProduct.ratedOutputAtDesign > upperBoundKw * 1.4) {
       notes.push(`Surplus capacity alert: Selected unit is >40% larger than ${upperBoundKw.toFixed(1)} kW design load.`);

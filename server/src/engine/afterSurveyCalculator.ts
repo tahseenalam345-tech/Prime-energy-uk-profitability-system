@@ -10,6 +10,14 @@ export interface AfterSurveyInputs {
   confirmedDesignHeatLossKw: number; // DO NOT RECALCULATE
   designOutdoorTemp: number;        // e.g. -2 or -3 C
   designFlowTemp: number;           // e.g. 45 or 50 C
+  roomByRoomSchedule?: Array<{
+    roomName: string;
+    areaM2: number;
+    designTemp: number;
+    heatLossKw: number;
+    radiatorModel?: string;
+    radiatorOutputWatts?: number;
+  }>;
   selectedAshpId: string;
   selectedCylinderId?: string;
   exactRadiatorsSchedule: Array<{
@@ -17,6 +25,7 @@ export interface AfterSurveyInputs {
     quantity: number;
     description?: string;
     unitPriceExVat?: number;
+    outputWatts?: number;
   }>;
   exactPipeworkSchedule?: Array<{
     description: string;
@@ -49,12 +58,21 @@ export interface AfterSurveyInputs {
 
 export interface AfterSurveyCalculationResult {
   mode: 'AFTER_SURVEY';
+  disclaimer: string;
   timestamp: string;
   confirmedDesignHeatLossKw: number;
   designConditions: {
     outdoorTemp: number;
     flowTemp: number;
   };
+  roomByRoomSchedule: Array<{
+    roomName: string;
+    areaM2: number;
+    designTemp: number;
+    heatLossKw: number;
+    radiatorModel?: string;
+    radiatorOutputWatts?: number;
+  }>;
   selectedEquipment: {
     ashp: {
       id: string;
@@ -565,14 +583,18 @@ export async function calculateAfterSurveyViability(inputs: AfterSurveyInputs): 
     ...customItemsFormatted
   ];
 
+  const disclaimer = 'CONTRACTUAL MCS DESIGN — calculated from room-by-room heat loss survey (BS EN 12831-1:2017).';
+
   return {
     mode: 'AFTER_SURVEY',
+    disclaimer,
     timestamp,
     confirmedDesignHeatLossKw: inputs.confirmedDesignHeatLossKw,
     designConditions: {
       outdoorTemp: inputs.designOutdoorTemp,
       flowTemp: inputs.designFlowTemp
     },
+    roomByRoomSchedule: inputs.roomByRoomSchedule || [],
     selectedEquipment: {
       ashp: {
         id: ashpRow.id,

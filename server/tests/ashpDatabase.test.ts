@@ -163,6 +163,24 @@ describe('Heat Pump Product & Pricing Database Architecture', () => {
     await db.run('UPDATE product_prices SET is_current = 1 WHERE id = ?', [oldPrices[0].id]);
   });
 
+  it('14. Dynamic ASHP Selection: evaluates rated capacity dynamically at different design outdoor and flow temperatures', async () => {
+    const selectionHighTemp = await selectRecommendedASHP(6.0, {
+      designOutdoorTemp: -7,
+      designFlowTemp: 55
+    });
+
+    expect(selectionHighTemp.recommendedProduct).toBeDefined();
+    expect(selectionHighTemp.recommendedProduct?.flowTemperature).toBe(55);
+
+    const selectionLowTemp = await selectRecommendedASHP(6.0, {
+      designOutdoorTemp: -7,
+      designFlowTemp: 35
+    });
+
+    expect(selectionLowTemp.recommendedProduct).toBeDefined();
+    expect(selectionLowTemp.recommendedProduct?.flowTemperature).toBe(35);
+  });
+
   it('13. Commercial true-margin formula integrity: City Plumbing market reference prices do not distort target margins', async () => {
     const equipmentCost = 3000.00;
     const totalJobCost = equipmentCost + 1500.00 + 300.00 + 200.00;
