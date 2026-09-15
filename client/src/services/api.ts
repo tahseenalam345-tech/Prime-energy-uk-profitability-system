@@ -17,11 +17,11 @@ function getHeaders(customHeaders: Record<string, string> = {}): Record<string, 
 }
 
 export const api = {
-  async login(email: string, password?: string) {
+  async login(email: string, password: string) {
     const res = await fetch(`${BASE_URL}/auth/login`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify({ email, password: password || 'PrimePassword2026!' })
+      body: JSON.stringify({ email, password })
     });
     const data = await res.json();
     if (res.ok && data.token) {
@@ -57,6 +57,50 @@ export const api = {
     });
     return res.json();
   },
+
+  async getRoles() {
+    const res = await fetch(`${BASE_URL}/auth/roles`, {
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
+  async createUser(data: { name: string; email: string; role_name: string; password: string }) {
+    const res = await fetch(`${BASE_URL}/auth/users`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async updateUserRole(userId: string, role_name: string) {
+    const res = await fetch(`${BASE_URL}/auth/users/${userId}/role`, {
+      method: 'PUT',
+      headers: getHeaders(),
+      body: JSON.stringify({ role_name })
+    });
+    return res.json();
+  },
+
+  async toggleUserStatus(userId: string, active: boolean) {
+    const res = await fetch(`${BASE_URL}/auth/users/${userId}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ active })
+    });
+    return res.json();
+  },
+
+  async resetUserPassword(userId: string, newPassword: string) {
+    const res = await fetch(`${BASE_URL}/auth/users/${userId}/reset-password`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ newPassword })
+    });
+    return res.json();
+  },
+
 
   async getDashboardSummary() {
     const res = await fetch(`${BASE_URL}/reports/dashboard-summary`, {

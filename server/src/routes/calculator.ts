@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { calculateNewLeadEstimate } from '../engine/newLeadCalculator.js';
 import { calculateAfterSurveyViability } from '../engine/afterSurveyCalculator.js';
-import { authenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
+import { optionalAuthenticateToken, AuthenticatedRequest } from '../middleware/auth.js';
 
 export const calculatorRouter = Router();
 
@@ -11,8 +11,8 @@ function safeErrorResponse(res: Response, err: any, defaultMsg: string) {
   res.status(500).json({ error: msg });
 }
 
-// Mode A - New Lead Pre-Survey Calculator
-calculatorRouter.post('/new-lead', authenticateToken, requireRole('ADMIN', 'SALES', 'SURVEYOR', 'ESTIMATOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
+// Mode A - New Lead Pre-Survey Calculator (Ephemeral calculation, unauthenticated allowed)
+calculatorRouter.post('/new-lead', optionalAuthenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const inputs = { ...req.body };
     if (!inputs.epcFloorArea || Number(inputs.epcFloorArea) <= 0) {
@@ -35,8 +35,8 @@ calculatorRouter.post('/new-lead', authenticateToken, requireRole('ADMIN', 'SALE
   }
 });
 
-// Mode B - After Survey Viability Calculator
-calculatorRouter.post('/after-survey', authenticateToken, requireRole('ADMIN', 'SURVEYOR', 'ESTIMATOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
+// Mode B - After Survey Viability Calculator (Ephemeral calculation, unauthenticated allowed)
+calculatorRouter.post('/after-survey', optionalAuthenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const inputs = { ...req.body };
     if (!inputs.confirmedDesignHeatLossKw || Number(inputs.confirmedDesignHeatLossKw) <= 0) {
@@ -52,3 +52,4 @@ calculatorRouter.post('/after-survey', authenticateToken, requireRole('ADMIN', '
     safeErrorResponse(res, error, 'Survey calculation engine failure');
   }
 });
+

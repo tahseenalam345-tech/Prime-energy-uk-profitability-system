@@ -1,6 +1,6 @@
 import { Router, Response } from 'express';
 import { db } from '../db/connection.js';
-import { authenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
+import { authenticateToken, optionalAuthenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
 
 export const leadsRouter = Router();
 
@@ -10,8 +10,8 @@ function safeErrorResponse(res: Response, err: any, defaultMsg: string) {
   res.status(500).json({ error: msg });
 }
 
-// GET all leads
-leadsRouter.get('/', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
+// GET all leads (Authenticated Users Only)
+leadsRouter.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const query = `
       SELECT 
@@ -29,8 +29,9 @@ leadsRouter.get('/', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES
   }
 });
 
-// GET single lead by ID
-leadsRouter.get('/:id', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
+// GET single lead by ID (Authenticated Users Only)
+leadsRouter.get('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+
   try {
     const lead = await db.get(`
       SELECT 

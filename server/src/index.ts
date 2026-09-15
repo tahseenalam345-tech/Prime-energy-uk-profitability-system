@@ -108,7 +108,12 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   res.status(status).json({ error: message });
 });
 
+import { bootstrapInitialAdmin } from './db/bootstrapAdmin.js';
+
 async function startServer() {
+  // Run initial admin bootstrap check (idempotent, safe in prod & dev)
+  await bootstrapInitialAdmin();
+
   // REQUIREMENT 3: DISABLE automatic seedDatabase() during production startup.
   // Production startup must NEVER insert demo/test users, leads or products automatically.
   if (!isProd && process.env.ENABLE_STARTUP_SEED === 'true') {

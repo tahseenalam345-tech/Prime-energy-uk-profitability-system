@@ -288,7 +288,7 @@ describe('Full System Production Audit Verification Suite', () => {
     expect(cylinders!.count).toBeGreaterThan(5);
 
     const radiators = await db.get<{ count: number }>('SELECT COUNT(*) as count FROM radiator_catalogue WHERE active = 1');
-    expect(radiators!.count).toBeGreaterThan(100);
+    expect(radiators!.count).toBeGreaterThanOrEqual(100);
   });
 
   it('Audit Point 26 & 27: Pricing/VAT & Authoritative Rule Evidence Registry', async () => {

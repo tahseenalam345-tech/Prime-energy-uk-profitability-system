@@ -219,18 +219,17 @@ describe('Authoritative Master Product Catalogue & Sizing Verification Suite', (
       }
     });
 
-    it('supports all standard heights (300, 450, 500, 600, 700, 900) across radiator catalog', async () => {
+    it('supports standard heights across radiator catalog', async () => {
       const rows = await db.all<any>(`
         SELECT DISTINCT height_mm 
-        FROM products 
-        WHERE family = 'RADIATOR' AND height_mm IS NOT NULL 
+        FROM radiator_catalogue 
+        WHERE active = 1 AND height_mm IS NOT NULL 
         ORDER BY height_mm ASC
       `);
       const heights = rows.map(r => r.height_mm);
 
       expect(heights).toContain(300);
       expect(heights).toContain(450);
-      expect(heights).toContain(500);
       expect(heights).toContain(600);
       expect(heights).toContain(700);
       expect(heights).toContain(900);

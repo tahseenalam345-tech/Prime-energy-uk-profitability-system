@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { ClipboardCheck, Save, CheckCircle2, Shield, Plus, Trash2, ArrowRight } from 'lucide-react';
+import { ClipboardCheck, Save, CheckCircle2, Shield, Plus, Trash2, ArrowRight, Lock } from 'lucide-react';
 import { api } from '../services/api.js';
 import { Badge } from '../components/Badge.js';
-import { CalculationResult } from '../types.js';
+import { CalculationResult, User } from '../types.js';
 import { SearchableSelect, SelectOption } from '../components/SearchableSelect.js';
 import { CompactRadiatorSelector } from '../components/CompactRadiatorSelector.js';
 import { CostCompositionTable, CustomLineItemInput } from '../components/CostCompositionTable.js';
@@ -10,9 +10,10 @@ import { CostCompositionTable, CustomLineItemInput } from '../components/CostCom
 interface AfterSurveyViewProps {
   onQuoteSaved?: (quoteId: string) => void;
   currentUserId: string;
+  currentUser?: User | null;
 }
 
-export const AfterSurveyView: React.FC<AfterSurveyViewProps> = ({ onQuoteSaved, currentUserId }) => {
+export const AfterSurveyView: React.FC<AfterSurveyViewProps> = ({ onQuoteSaved, currentUserId, currentUser }) => {
   const [leads, setLeads] = useState<any[]>([]);
   const [selectedLeadId, setSelectedLeadId] = useState('');
   const [ashpCatalog, setAshpCatalog] = useState<any[]>([]);
@@ -596,15 +597,27 @@ export const AfterSurveyView: React.FC<AfterSurveyViewProps> = ({ onQuoteSaved, 
                   </div>
                 </div>
 
-                <button
-                  onClick={handleSaveQuote}
-                  disabled={saving || !!savedQuoteRef}
-                  className="btn btn-primary"
-                  style={{ width: '100%', padding: '12px' }}
-                >
-                  <Save size={16} />
-                  {saving ? 'Locking Snapshot...' : savedQuoteRef ? 'Survey Snapshot Locked' : 'Lock Survey Quote Snapshot'}
-                </button>
+                {(!currentUser || currentUser.role_name === 'READ_ONLY') ? (
+                  <button
+                    type="button"
+                    onClick={() => alert('Login required: Saving survey quote snapshots requires a logged-in account with write permissions (Surveyor, Estimator, Sales, or Admin). Please click Login in the navigation bar.')}
+                    className="btn btn-secondary"
+                    style={{ width: '100%', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    title="Log in to enable saving survey quotes"
+                  >
+                    <Lock size={16} /> Lock Survey Quote Snapshot (Login Required)
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSaveQuote}
+                    disabled={saving || !!savedQuoteRef}
+                    className="btn btn-primary"
+                    style={{ width: '100%', padding: '12px' }}
+                  >
+                    <Save size={16} />
+                    {saving ? 'Locking Snapshot...' : savedQuoteRef ? 'Survey Snapshot Locked' : 'Lock Survey Quote Snapshot'}
+                  </button>
+                )}
               </div>
 
               {/* Confirmed Bill of Materials & Fully Editable Cost Composition */}

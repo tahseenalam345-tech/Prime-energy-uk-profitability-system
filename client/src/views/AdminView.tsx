@@ -24,11 +24,25 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
   const [microboreAllowance, setMicroboreAllowance] = useState<number>(1800);
   const [notes, setNotes] = useState('');
 
+  // User Management State
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [showCreateUserModal, setShowCreateUserModal] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserRole, setNewUserRole] = useState('READ_ONLY');
+  const [newUserPassword, setNewUserPassword] = useState('');
+  const [creatingUser, setCreatingUser] = useState(false);
+
+  const [resetUserId, setResetUserId] = useState<string | null>(null);
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resettingPassword, setResettingPassword] = useState(false);
+
   const loadAdminData = async () => {
     try {
-      const [settingsRes, logsRes] = await Promise.all([
+      const [settingsRes, logsRes, usersRes] = await Promise.all([
         api.getCommercialSettings(),
-        api.getAuditLogs()
+        api.getAuditLogs(),
+        api.getUsers()
       ]);
 
       const s = settingsRes.settings;
@@ -42,6 +56,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
         setMicroboreAllowance(s.microbore_repipe_allowance);
       }
       setAuditLogs(logsRes.logs || []);
+      setUsersList(usersRes.users || []);
     } catch (err) {
       console.error('Failed to load admin data', err);
     } finally {
@@ -53,7 +68,84 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
     loadAdminData();
   }, []);
 
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreatingUser(true);
+    try {
+      const res = await api.createUser({
+        name: newUserName,
+        email: newUserEmail,
+        role_name: newUserRole,
+        password: newUserPassword
+      });
+      if (res.error) {
+        alert('Error creating user: ' + res.error);
+      } else {
+        setSuccessMessage(`User '${newUserEmail}' provisioned successfully.`);
+        setShowCreateUserModal(false);
+        setNewUserName('');
+        setNewUserEmail('');
+        setNewUserPassword('');
+        loadAdminData();
+      }
+    } catch (err: any) {
+      alert('Failed to create user: ' + err.message);
+    } finally {
+      setCreatingUser(false);
+    }
+  };
+
+  const handleRoleChange = async (userId: string, roleName: string) => {
+    try {
+      const res = await api.updateUserRole(userId, roleName);
+      if (res.error) {
+        alert('Error changing role: ' + res.error);
+      } else {
+        setSuccessMessage('User role updated successfully.');
+        loadAdminData();
+      }
+    } catch (err: any) {
+      alert('Failed to update user role: ' + err.message);
+    }
+  };
+
+  const handleToggleStatus = async (userId: string, active: boolean) => {
+    try {
+      const res = await api.toggleUserStatus(userId, active);
+      if (res.error) {
+        alert('Error changing user status: ' + res.error);
+      } else {
+        setSuccessMessage(`User status updated to ${active ? 'ACTIVE' : 'DEACTIVATED'}.`);
+        loadAdminData();
+      }
+    } catch (err: any) {
+      alert('Failed to update status: ' + err.message);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetUserId) return;
+    setResettingPassword(true);
+    try {
+      const res = await api.resetUserPassword(resetUserId, resetNewPassword);
+      if (res.error) {
+        alert('Error resetting password: ' + res.error);
+      } else {
+        setSuccessMessage(res.message || 'Password reset successfully.');
+        setResetUserId(null);
+        setResetNewPassword('');
+        loadAdminData();
+      }
+    } catch (err: any) {
+      alert('Failed to reset password: ' + err.message);
+    } finally {
+      setResettingPassword(false);
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
+
     e.preventDefault();
     setSavingSettings(true);
     setSuccessMessage('');
@@ -271,6 +363,202 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
         </form>
       </div>
 
+      {/* User & Role Management Section (ADMIN ONLY) */}
+      <div className="card" style={{ marginBottom: '24px' }}>
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <h2 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Users color="var(--primary)" size={20} /> User & Role Management (Admin Only)
+            </h2>
+            <p className="card-subtitle">
+              Provision internal accounts, assign system roles, activate/deactivate users, and reset credentials.
+            </p>
+          </div>
+          <button
+            onClick={() => setShowCreateUserModal(true)}
+            className="btn btn-primary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 600 }}
+          >
+            + Create New User
+          </button>
+        </div>
+
+        {/* Create User Form Modal / Card */}
+        {showCreateUserModal && (
+          <div style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '20px', marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '16px', color: 'var(--text-main)' }}>
+              Provision New User Account
+            </h3>
+            <form onSubmit={handleCreateUser}>
+              <div className="form-grid" style={{ marginBottom: '16px' }}>
+                <div className="form-group">
+                  <label className="form-label">Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    className="form-control"
+                    placeholder="e.g. John Doe"
+                    value={newUserName}
+                    onChange={(e) => setNewUserName(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Email Address *</label>
+                  <input
+                    type="email"
+                    required
+                    className="form-control"
+                    placeholder="e.g. john.doe@primeenergy.co.uk"
+                    value={newUserEmail}
+                    onChange={(e) => setNewUserEmail(e.target.value)}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Assigned Role *</label>
+                  <select
+                    className="form-control"
+                    value={newUserRole}
+                    onChange={(e) => setNewUserRole(e.target.value)}
+                  >
+                    <option value="ADMIN">ADMIN (Full Access + User Mgmt)</option>
+                    <option value="SALES">SALES (Lead & Sales Pipeline)</option>
+                    <option value="ESTIMATOR">ESTIMATOR (Commercial & Pricing)</option>
+                    <option value="SURVEYOR">SURVEYOR (After-Survey Design)</option>
+                    <option value="READ_ONLY">READ_ONLY (View Only)</option>
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Initial Password *</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    className="form-control"
+                    placeholder="Password (min 6 chars)"
+                    value={newUserPassword}
+                    onChange={(e) => setNewUserPassword(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setShowCreateUserModal(false)}
+                >
+                  Cancel
+                </button>
+                <button type="submit" disabled={creatingUser} className="btn btn-primary">
+                  {creatingUser ? 'Provisioning...' : 'Provision User'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Reset Password Modal */}
+        {resetUserId && (
+          <div style={{ background: 'var(--bg-card-hover)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '20px', marginBottom: '20px' }}>
+            <h3 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '12px', color: 'var(--text-main)' }}>
+              Reset Password for User: {usersList.find(u => u.id === resetUserId)?.email}
+            </h3>
+            <form onSubmit={handleResetPassword}>
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label className="form-label">New Password (min 6 chars) *</label>
+                <input
+                  type="password"
+                  required
+                  minLength={6}
+                  className="form-control"
+                  placeholder="Enter new password"
+                  value={resetNewPassword}
+                  onChange={(e) => setResetNewPassword(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => { setResetUserId(null); setResetNewPassword(''); }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" disabled={resettingPassword} className="btn btn-primary">
+                  {resettingPassword ? 'Resetting Password...' : 'Save New Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
+        {/* Users Table */}
+        <div className="table-responsive">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>User Name</th>
+                <th>Email Address</th>
+                <th>Assigned Role</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {usersList.map((u) => (
+                <tr key={u.id}>
+                  <td style={{ fontWeight: 600 }}>{u.name}</td>
+                  <td>{u.email}</td>
+                  <td>
+                    <select
+                      className="form-control"
+                      style={{ padding: '4px 8px', fontSize: '0.8rem', width: 'auto' }}
+                      value={u.role_name || u.role}
+                      onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                    >
+                      <option value="ADMIN">ADMIN</option>
+                      <option value="SALES">SALES</option>
+                      <option value="ESTIMATOR">ESTIMATOR</option>
+                      <option value="SURVEYOR">SURVEYOR</option>
+                      <option value="READ_ONLY">READ_ONLY</option>
+                    </select>
+                  </td>
+                  <td>
+                    <span className={`badge ${u.active ? 'badge-success' : 'badge-danger'}`}>
+                      {u.active ? 'ACTIVE' : 'DEACTIVATED'}
+                    </span>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => handleToggleStatus(u.id, !u.active)}
+                        className={`btn btn-sm ${u.active ? 'btn-secondary' : 'btn-primary'}`}
+                        style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                      >
+                        {u.active ? 'Deactivate' : 'Activate'}
+                      </button>
+                      <button
+                        onClick={() => { setResetUserId(u.id); setResetNewPassword(''); }}
+                        className="btn btn-secondary btn-sm"
+                        style={{ fontSize: '0.75rem', padding: '4px 8px' }}
+                      >
+                        Reset Password
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {usersList.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '20px', color: 'var(--text-muted)' }}>
+                    Loading user records...
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Audit Trail Section */}
       <div className="card">
         <div className="card-header">
@@ -279,7 +567,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
               <History color="var(--primary)" size={20} /> System Audit Trail
             </h2>
             <p className="card-subtitle">
-              Cryptographically timestamped immutable event log tracking all pricing, quote overrides, and settings updates
+              Cryptographically timestamped immutable event log tracking all pricing, quote overrides, user management, and settings updates
             </p>
           </div>
         </div>
@@ -334,3 +622,4 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
     </div>
   );
 };
+

@@ -112,18 +112,21 @@ export function App() {
     );
   }
 
-  // Unauthenticated User -> Render Login Page
-  if (!currentUser) {
+  // If user navigated to 'login' tab explicitly
+  if (currentTab === 'login' && !currentUser) {
     return (
       <LoginView
         onLoginSuccess={handleLoginSuccess}
+        onCancel={() => setCurrentTab('dashboard')}
         theme={theme}
         onToggleTheme={handleToggleTheme}
       />
     );
   }
 
-  // Authenticated User -> Render Main Application
+  const currentUserId = currentUser?.id || 'anonymous_readonly';
+
+  // Application renders in READ-ONLY mode by default for unauthenticated users
   return (
     <div className="app-container">
       <Navbar
@@ -139,19 +142,22 @@ export function App() {
         {currentTab === 'dashboard' && <DashboardView onNavigate={setCurrentTab} />}
         {currentTab === 'new-lead' && (
           <NewLeadView
-            currentUserId={currentUser.id}
+            currentUserId={currentUserId}
+            currentUser={currentUser}
             onQuoteSaved={handleQuoteSaved}
           />
         )}
         {currentTab === 'after-survey' && (
           <AfterSurveyView
-            currentUserId={currentUser.id}
+            currentUserId={currentUserId}
+            currentUser={currentUser}
             onQuoteSaved={handleQuoteSaved}
           />
         )}
         {currentTab === 'leads' && (
-          <LeadsView onSelectLeadForCalc={handleSelectLeadForCalc} />
+          <LeadsView currentUser={currentUser} onSelectLeadForCalc={handleSelectLeadForCalc} />
         )}
+
         {currentTab === 'quotes' && (
           <QuotesView currentUser={currentUser} />
         )}
@@ -159,10 +165,13 @@ export function App() {
         {currentTab === 'pricing' && <PricingView currentUser={currentUser} />}
         {currentTab === 'rules' && <RulesView />}
         {currentTab === 'reports' && <ReportsView />}
-        {currentTab === 'admin' && <AdminView currentUser={currentUser} onNavigate={setCurrentTab} />}
+        {currentTab === 'admin' && currentUser?.role_name === 'ADMIN' && (
+          <AdminView currentUser={currentUser} onNavigate={setCurrentTab} />
+        )}
       </main>
     </div>
   );
 }
+
 
 export default App;

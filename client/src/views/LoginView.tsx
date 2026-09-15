@@ -5,24 +5,26 @@ import { User } from '../types.js';
 
 interface LoginViewProps {
   onLoginSuccess: (user: User) => void;
+  onCancel?: () => void;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
 }
 
 export const LoginView: React.FC<LoginViewProps> = ({
   onLoginSuccess,
+  onCancel,
   theme,
   onToggleTheme
 }) => {
-  const [email, setEmail] = useState('admin@primeenergy.co.uk');
-  const [password, setPassword] = useState('PrimePassword2026!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setError('Please enter both email and password.');
+      setError('Please enter both email address and password.');
       return;
     }
 
@@ -46,12 +48,6 @@ export const LoginView: React.FC<LoginViewProps> = ({
     }
   };
 
-  const handleQuickFill = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword('PrimePassword2026!');
-    setError(null);
-  };
-
   return (
     <div className="login-container" style={{
       minHeight: '100vh',
@@ -63,8 +59,29 @@ export const LoginView: React.FC<LoginViewProps> = ({
       background: theme === 'dark' ? 'radial-gradient(circle at top, #111827 0%, #030712 100%)' : 'radial-gradient(circle at top, #f8fafc 0%, #e2e8f0 100%)',
       color: theme === 'dark' ? '#f3f4f6' : '#1f2937'
     }}>
-      {/* Top Header Theme Toggle */}
-      <div style={{ position: 'absolute', top: '24px', right: '24px' }}>
+      {/* Top Header Controls */}
+      <div style={{ position: 'absolute', top: '24px', right: '24px', display: 'flex', gap: '12px' }}>
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '8px 14px',
+              borderRadius: '8px',
+              border: theme === 'dark' ? '1px solid #374151' : '1px solid #cbd5e1',
+              background: theme === 'dark' ? '#1f2937' : '#ffffff',
+              color: 'inherit',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 500
+            }}
+          >
+            ← Return to App (Read-Only Mode)
+          </button>
+        )}
         <button
           type="button"
           onClick={onToggleTheme}
@@ -143,7 +160,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           <div>
             <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: theme === 'dark' ? '#d1d5db' : '#374151', marginBottom: '6px' }}>
-              Work Email Address
+              Email Address
             </label>
             <div style={{ position: 'relative' }}>
               <Mail size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
@@ -152,7 +169,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@primeenergy.co.uk"
+                placeholder="Email address"
                 style={{
                   width: '100%',
                   padding: '11px 12px 11px 38px',
@@ -178,7 +195,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••••••"
+                placeholder="Password"
                 style={{
                   width: '100%',
                   padding: '11px 12px 11px 38px',
@@ -224,42 +241,8 @@ export const LoginView: React.FC<LoginViewProps> = ({
             )}
           </button>
         </form>
-
-        {/* Account Role Selector Helpers */}
-        <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: theme === 'dark' ? '1px solid #1f2937' : '1px solid #e5e7eb' }}>
-          <p style={{ fontSize: '11px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: theme === 'dark' ? '#6b7280' : '#9ca3af', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Shield size={12} />
-            <span>Select Account Role to Test</span>
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {[
-              { label: 'Admin', email: 'admin@primeenergy.co.uk' },
-              { label: 'Sales', email: 'sales@primeenergy.co.uk' },
-              { label: 'Surveyor', email: 'surveyor@primeenergy.co.uk' },
-              { label: 'Estimator', email: 'estimator@primeenergy.co.uk' },
-              { label: 'Viewer', email: 'viewer@primeenergy.co.uk' }
-            ].map(acc => (
-              <button
-                key={acc.email}
-                type="button"
-                onClick={() => handleQuickFill(acc.email)}
-                style={{
-                  padding: '5px 10px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  fontWeight: 500,
-                  border: theme === 'dark' ? '1px solid #374151' : '1px solid #cbd5e1',
-                  background: theme === 'dark' ? '#111827' : '#f1f5f9',
-                  color: theme === 'dark' ? '#9ca3af' : '#475569',
-                  cursor: 'pointer'
-                }}
-              >
-                {acc.label}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
     </div>
   );
 };
+

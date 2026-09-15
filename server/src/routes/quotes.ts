@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { db } from '../db/connection.js';
 import { saveCalculationSnapshot, getCalculationSnapshot, verifyHistoricalSnapshotReproduction } from '../engine/snapshotEngine.js';
-import { authenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
+import { authenticateToken, optionalAuthenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
 
 export const quotesRouter = Router();
 
@@ -11,8 +11,8 @@ function safeErrorResponse(res: Response, err: any, defaultMsg: string) {
   res.status(500).json({ error: msg });
 }
 
-// GET all quotes
-quotesRouter.get('/', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
+// GET all quotes (Authenticated Users Only)
+quotesRouter.get('/', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const query = `
       SELECT 
@@ -33,8 +33,9 @@ quotesRouter.get('/', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALE
   }
 });
 
-// GET single quote with line items
-quotesRouter.get('/:id', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
+// GET single quote with line items (Authenticated Users Only)
+quotesRouter.get('/:id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+
   try {
     const quote = await db.get(`
       SELECT 
@@ -179,8 +180,9 @@ quotesRouter.post('/', authenticateToken, requireRole('ADMIN', 'SALES', 'SURVEYO
   }
 });
 
-// GET historical snapshot
-quotesRouter.get('/:id/snapshot', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
+// GET historical snapshot (Public Read-Only)
+quotesRouter.get('/:id/snapshot', optionalAuthenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+
   try {
     const snapshot = await getCalculationSnapshot(req.params.id);
     if (!snapshot) {

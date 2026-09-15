@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import {
   Calculator, AlertTriangle, ShieldCheck, CheckCircle2,
   Info, Save, ArrowRight, HelpCircle, FileCheck, Search,
-  ExternalLink, RotateCcw, Plus, Trash2, Edit3, X, SlidersHorizontal
+  ExternalLink, RotateCcw, Plus, Trash2, Edit3, X, SlidersHorizontal, Lock
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { Badge } from '../components/Badge.js';
-import { CalculationResult, RuleEvidence } from '../types.js';
+import { CalculationResult, RuleEvidence, User } from '../types.js';
 import { RuleEvidenceModal } from '../components/RuleEvidenceModal.js';
 import { SearchableSelect, SelectOption } from '../components/SearchableSelect.js';
 import { CostCompositionTable, CustomLineItemInput } from '../components/CostCompositionTable.js';
@@ -120,9 +120,10 @@ const previousGovernmentGrantOptions: SelectOption[] = [
 interface NewLeadViewProps {
   onQuoteSaved?: (quoteId: string) => void;
   currentUserId: string;
+  currentUser?: User | null;
 }
 
-export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentUserId }) => {
+export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentUserId, currentUser }) => {
   // 1. Form state - Customer & Property (Empty by default)
   const [customerName, setCustomerName] = useState('');
   const [email, setEmail] = useState('');
@@ -873,15 +874,27 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                 </div>
 
                 <div style={{ marginTop: '16px' }}>
-                  <button
-                    onClick={handleSaveQuote}
-                    disabled={savingQuote || !!savedQuoteRef}
-                    className="btn btn-primary"
-                    style={{ width: '100%', padding: '12px' }}
-                  >
-                    <Save size={16} />
-                    {savingQuote ? 'Locking Snapshot...' : savedQuoteRef ? 'Snapshot Locked & Saved' : 'Save Quote & Lock Snapshot'}
-                  </button>
+                  {(!currentUser || currentUser.role_name === 'READ_ONLY') ? (
+                    <button
+                      type="button"
+                      onClick={() => alert('Login required: Saving quote snapshots requires a logged-in account with write permissions (Sales, Estimator, Surveyor, or Admin). Please click Login in the navigation bar.')}
+                      className="btn btn-secondary"
+                      style={{ width: '100%', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                      title="Log in to enable saving quotes"
+                    >
+                      <Lock size={16} /> Save Quote & Lock Snapshot (Login Required)
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSaveQuote}
+                      disabled={savingQuote || !!savedQuoteRef}
+                      className="btn btn-primary"
+                      style={{ width: '100%', padding: '12px' }}
+                    >
+                      <Save size={16} />
+                      {savingQuote ? 'Locking Snapshot...' : savedQuoteRef ? 'Snapshot Locked & Saved' : 'Save Quote & Lock Snapshot'}
+                    </button>
+                  )}
                 </div>
               </div>
 

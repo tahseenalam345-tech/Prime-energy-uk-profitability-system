@@ -1,8 +1,9 @@
 import { Router, Response } from 'express';
 import { db } from '../db/connection.js';
-import { authenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
+import { authenticateToken, optionalAuthenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
 
 export const reportsRouter = Router();
+
 
 function safeErrorResponse(res: Response, err: any, defaultMsg: string) {
   console.error(`[Reports Router Error]:`, err);
@@ -482,8 +483,8 @@ async function calculateSummaryAndAttention(jobs: any[]) {
   };
 }
 
-// GET all enriched jobs (Protected)
-reportsRouter.get('/jobs', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
+// GET all enriched jobs (Public Read-Only)
+reportsRouter.get('/jobs', optionalAuthenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const jobs = await fetchAllJobsData();
     const summary = await calculateSummaryAndAttention(jobs);
@@ -499,8 +500,9 @@ reportsRouter.get('/jobs', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 
   }
 });
 
-// GET dashboard summary (Protected)
-reportsRouter.get('/dashboard-summary', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
+// GET dashboard summary (Public Read-Only)
+reportsRouter.get('/dashboard-summary', optionalAuthenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+
   try {
     const jobs = await fetchAllJobsData();
     const summary = await calculateSummaryAndAttention(jobs);

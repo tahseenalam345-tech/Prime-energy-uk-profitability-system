@@ -4,10 +4,11 @@ import { api } from '../services/api.js';
 import { Lead } from '../types.js';
 
 interface LeadsViewProps {
+  currentUser?: User | null;
   onSelectLeadForCalc: (lead: Lead) => void;
 }
 
-export const LeadsView: React.FC<LeadsViewProps> = ({ onSelectLeadForCalc }) => {
+export const LeadsView: React.FC<LeadsViewProps> = ({ currentUser, onSelectLeadForCalc }) => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -37,10 +38,16 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onSelectLeadForCalc }) => 
     fetchLeads();
   }, []);
 
+  const canEdit = currentUser && currentUser.role_name !== 'READ_ONLY';
+
   const handleAddLead = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!canEdit) {
+      alert('Authentication required: Creating leads requires a logged-in account with write permissions (Sales, Surveyor, Estimator, or Admin).');
+      return;
+    }
     try {
-      await api.createLead({
+      const res = await api.createLead({
         customerName,
         email,
         phone,
@@ -50,6 +57,10 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onSelectLeadForCalc }) => 
         propertyType,
         epcRating
       });
+      if (res.error) {
+        alert('Failed to add lead: ' + res.error);
+        return;
+      }
       setShowAddModal(false);
       // Reset
       setCustomerName('');
@@ -63,6 +74,7 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onSelectLeadForCalc }) => 
     }
   };
 
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -74,9 +86,11 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ onSelectLeadForCalc }) => 
             Customer pipeline, building fabric profiles, and survey status tracking.
           </p>
         </div>
-        <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
-          <Plus size={16} /> Add New Property Lead
-        </button>
+        {canEdit && (
+          <button onClick={() => setShowAddModal(true)} className="btn btn-primary">
+            <Plus size={16} /> Add New Property Lead
+          </button>
+        )}
       </div>
 
       <div className="card">
