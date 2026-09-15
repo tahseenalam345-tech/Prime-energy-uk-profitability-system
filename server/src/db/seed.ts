@@ -42,7 +42,7 @@ export async function seedDatabase() {
           microbore_repipe_allowance, microbore_repipe_status, active, updated_by, notes
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      args: ['settings_v1', 1, 0.25, 1500.00, 300.00, 200.00, 500.00, 'PROVISIONAL_PENDING_CONFIRMATION', 1800.00, 'PROVISIONAL_PENDING_CONFIRMATION', 1, 'user_admin', 'Initial baseline commercial configuration per Prime Energy specification']
+      args: ['settings_v1', 1, 0.07, 1500.00, 300.00, 200.00, 500.00, 'PROVISIONAL_PENDING_CONFIRMATION', 1800.00, 'PROVISIONAL_PENDING_CONFIRMATION', 1, 'user_admin', 'Initial baseline commercial configuration per Prime Energy specification']
     },
 
     // 4. TAX RULES

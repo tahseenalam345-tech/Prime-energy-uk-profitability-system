@@ -11,7 +11,7 @@ async function runFinalEvidenceAndUiVerification() {
 
   // 1. RULE EVIDENCE AUDIT
   console.log('--- 1. AUDIT OF RULE EVIDENCE REGISTRY ---');
-  const rules = db.prepare('SELECT rule_id, rule_name, category, authority, source_document, source_version, evidence_reference, verification_status, effective_from, last_verified_at FROM rule_evidence').all() as any[];
+  const rules = await db.all('SELECT rule_id, rule_name, category, authority, source_document, source_version, evidence_reference, verification_status, effective_from, last_verified_at FROM rule_evidence') as any[];
   
   const official = rules.filter(r => r.verification_status === 'VERIFIED_OFFICIAL');
   const primeConfig = rules.filter(r => r.verification_status === 'PRIME_CONFIG');
@@ -51,14 +51,14 @@ async function runFinalEvidenceAndUiVerification() {
 
   // 2. PRODUCT DATABASE & MCS / OFGEM PEL AUDIT
   console.log('\n--- 2. PRODUCT DATABASE, MCS & PEL VERIFICATION ---');
-  const ashps = db.prepare(`
+  const ashps = await db.all(`
     SELECT p.id, p.brand, p.model, p.marketing_nominal_kw, p.rated_output_kw, 
            p.rated_output_condition, p.mcs_status, p.mcs_product_reference, 
            p.ofgem_pel_status, pr.source_url, pr.price_ex_vat
     FROM products p
     LEFT JOIN product_prices pr ON p.id = pr.product_id AND pr.is_current = 1
     WHERE p.family = 'ASHP' AND p.active = 1
-  `).all() as any[];
+  `) as any[];
 
   console.log(`Total Active ASHPs in Database: ${ashps.length}`);
   const mcsVerified = ashps.filter(p => p.mcs_status === 'MCS_CERTIFIED');
@@ -85,7 +85,7 @@ async function runFinalEvidenceAndUiVerification() {
   // 3. CYLINDERS AUDIT
   console.log('\n--- 3. CYLINDER PRODUCTS & CAPACITY VERIFICATION ---');
   // Backfill nominal_capacity if missing on legacy cylinder seeds
-  db.prepare(`
+  await db.run(`
     UPDATE products 
     SET nominal_capacity = CASE 
       WHEN model LIKE '%150%' THEN 150 
@@ -96,14 +96,14 @@ async function runFinalEvidenceAndUiVerification() {
       ELSE 200 
     END 
     WHERE family = 'CYLINDER' AND (nominal_capacity IS NULL OR nominal_capacity = 0)
-  `).run();
-  const cylinders = db.prepare(`
+  `);
+  const cylinders = await db.all(`
     SELECT p.id, p.brand, p.model, p.nominal_capacity, pr.price_ex_vat, pr.price_basis
     FROM products p
     LEFT JOIN product_prices pr ON p.id = pr.product_id AND pr.is_current = 1
     WHERE p.family = 'CYLINDER' AND p.active = 1
     ORDER BY p.nominal_capacity ASC
-  `).all() as any[];
+  `) as any[];
 
   console.log(`Total Cylinders in Catalog: ${cylinders.length}`);
   const distinctCapacities = Array.from(new Set(cylinders.map(c => c.nominal_capacity)));
@@ -131,7 +131,7 @@ async function runFinalEvidenceAndUiVerification() {
   // 5. BUS SCENARIO TESTS
   console.log('\n--- 5. BUS GRANT SCENARIO TESTS ---');
   // Scenario 1: England Domestic ASHP Qualifying normal case
-  const s1 = evaluateBUSEligibility({
+  const s1 = await evaluateBUSEligibility({
     country: 'England',
     propertyStatus: 'Existing property',
     onOffGasGrid: 'On gas grid',
@@ -140,7 +140,7 @@ async function runFinalEvidenceAndUiVerification() {
   console.log(`Scenario 1 (England, Domestic, Gas): Grant = £${s1.grantAmount} | Type = ${s1.grantType} | Conditional = ${s1.conditionalUpliftAvailable} [${s1.grantAmount === 7500 ? 'PASS' : 'FAIL'}]`);
 
   // Scenario 2: Off gas grid, Existing electric heating
-  const s2 = evaluateBUSEligibility({
+  const s2 = await evaluateBUSEligibility({
     country: 'England',
     propertyStatus: 'Existing property',
     onOffGasGrid: 'Off gas grid',
@@ -150,7 +150,7 @@ async function runFinalEvidenceAndUiVerification() {
   console.log(`Scenario 2 (Off gas, Electric heating): Grant = £${s2.grantAmount} (NOT £9,000 automatically) | Type = ${s2.grantType} [${s2.grantAmount === 7500 && !s2.conditionalUpliftAvailable ? 'PASS' : 'FAIL'}]`);
 
   // Scenario 3: Off gas grid, Existing qualifying oil heating
-  const s3 = evaluateBUSEligibility({
+  const s3 = await evaluateBUSEligibility({
     country: 'England',
     propertyStatus: 'Existing property',
     onOffGasGrid: 'Off gas grid',
@@ -161,7 +161,7 @@ async function runFinalEvidenceAndUiVerification() {
 
   // 6. COMPLETE MANUAL OVERRIDE QUOTE TEST
   console.log('\n--- 6. COMPLETE MANUAL OVERRIDE QUOTE TEST ---');
-  const baseQuote = calculateNewLeadEstimate({
+  const baseQuote = await calculateNewLeadEstimate({
     addressLine1: '10 High Street',
     postcode: 'YO1 1AA',
     country: 'England',
@@ -175,7 +175,7 @@ async function runFinalEvidenceAndUiVerification() {
     existingPipework: 'Standard 15mm+'
   });
 
-  const overrideQuote = calculateNewLeadEstimate({
+  const overrideQuote = await calculateNewLeadEstimate({
     addressLine1: '10 High Street',
     postcode: 'YO1 1AA',
     country: 'England',
@@ -222,7 +222,7 @@ async function runFinalEvidenceAndUiVerification() {
 
   // 7. AFTER SURVEY DESIGN HEAT LOSS INTEGRITY
   console.log('\n--- 7. AFTER SURVEY DESIGN INTEGRITY ---');
-  const surveyResult = calculateAfterSurveyViability({
+  const surveyResult = await calculateAfterSurveyViability({
     leadId: 'lead_test_audit',
     surveyorUserId: 'user_surveyor_1',
     confirmedDesignHeatLossKw: 6.8,

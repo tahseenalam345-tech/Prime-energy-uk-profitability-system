@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE TABLE IF NOT EXISTS commercial_settings (
   id TEXT PRIMARY KEY,
   version INTEGER NOT NULL,
-  target_gross_margin REAL NOT NULL DEFAULT 0.25, -- 25%
+  target_gross_margin REAL NOT NULL DEFAULT 0.07, -- 7% Prime Energy Commercial Setting
   labour_baseline REAL NOT NULL DEFAULT 1500.00,
   lead_generation_cost REAL NOT NULL DEFAULT 300.00,
   extras_contingency REAL NOT NULL DEFAULT 200.00,

@@ -15,19 +15,6 @@ function safeErrorResponse(res: Response, err: any, defaultMsg: string) {
 calculatorRouter.post('/new-lead', optionalAuthenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const inputs = { ...req.body };
-    if (!inputs.epcFloorArea || Number(inputs.epcFloorArea) <= 0) {
-      inputs.epcFloorArea = 100;
-    }
-    if (!inputs.propertyType) {
-      inputs.propertyType = 'Semi detached';
-    }
-    if (!inputs.country) {
-      inputs.country = 'England';
-    }
-    if (!inputs.propertyStatus) {
-      inputs.propertyStatus = 'Existing property';
-    }
-
     const result = await calculateNewLeadEstimate(inputs);
     res.json(result);
   } catch (error: any) {

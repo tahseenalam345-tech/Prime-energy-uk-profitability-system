@@ -10,6 +10,7 @@ import { CalculationResult, RuleEvidence, User } from '../types.js';
 import { RuleEvidenceModal } from '../components/RuleEvidenceModal.js';
 import { SearchableSelect, SelectOption } from '../components/SearchableSelect.js';
 import { CostCompositionTable, CustomLineItemInput } from '../components/CostCompositionTable.js';
+import { SuitableAshpsModal } from '../components/SuitableAshpsModal.js';
 
 const countryOptions: SelectOption[] = [
   { value: 'England', label: 'England', sublabel: 'BUS Scope (£7,500 / £9,000)', badge: 'BUS Scope' },
@@ -92,7 +93,7 @@ const existingHeatingSystemOptions: SelectOption[] = [
 ];
 
 const boilerTypeOptions: SelectOption[] = [
-  { value: 'Combi', label: 'Combi', sublabel: 'Requires Cylinder & Conversion', badge: 'Conversion Req.' },
+  { value: 'Combi', label: 'Combi', sublabel: 'Requires Cylinder & Conversion (£500)', badge: 'Conversion Req.' },
   { value: 'System', label: 'System', sublabel: 'Existing cylinder present' },
   { value: 'Regular', label: 'Regular / Conventional', sublabel: 'Cold water tank + cylinder' },
   { value: 'Unknown', label: 'Unknown', sublabel: 'Manual survey check' },
@@ -106,7 +107,7 @@ const cylinderSpaceOptions: SelectOption[] = [
 
 const existingPipeworkOptions: SelectOption[] = [
   { value: 'Standard 15mm+', label: 'Standard 15mm+', sublabel: 'Suitable for heat pump flows' },
-  { value: 'Microbore 10mm or less', label: 'Microbore 10mm or less', sublabel: 'Triggers Full Re-pipe (£1,200+)', badge: 'Re-pipe Req.' },
+  { value: 'Microbore 10mm or less', label: 'Microbore 10mm or less', sublabel: 'Triggers Full Re-pipe (£1,800)', badge: 'Re-pipe Req.' },
   { value: 'Unknown', label: 'Unknown', sublabel: 'Commercial Risk Warning' },
 ];
 
@@ -124,7 +125,7 @@ interface NewLeadViewProps {
 }
 
 export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentUserId, currentUser }) => {
-  // 1. Form state - Customer & Property (Empty by default)
+  // 1. Form state - Customer & Property (Empty initial state)
   const [customerName, setCustomerName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -151,20 +152,26 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [boilerType, setBoilerType] = useState('');
   const [onOffGasGrid, setOnOffGasGrid] = useState('');
   const [cylinderSpace, setCylinderSpace] = useState('');
-  const [existingRadiatorCount, setExistingRadiatorCount] = useState<number | ''>('');
+  
+  // Requirement 7: Radiator count breakdown inputs
+  const [k1Count, setK1Count] = useState<number | ''>('');
+  const [pPlusCount, setPPlusCount] = useState<number | ''>('');
+  const [k2Count, setK2Count] = useState<number | ''>('');
+  const [otherCount, setOtherCount] = useState<number | ''>('');
+  const [existingEmitterDimensions, setExistingEmitterDimensions] = useState('');
+
   const [existingPipework, setExistingPipework] = useState('');
   const [previousGovernmentGrant, setPreviousGovernmentGrant] = useState('');
-  const [fuseBoardCondition, setFuseBoardCondition] = useState('');
-  const [conservationArea, setConservationArea] = useState('');
-  const [boundaryPlanningRisk, setBoundaryPlanningRisk] = useState('');
-  const [listedBuilding, setListedBuilding] = useState('');
   const [salesNotes, setSalesNotes] = useState('');
 
-  // 2. Equipment manual override states
+  // 2. Equipment manual override & selection modal states
   const [overrideAshpId, setOverrideAshpId] = useState<string | null>(null);
   const [overrideCylinderId, setOverrideCylinderId] = useState<string | null>(null);
   const [showAshpModal, setShowAshpModal] = useState(false);
   const [showCylinderModal, setShowCylinderModal] = useState(false);
+  const [showSuitableAshpsModal, setShowSuitableAshpsModal] = useState(false);
+  const [showAshpHelpModal, setShowAshpHelpModal] = useState(false);
+  const [showCylinderHelpModal, setShowCylinderHelpModal] = useState(false);
 
   // 3. Commercial cost overrides, deleted lines, description overrides, and custom line items
   const [costOverrides, setCostOverrides] = useState<Record<string, number>>({});
@@ -183,12 +190,13 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [activeRuleEvidence, setActiveRuleEvidence] = useState<RuleEvidence | null>(null);
   const [showEvidenceModal, setShowEvidenceModal] = useState(false);
 
-  // 6. Calculation output state
+  // 6. Calculation output state & Recalculate indicator
   const [calculating, setCalculating] = useState(false);
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [calcError, setCalcError] = useState('');
   const [savingQuote, setSavingQuote] = useState(false);
   const [savedQuoteRef, setSavedQuoteRef] = useState('');
+  const [inputsChanged, setInputsChanged] = useState(false);
 
   // Load catalogs on mount
   useEffect(() => {
@@ -207,7 +215,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
     loadCatalogs();
   }, []);
 
-  // Auto-run calculation when primary inputs change
+  // Debounced backend calculation execution
   const runCalculation = async () => {
     setCalculating(true);
     setCalcError('');
@@ -216,15 +224,15 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         customerName: customerName || undefined,
         addressLine1: addressLine1 || undefined,
         postcode: postcode || undefined,
-        country: country || 'England',
+        country: country || undefined,
         epcRating: epcRating || undefined,
-        epcFloorArea: (epcFloorArea !== '' && Number(epcFloorArea) > 0) ? Number(epcFloorArea) : 100,
+        epcFloorArea: (epcFloorArea !== '' && Number(epcFloorArea) > 0) ? Number(epcFloorArea) : undefined,
         storeys: (storeys !== '' && Number(storeys) > 0) ? Number(storeys) : undefined,
         annualHeatingKwh: annualHeatingKwh !== '' ? Number(annualHeatingKwh) : undefined,
         annualHotWaterKwh: annualHotWaterKwh !== '' ? Number(annualHotWaterKwh) : undefined,
         epcCertificateNumber: epcCertificateNumber || undefined,
-        propertyType: propertyType || 'Semi detached',
-        propertyStatus: propertyStatus || 'Existing Home',
+        propertyType: propertyType || undefined,
+        propertyStatus: propertyStatus || undefined,
         bedrooms: (bedrooms !== '' && Number(bedrooms) > 0) ? Number(bedrooms) : undefined,
         bathrooms: (bathrooms !== '' && Number(bathrooms) > 0) ? Number(bathrooms) : undefined,
         wallInsulation: wallInsulation || undefined,
@@ -234,13 +242,13 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         boilerType: boilerType || undefined,
         onOffGasGrid: onOffGasGrid || undefined,
         cylinderSpace: cylinderSpace || undefined,
-        existingRadiatorCount: (existingRadiatorCount !== '' && Number(existingRadiatorCount) > 0) ? Number(existingRadiatorCount) : undefined,
+        k1Count: k1Count !== '' ? Number(k1Count) : undefined,
+        pPlusCount: pPlusCount !== '' ? Number(pPlusCount) : undefined,
+        k2Count: k2Count !== '' ? Number(k2Count) : undefined,
+        otherCount: otherCount !== '' ? Number(otherCount) : undefined,
+        existingEmitterDimensions: existingEmitterDimensions || undefined,
         existingPipework: existingPipework || undefined,
         previousGovernmentGrant: previousGovernmentGrant || undefined,
-        fuseBoardCondition: fuseBoardCondition || undefined,
-        conservationArea: conservationArea || undefined,
-        boundaryPlanningRisk: boundaryPlanningRisk || undefined,
-        listedBuilding: listedBuilding || undefined,
         salesNotes: salesNotes || undefined,
         overrideAshpId: overrideAshpId || undefined,
         overrideCylinderId: overrideCylinderId || undefined,
@@ -252,6 +260,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
       const res = await api.calculateNewLead(payload);
       setResult(res);
+      setInputsChanged(false);
     } catch (err: any) {
       setCalcError(err.message || 'Calculation failed');
     } finally {
@@ -259,14 +268,20 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
     }
   };
 
+  // 300ms Debounce effect on property input changes
   useEffect(() => {
-    runCalculation();
+    setInputsChanged(true);
+    const timer = setTimeout(() => {
+      runCalculation();
+    }, 300);
+    return () => clearTimeout(timer);
   }, [
     epcFloorArea, epcRating, propertyType, propertyStatus, country,
     bedrooms, bathrooms, wallInsulation, roofInsulation, boilerType,
     cylinderSpace, existingPipework, onOffGasGrid, existingHeatingSystem, existingFuelType,
-    previousGovernmentGrant, existingRadiatorCount, annualHeatingKwh, annualHotWaterKwh,
-    overrideAshpId, overrideCylinderId, costOverrides, deletedLineIds, descriptionOverrides, customLineItems
+    previousGovernmentGrant, k1Count, pPlusCount, k2Count, otherCount, existingEmitterDimensions,
+    annualHeatingKwh, annualHotWaterKwh, overrideAshpId, overrideCylinderId,
+    costOverrides, deletedLineIds, descriptionOverrides, customLineItems
   ]);
 
   const handleOpenRuleEvidence = async (ruleId: string) => {
@@ -350,7 +365,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   };
 
   const handleSaveQuote = async () => {
-    if (!result) return;
+    if (!result || !result.hasSufficientData) return;
     setSavingQuote(true);
     try {
       const leadRes = await api.createLead({
@@ -358,24 +373,23 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
         leadSource: leadSource.trim() || 'Website',
-        addressLine1: addressLine1.trim() || '1 Unspecified Street',
-        postcode: postcode.trim() || 'SW1A 1AA',
+        addressLine1: addressLine1.trim() || 'Unspecified Address',
+        postcode: postcode.trim() || 'Unspecified',
         country: country || 'England',
-        epcRating: epcRating || 'D',
-        epcFloorArea: (epcFloorArea !== '' && Number(epcFloorArea) > 0) ? Number(epcFloorArea) : 100,
-        propertyType: propertyType || 'Semi detached',
-        propertyStatus: propertyStatus || 'Existing Home',
-        bedrooms: (bedrooms !== '' && Number(bedrooms) > 0) ? Number(bedrooms) : 3,
-        bathrooms: (bathrooms !== '' && Number(bathrooms) > 0) ? Number(bathrooms) : 1,
-        wallInsulation: wallInsulation || 'Cavity filled',
-        roofInsulation: roofInsulation || '200mm+',
-        existingHeatingSystem: existingHeatingSystem || 'Gas Central Heating',
-        boilerType: boilerType || 'Combi',
-        onOffGasGrid: onOffGasGrid || 'On gas grid',
-        cylinderSpace: cylinderSpace || 'Yes',
-        existingRadiatorCount: (existingRadiatorCount !== '' && Number(existingRadiatorCount) > 0) ? Number(existingRadiatorCount) : 10,
-        existingPipework: existingPipework || 'Standard 15mm+',
-        previousGovernmentGrant: previousGovernmentGrant || 'None',
+        epcRating: epcRating || undefined,
+        epcFloorArea: (epcFloorArea !== '' && Number(epcFloorArea) > 0) ? Number(epcFloorArea) : undefined,
+        propertyType: propertyType || undefined,
+        propertyStatus: propertyStatus || undefined,
+        bedrooms: (bedrooms !== '' && Number(bedrooms) > 0) ? Number(bedrooms) : undefined,
+        bathrooms: (bathrooms !== '' && Number(bathrooms) > 0) ? Number(bathrooms) : undefined,
+        wallInsulation: wallInsulation || undefined,
+        roofInsulation: roofInsulation || undefined,
+        existingHeatingSystem: existingHeatingSystem || undefined,
+        boilerType: boilerType || undefined,
+        onOffGasGrid: onOffGasGrid || undefined,
+        cylinderSpace: cylinderSpace || undefined,
+        existingPipework: existingPipework || undefined,
+        previousGovernmentGrant: previousGovernmentGrant || undefined,
         salesNotes: salesNotes || ''
       });
 
@@ -389,7 +403,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         mode: 'NEW_LEAD',
         createdBy: currentUserId,
         calculationResult: result,
-        snapshotNotes: `New Lead commercial assessment for ${customerName || 'New Lead Customer'} (${addressLine1 || 'Unspecified Address'}, ${postcode || 'SW1A 1AA'}).`
+        snapshotNotes: `New Lead commercial assessment for ${customerName || 'New Lead Customer'} (${addressLine1 || 'Unspecified Address'}, ${postcode || 'Unspecified'}).`
       });
 
       if (!quoteRes || !quoteRes.quoteId || !quoteRes.quoteReference) {
@@ -449,10 +463,11 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
           )}
         </div>
 
-        <div className="disclaimer-banner">
+        {/* Prominent Mode A Warning Banner (Requirement 12) */}
+        <div className="disclaimer-banner" style={{ background: '#fffbe6', border: '1px solid #ffe58f', color: '#873800' }}>
           <Info size={18} />
           <span>
-            <strong>MANDATORY NOTICE:</strong> Pre-Survey Estimate — not an MCS final design. Peak heat loss and equipment sizing are indicative estimates subject to room-by-room BS EN 12831 survey calculation.
+            <strong>PRE-SURVEY ESTIMATE — NOT FINAL MCS HEAT-LOSS DESIGN.</strong> Peak heat loss and equipment sizing are indicative estimates subject to room-by-room BS EN 12831 survey calculation.
           </span>
         </div>
       </div>
@@ -541,7 +556,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={countryOptions}
                   value={country}
                   onChange={(val) => setCountry(val || '')}
-                  placeholder="Select country (optional)..."
+                  placeholder="Select country..."
                   searchPlaceholder="Search country..."
                 />
               </div>
@@ -551,7 +566,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={propertyTypeOptions}
                   value={propertyType}
                   onChange={(val) => setPropertyType(val || '')}
-                  placeholder="Select property type (optional)..."
+                  placeholder="Select property type..."
                   searchPlaceholder="Search property type..."
                 />
               </div>
@@ -561,7 +576,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={propertyStatusOptions}
                   value={propertyStatus}
                   onChange={(val) => setPropertyStatus(val || '')}
-                  placeholder="Select status (optional)..."
+                  placeholder="Select status..."
                   searchPlaceholder="Search status..."
                 />
               </div>
@@ -571,7 +586,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={epcRatingOptions}
                   value={epcRating}
                   onChange={(val) => setEpcRating(val || '')}
-                  placeholder="Select EPC band (optional)..."
+                  placeholder="Select EPC band..."
                   searchPlaceholder="Search EPC band..."
                 />
               </div>
@@ -600,7 +615,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                 />
               </div>
 
-              {/* Requirement 7: EPC Annual Heating Energy kWh/yr */}
+              {/* EPC Annual Heating Energy kWh/yr */}
               <div className="form-group">
                 <label className="form-label">Annual space heating energy (EPC) (kWh/year)</label>
                 <input
@@ -611,7 +626,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   onChange={(e) => setAnnualHeatingKwh(e.target.value === '' ? '' : Number(e.target.value))}
                 />
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                  SAP annual space energy consumption. (Distinct from peak design heat loss kW)
+                  SAP annual space energy consumption. (Not converted into peak kW)
                 </span>
               </div>
               <div className="form-group">
@@ -631,7 +646,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={bedroomOptions}
                   value={bedrooms}
                   onChange={(val) => setBedrooms(val !== '' && val !== null && val !== undefined ? Number(val) : '')}
-                  placeholder="Select bedrooms (optional)..."
+                  placeholder="Select bedrooms..."
                   searchPlaceholder="Search bedrooms..."
                 />
               </div>
@@ -641,7 +656,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={bathroomOptions}
                   value={bathrooms}
                   onChange={(val) => setBathrooms(val !== '' && val !== null && val !== undefined ? Number(val) : '')}
-                  placeholder="Select bathrooms (optional)..."
+                  placeholder="Select bathrooms..."
                   searchPlaceholder="Search bathrooms..."
                 />
               </div>
@@ -651,7 +666,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={wallInsulationOptions}
                   value={wallInsulation}
                   onChange={(val) => setWallInsulation(val || '')}
-                  placeholder="Select wall insulation (optional)..."
+                  placeholder="Select wall insulation..."
                   searchPlaceholder="Search wall insulation..."
                 />
               </div>
@@ -661,14 +676,14 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={roofInsulationOptions}
                   value={roofInsulation}
                   onChange={(val) => setRoofInsulation(val || '')}
-                  placeholder="Select roof insulation (optional)..."
+                  placeholder="Select roof insulation..."
                   searchPlaceholder="Search roof insulation..."
                 />
               </div>
             </div>
           </div>
 
-          {/* Existing Heating System & Commercial Risks */}
+          {/* Existing Heating System & Infrastructure */}
           <div className="card">
             <h2 className="card-title">3. Heating System, Fuel & Infrastructure</h2>
             <div className="form-grid">
@@ -678,7 +693,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={onOffGasGridOptions}
                   value={onOffGasGrid}
                   onChange={(val) => setOnOffGasGrid(val || '')}
-                  placeholder="Select grid status (optional)..."
+                  placeholder="Select grid status..."
                   searchPlaceholder="Search grid status..."
                 />
               </div>
@@ -688,7 +703,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={existingFuelTypeOptions}
                   value={existingFuelType}
                   onChange={(val) => setExistingFuelType(val || '')}
-                  placeholder="Select fuel type (optional)..."
+                  placeholder="Select fuel type..."
                   searchPlaceholder="Search fuel type..."
                 />
               </div>
@@ -698,7 +713,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={existingHeatingSystemOptions}
                   value={existingHeatingSystem}
                   onChange={(val) => setExistingHeatingSystem(val || '')}
-                  placeholder="Select existing system (optional)..."
+                  placeholder="Select existing system..."
                   searchPlaceholder="Search system..."
                 />
               </div>
@@ -708,7 +723,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={boilerTypeOptions}
                   value={boilerType}
                   onChange={(val) => setBoilerType(val || '')}
-                  placeholder="Select boiler type (optional)..."
+                  placeholder="Select boiler type..."
                   searchPlaceholder="Search boiler type..."
                 />
               </div>
@@ -718,7 +733,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={cylinderSpaceOptions}
                   value={cylinderSpace}
                   onChange={(val) => setCylinderSpace(val || '')}
-                  placeholder="Select space availability (optional)..."
+                  placeholder="Select space availability..."
                   searchPlaceholder="Search space..."
                 />
               </div>
@@ -728,20 +743,8 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={existingPipeworkOptions}
                   value={existingPipework}
                   onChange={(val) => setExistingPipework(val || '')}
-                  placeholder="Select pipework (optional)..."
+                  placeholder="Select pipework..."
                   searchPlaceholder="Search pipework..."
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Existing Radiator Count</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="40"
-                  className="form-control"
-                  placeholder="e.g. 10"
-                  value={existingRadiatorCount}
-                  onChange={(e) => setExistingRadiatorCount(e.target.value === '' ? '' : Number(e.target.value))}
                 />
               </div>
               <div className="form-group">
@@ -750,8 +753,81 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   options={previousGovernmentGrantOptions}
                   value={previousGovernmentGrant}
                   onChange={(val) => setPreviousGovernmentGrant(val || '')}
-                  placeholder="Select previous grants (optional)..."
+                  placeholder="Select previous grants..."
                   searchPlaceholder="Search grants..."
+                />
+              </div>
+            </div>
+
+            {/* Requirement 7: Radiators breakdown inputs */}
+            <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label className="form-label" style={{ fontWeight: 700, margin: 0 }}>
+                  Existing Radiator Inventory
+                </label>
+                <span className="badge badge-secondary" style={{ fontSize: '0.65rem' }}>
+                  EXISTING EMITTER INFORMATION
+                </span>
+              </div>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                Record radiator types for context. Heat-demand is calculated strictly from fabric data, not invented radiator loss percentages.
+              </p>
+
+              <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+                <div className="form-group">
+                  <label className="form-label">K1 / Type 11 Count</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-control font-mono"
+                    placeholder="e.g. 3"
+                    value={k1Count}
+                    onChange={(e) => setK1Count(e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">P+ / Type 21 Count</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-control font-mono"
+                    placeholder="e.g. 2"
+                    value={pPlusCount}
+                    onChange={(e) => setPPlusCount(e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">K2 / Type 22 Count</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-control font-mono"
+                    placeholder="e.g. 5"
+                    value={k2Count}
+                    onChange={(e) => setK2Count(e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Other / Unknown Count</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-control font-mono"
+                    placeholder="e.g. 1"
+                    value={otherCount}
+                    onChange={(e) => setOtherCount(e.target.value === '' ? '' : Number(e.target.value))}
+                  />
+                </div>
+              </div>
+
+              <div className="form-group" style={{ marginTop: '10px' }}>
+                <label className="form-label">Optional Known Emitter Dimensions (Height × Length)</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="e.g. Lounge: 600x1200 K2, Bed 1: 600x1000 K1"
+                  value={existingEmitterDimensions}
+                  onChange={(e) => setExistingEmitterDimensions(e.target.value)}
                 />
               </div>
             </div>
@@ -771,7 +847,47 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
         {/* RIGHT COLUMN: REAL-TIME COMMERCIAL VIABILITY SUMMARY */}
         <div>
-          {result && (
+          {/* Requirement 9: Recalculation Notice Banner */}
+          {inputsChanged && result && result.hasSufficientData && (
+            <div style={{
+              background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af',
+              padding: '10px 14px', borderRadius: '8px', marginBottom: '16px',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', fontWeight: 600 }}>
+                <RotateCcw size={16} /> ESTIMATE CHANGED — RECALCULATE
+              </div>
+              <button
+                onClick={() => runCalculation()}
+                className="btn btn-primary btn-sm"
+                style={{ padding: '4px 12px', fontSize: '0.75rem' }}
+              >
+                Recalculate Now
+              </button>
+            </div>
+          )}
+
+          {/* Requirements 1 & 11: Empty Initial State */}
+          {!result || !result.hasSufficientData ? (
+            <div className="card" style={{ textAlign: 'center', padding: '40px 24px' }}>
+              <div style={{
+                width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'var(--bg-panel)',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px',
+                border: '1px solid var(--border)'
+              }}>
+                <Calculator size={28} color="var(--text-muted)" />
+              </div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
+                Awaiting Property Data
+              </h3>
+              <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', maxWidth: '420px', margin: '0 auto 20px', lineHeight: '1.5' }}>
+                Enter floor area (m²) or select property archetype and bedrooms on the left to calculate heat demand estimates, suitable ASHPs, cylinder recommendations, and commercial viability.
+              </p>
+              <div className="badge badge-secondary" style={{ padding: '6px 12px', fontSize: '0.75rem' }}>
+                No default heat pump, cylinder, or fake prices preselected
+              </div>
+            </div>
+          ) : (
             <div>
               {/* Executive Commercial Decision Card */}
               <div className="card" style={{ borderLeft: `6px solid ${result.rating.color}` }}>
@@ -795,6 +911,14 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   <Badge type="recommendation" value={result.recommendation.status} />
                   <Badge type="bus" value={result.bus.status} />
                   <Badge type="confidence" value={result.confidence?.level || 'MEDIUM'} />
+                </div>
+
+                {/* Requirement 3: 7% Prime Energy Target Margin Designation */}
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', padding: '8px 12px', borderRadius: '6px', fontSize: '0.75rem', marginBottom: '14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Default Target Margin: 7%</span>
+                  <span className="badge badge-info" style={{ fontSize: '0.65rem', textTransform: 'none' }}>
+                    PRIME ENERGY COMMERCIAL SETTING — NOT MCS / OFGEM / GOVERNMENT RULE
+                  </span>
                 </div>
 
                 {result.rating.isDowngraded && (
@@ -873,59 +997,105 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   </div>
                 </div>
 
-                <div style={{ marginTop: '16px' }}>
+                {/* Requirement 9: Action Buttons */}
+                <div style={{ display: 'flex', gap: '10px', marginTop: '16px' }}>
+                  <button
+                    onClick={() => runCalculation()}
+                    disabled={calculating}
+                    className="btn btn-secondary"
+                    style={{ flex: 1, padding: '10px 14px', fontSize: '0.85rem' }}
+                  >
+                    <RotateCcw size={15} /> {calculating ? 'Recalculating...' : 'RECALCULATE ESTIMATE'}
+                  </button>
+
                   {(!currentUser || currentUser.role_name === 'READ_ONLY') ? (
                     <button
                       type="button"
                       onClick={() => alert('Login required: Saving quote snapshots requires a logged-in account with write permissions (Sales, Estimator, Surveyor, or Admin). Please click Login in the navigation bar.')}
                       className="btn btn-secondary"
-                      style={{ width: '100%', padding: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                      style={{ flex: 1, padding: '10px 14px', fontSize: '0.85rem' }}
                       title="Log in to enable saving quotes"
                     >
-                      <Lock size={16} /> Save Quote & Lock Snapshot (Login Required)
+                      <Lock size={15} /> SAVE QUOTE (Login Req.)
                     </button>
                   ) : (
                     <button
                       onClick={handleSaveQuote}
                       disabled={savingQuote || !!savedQuoteRef}
                       className="btn btn-primary"
-                      style={{ width: '100%', padding: '12px' }}
+                      style={{ flex: 1, padding: '10px 14px', fontSize: '0.85rem' }}
                     >
-                      <Save size={16} />
-                      {savingQuote ? 'Locking Snapshot...' : savedQuoteRef ? 'Snapshot Locked & Saved' : 'Save Quote & Lock Snapshot'}
+                      <Save size={15} />
+                      {savingQuote ? 'Saving...' : savedQuoteRef ? 'Saved' : 'SAVE QUOTE'}
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Indicative System Sizing & Equipment Selection (Requirements 10 & 11) */}
+              {/* FINAL MODE A OUTPUT — PRE-SURVEY ESTIMATE */}
               <div className="card">
-                <h3 className="card-title" style={{ fontSize: '1rem', display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Calculator size={18} color="var(--primary)" /> Equipment Selection & Overrides
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <h3 className="card-title" style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    <Calculator size={18} color="var(--primary)" /> Technical Sizing & Emitter Check
+                  </h3>
+                  <span className="badge badge-warning" style={{ fontSize: '0.65rem' }}>
+                    PRE-SURVEY ESTIMATE — NOT FINAL MCS HEAT-LOSS DESIGN
                   </span>
-                </h3>
+                </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.875rem' }}>
-                  {/* Heat Demand */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid var(--border)' }}>
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
-                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>Pre-survey estimated design demand:</span>
-                        <button
-                          onClick={() => handleOpenRuleEvidence('EPC_HEURISTIC_PRE_SURVEY_W_M2')}
-                          style={{ background: 'none', border: 'none', marginLeft: '6px', cursor: 'pointer', color: 'var(--primary)' }}
-                          title="View Heuristic Baseline Evidence"
-                        >
-                          <HelpCircle size={13} />
-                        </button>
+                  {/* 1. Estimated Heat Demand */}
+                  <div style={{ padding: '10px 12px', background: 'var(--bg-panel)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>1. Estimated Heat Demand</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Pre-survey peak fabric heat loss heuristic</div>
                       </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Design heat loss (kW) — not annual energy kWh/year</div>
+                      <strong style={{ color: 'var(--text-main)', fontSize: '1.05rem' }}>{result.heatDemand?.displayRange}</strong>
                     </div>
-                    <strong style={{ color: 'var(--text-main)', fontSize: '1rem' }}>{result.heatDemand?.displayRange}</strong>
                   </div>
 
-                  {/* ASHP Selection Box */}
+                  {/* 2. Estimated Existing Emitter Capacity */}
+                  <div style={{ padding: '10px 12px', background: 'var(--bg-panel)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>2. Estimated Existing Emitter Capacity</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          EN 442 output scaled to {result.emitterCapacity?.targetFlowTemp || 45}°C flow (ΔT{result.emitterCapacity?.targetDeltaT || 25})
+                        </div>
+                      </div>
+                      <strong style={{ color: 'var(--text-main)', fontSize: '1.05rem' }}>
+                        {result.emitterCapacity?.status === 'UNKNOWN'
+                          ? 'UNKNOWN (Missing data)'
+                          : `${result.emitterCapacity?.estimatedOutputKwAtTargetFlow} kW @ 45°C flow`}
+                      </strong>
+                    </div>
+                  </div>
+
+                  {/* 3. Emitter Plausibility Check */}
+                  <div style={{
+                    padding: '10px 12px',
+                    background: result.emitterCapacity?.plausibilityCheck?.isAdequate ? '#f0fdf4' : '#fffbe6',
+                    borderRadius: '6px',
+                    border: `1px solid ${result.emitterCapacity?.plausibilityCheck?.isAdequate ? '#bbf7d0' : '#ffe58f'}`
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: result.emitterCapacity?.plausibilityCheck?.warningMessage ? '6px' : 0 }}>
+                      <span style={{ fontWeight: 600, color: result.emitterCapacity?.plausibilityCheck?.isAdequate ? '#15803d' : '#873800' }}>
+                        3. Emitter Plausibility Check
+                      </span>
+                      <span className={`badge ${result.emitterCapacity?.plausibilityCheck?.isAdequate ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.65rem' }}>
+                        {result.emitterCapacity?.plausibilityCheck?.statusLabel}
+                      </span>
+                    </div>
+                    {result.emitterCapacity?.plausibilityCheck?.warningMessage && (
+                      <div style={{ fontSize: '0.75rem', color: '#92400e', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <AlertTriangle size={14} color="#d97706" />
+                        {result.emitterCapacity.plausibilityCheck.warningMessage}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 4. Recommended ASHP */}
                   <div style={{
                     border: '1px solid var(--border)',
                     borderRadius: '8px',
@@ -935,7 +1105,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                          Air Source Heat Pump
+                          4. Recommended ASHP
                         </span>
                         {result.ashp?.isManualOverride ? (
                           <span className="badge badge-warning" style={{ fontSize: '0.65rem' }}>MANUAL OVERRIDE</span>
@@ -944,11 +1114,11 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                         )}
                       </div>
                       <button
-                        onClick={() => handleOpenRuleEvidence('ASHP_DESIGN_SIZING_STANDARD')}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)' }}
-                        title="View MCS Sizing Standard"
+                        onClick={() => setShowAshpHelpModal(true)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', padding: '2px' }}
+                        title="How ASHP recommendation & sizing work"
                       >
-                        <HelpCircle size={13} />
+                        <HelpCircle size={16} />
                       </button>
                     </div>
 
@@ -968,19 +1138,28 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <button
+                        onClick={() => setShowSuitableAshpsModal(true)}
+                        className="btn btn-primary btn-sm"
+                        style={{ fontSize: '0.75rem', padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <Search size={14} /> VIEW ALL SUITABLE MODELS
+                      </button>
+
                       <button
                         onClick={() => setShowAshpModal(true)}
                         className="btn btn-secondary btn-sm"
-                        style={{ fontSize: '0.75rem', padding: '4px 10px' }}
+                        style={{ fontSize: '0.75rem', padding: '5px 10px' }}
                       >
-                        Choose Different ASHP
+                        Full Catalog Search
                       </button>
+
                       {result.ashp?.isManualOverride && (
                         <button
                           onClick={() => setOverrideAshpId(null)}
                           className="btn btn-secondary btn-sm"
-                          style={{ fontSize: '0.75rem', padding: '4px 10px', color: '#059669' }}
+                          style={{ fontSize: '0.75rem', padding: '5px 10px', color: '#059669' }}
                         >
                           <RotateCcw size={12} /> Use Recommended
                         </button>
@@ -988,7 +1167,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                     </div>
                   </div>
 
-                  {/* Cylinder Selection Box */}
+                  {/* 5. Recommended Cylinder */}
                   <div style={{
                     border: '1px solid var(--border)',
                     borderRadius: '8px',
@@ -998,20 +1177,22 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                          Hot Water Storage Cylinder
+                          5. Recommended Cylinder
                         </span>
                         {result.cylinder?.isManualOverride ? (
                           <span className="badge badge-warning" style={{ fontSize: '0.65rem' }}>MANUAL OVERRIDE</span>
-                        ) : (
+                        ) : result.cylinder?.recommendedProduct ? (
                           <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>RECOMMENDED</span>
+                        ) : (
+                          <span className="badge badge-secondary" style={{ fontSize: '0.65rem' }}>NOT REQUIRED</span>
                         )}
                       </div>
                       <button
-                        onClick={() => handleOpenRuleEvidence('CYLINDER_SIZING_HEURISTIC')}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)' }}
-                        title="View BS 6700 Cylinder Sizing Heuristic"
+                        onClick={() => setShowCylinderHelpModal(true)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--primary)', padding: '2px' }}
+                        title="How cylinder recommendation works"
                       >
-                        <HelpCircle size={13} />
+                        <HelpCircle size={16} />
                       </button>
                     </div>
 
@@ -1030,9 +1211,6 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
                     {result.cylinder?.isManualOverride && result.cylinder?.recommendedProduct && (
                       <div style={{ fontSize: '0.75rem', color: '#854d0e', marginBottom: '8px', padding: '6px 10px', background: '#fef9c3', borderRadius: '6px', border: '1px solid #fef08a' }}>
-                        <div style={{ fontWeight: 700, marginBottom: '2px', textTransform: 'uppercase', fontSize: '0.7rem', color: '#b45309' }}>
-                          Manual Override
-                        </div>
                         <div>Recommended: <strong>{result.cylinder.recommendedProduct.volumeLitres} L</strong> ({result.cylinder.recommendedProduct.brand} {result.cylinder.recommendedProduct.model})</div>
                         <div>Selected: <strong>{result.cylinder.selectedProduct?.volumeLitres || 200} L</strong> ({result.cylinder.selectedProduct?.brand} {result.cylinder.selectedProduct?.model})</div>
                       </div>
@@ -1060,7 +1238,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                 </div>
               </div>
 
-              {/* Requirement 14: Fully Editable Commercial Cost Composition */}
+              {/* Requirement 8: Commercial Cost Composition Table */}
               <CostCompositionTable
                 title="Commercial Cost Composition (ex VAT)"
                 subtitle="Every cost field is manually editable. Edit amounts directly, edit descriptions, delete lines, or add custom lines."
@@ -1080,23 +1258,166 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                 onDeleteCustomLine={handleDeleteCustomLine}
               />
 
+              {/* Requirement 10: Automatic Pre-Survey Summary Note */}
+              {result.autoNote && (
+                <div className="card">
+                  <h3 className="card-title" style={{ fontSize: '0.95rem' }}>
+                    Automatic Pre-Survey Summary Note
+                  </h3>
+                  <textarea
+                    readOnly
+                    className="form-control font-mono"
+                    rows={6}
+                    style={{ fontSize: '0.8rem', backgroundColor: 'var(--bg-panel)', color: 'var(--text-main)', lineHeight: '1.5' }}
+                    value={result.autoNote}
+                  />
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Factual summary generated strictly from supplied parameters.
+                  </div>
+                </div>
+              )}
+
               {/* Assumptions & Data Gaps */}
-              <div className="card">
-                <h3 className="card-title" style={{ fontSize: '0.95rem' }}>
-                  <AlertTriangle size={16} color="#d97706" /> Assumptions & Data Gaps
-                </h3>
-                <ul style={{ paddingLeft: '18px', fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {result.assumptionsAndDataGaps?.map((gap, idx) => (
-                    <li key={idx}>{gap}</li>
-                  ))}
-                </ul>
-              </div>
+              {result.assumptionsAndDataGaps && result.assumptionsAndDataGaps.length > 0 && (
+                <div className="card">
+                  <h3 className="card-title" style={{ fontSize: '0.95rem' }}>
+                    <AlertTriangle size={16} color="#d97706" /> Assumptions & Data Gaps
+                  </h3>
+                  <ul style={{ paddingLeft: '18px', fontSize: '0.8125rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {result.assumptionsAndDataGaps.map((gap, idx) => (
+                      <li key={idx}>{gap}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      {/* ASHP Selection Modal */}
+      {/* Requirement 4: Categorized Suitable ASHPs Modal */}
+      {showSuitableAshpsModal && result && (
+        <SuitableAshpsModal
+          isOpen={showSuitableAshpsModal}
+          onClose={() => setShowSuitableAshpsModal(false)}
+          categorizedAshps={result.ashp?.categorizedSuitableAshps || {
+            preferred: [],
+            bestMatch: [],
+            valueCost: [],
+            alternatives: [],
+            allQualifying: []
+          }}
+          selectedAshpId={overrideAshpId || result.ashp?.selectedProduct?.id || result.ashp?.recommendedProduct?.id}
+          estimatedHeatDemandKw={result.heatDemand?.estimatedDesignHeatLossKw || 6.0}
+          onSelectAshp={(ashpId) => {
+            setOverrideAshpId(ashpId);
+            setShowSuitableAshpsModal(false);
+          }}
+        />
+      )}
+
+      {/* Requirement 5: ASHP Help Modal */}
+      {showAshpHelpModal && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050, padding: '16px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border)', borderRadius: '12px', maxWidth: '650px', width: '100%',
+            boxShadow: 'var(--shadow-lg)', overflow: 'hidden'
+          }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-panel)' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>
+                Mode A — Air Source Heat Pump Sizing Guide
+              </h3>
+              <button onClick={() => setShowAshpHelpModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '20px', maxHeight: '70vh', overflowY: 'auto', fontSize: '0.875rem', lineHeight: '1.6' }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)', marginTop: 0 }}>Which Mode A inputs affect the estimate?</h4>
+              <p style={{ color: 'var(--text-secondary)' }}>
+                The Mode A pre-survey heat loss estimate is derived from supplied property parameters:
+                EPC floor area (m²), property archetype multiplier (e.g. Detached 1.15x vs Flat 0.75x), and insulation heuristics (EPC rating or wall/loft insulation status).
+              </p>
+
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)' }}>How estimated kW is calculated</h4>
+              <p style={{ background: 'var(--bg-panel)', padding: '10px 14px', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.8rem', color: 'var(--text-main)' }}>
+                Estimated Heat Loss (kW) = (Floor Area m² × Archetype Multiplier × Heat Loss Density W/m²) / 1000
+              </p>
+
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)' }}>Rated Output vs Marketing kW</h4>
+              <p style={{ color: 'var(--text-secondary)' }}>
+                Marketing badges (e.g. "9 kW") state output under standard mild conditions (+7°C air / 35°C water).
+                Heat pump output drops at lower winter temperatures. Prime Energy sizes heat pumps based on <strong>certified MCS rated output at winter design conditions</strong> (e.g. -2°C outdoor air, 45°C flow), not marketing badges.
+              </p>
+
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)' }}>Design Condition Comparison</h4>
+              <p style={{ color: 'var(--text-secondary)' }}>
+                A unit marketed as 9 kW may deliver only 6.2 kW at -3°C design outdoor temperature. Prime Energy ensures the certified rated output at design condition equals or exceeds estimated peak heat loss.
+              </p>
+
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)' }}>Why a final MCS survey is required</h4>
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', padding: '12px', borderRadius: '8px', fontSize: '0.8rem' }}>
+                <strong>PRE-SURVEY ESTIMATE — NOT FINAL MCS HEAT-LOSS DESIGN.</strong><br />
+                Mode A provides an initial commercial pre-assessment. A room-by-room BS EN 12831 survey (Mode B) is mandatory to establish true fabric heat loss, radiator sizing, and flow pipe velocities prior to installation.
+              </div>
+            </div>
+
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', background: 'var(--bg-panel)' }}>
+              <button onClick={() => setShowAshpHelpModal(false)} className="btn btn-secondary btn-sm">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Requirement 6: Cylinder Help Modal */}
+      {showCylinderHelpModal && (
+        <div style={{
+          position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050, padding: '16px'
+        }}>
+          <div style={{
+            background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border)', borderRadius: '12px', maxWidth: '650px', width: '100%',
+            boxShadow: 'var(--shadow-lg)', overflow: 'hidden'
+          }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-panel)' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>
+                Mode A — Hot Water Cylinder Recommendation Guide
+              </h3>
+              <button onClick={() => setShowCylinderHelpModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '20px', maxHeight: '70vh', overflowY: 'auto', fontSize: '0.875rem', lineHeight: '1.6' }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)', marginTop: 0 }}>Cylinder Sizing & Technical Requirements</h4>
+              <p style={{ color: 'var(--text-secondary)' }}>
+                Hot water cylinders are recommended based on property occupancy, bath/shower counts, and heat pump compatibility.
+              </p>
+
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--primary)' }}>Sizing Factors Considered</h4>
+              <ul style={{ paddingLeft: '20px', color: 'var(--text-secondary)' }}>
+                <li><strong>Bedrooms & Bathrooms:</strong> Determines peak domestic hot water (DHW) storage requirement (e.g. 1-2 bed / 1 bath = 180-200L, 3-4 bed / 2 bath = 250-300L).</li>
+                <li><strong>Cylinder Space:</strong> Confirms whether an airing cupboard or dedicated plant space is available.</li>
+                <li><strong>Heat Pump Coil Surface Area:</strong> Heat pump cylinders require high-efficiency coils (typically &ge; 2.5m² or corrugated coils) to ensure efficient heat transfer at lower flow temperatures.</li>
+                <li><strong>Prime Energy DHW Sizing Rules:</strong> Sized conservatively according to BS 6700 / CIBSE guidelines.</li>
+              </ul>
+
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', padding: '12px', borderRadius: '8px', fontSize: '0.8rem', marginTop: '16px' }}>
+                <strong>Technical Note:</strong> Bedroom count alone is used as a preliminary indicator. Final technical sizing requires survey verification of bathroom flow rates and customer hot water usage patterns.
+              </div>
+            </div>
+
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', background: 'var(--bg-panel)' }}>
+              <button onClick={() => setShowCylinderHelpModal(false)} className="btn btn-secondary btn-sm">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Standard Full ASHP Catalog Search Modal */}
       {showAshpModal && (
         <div style={{
           position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)',
@@ -1205,7 +1526,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         </div>
       )}
 
-      {/* Cylinder Selection Modal */}
+      {/* Standard Cylinder Selection Modal */}
       {showCylinderModal && (
         <div style={{
           position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)',

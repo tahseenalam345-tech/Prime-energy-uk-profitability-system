@@ -141,6 +141,27 @@ export interface CalculationResult {
     notes: string[];
     ruleEvidenceId?: string;
   };
+  emitterCapacity?: {
+    k1Count: number;
+    pPlusCount: number;
+    k2Count: number;
+    otherCount: number;
+    totalRadiatorCount: number;
+    hasMissingDimensions: boolean;
+    status: 'VERIFIED_DIMENSIONS' | 'PARTIAL' | 'UNKNOWN';
+    estimatedOutputKwAt50: number;
+    estimatedOutputKwAtTargetFlow: number;
+    targetFlowTemp: number;
+    targetDeltaT: number;
+    plausibilityCheck: {
+      estimatedHeatDemandKw: number;
+      emitterCapacityKw: number;
+      isAdequate: boolean;
+      warningMessage?: string;
+      statusLabel: string;
+    };
+    notes: string[];
+  };
   costBreakdown: {
     equipmentMaterials?: number;
     equipmentMaterialsTotal?: number;

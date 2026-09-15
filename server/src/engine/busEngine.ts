@@ -6,9 +6,10 @@ export interface BUSEligibilityInputs {
   onOffGasGrid?: string | null;       // On gas grid, Off gas grid
   existingHeatingSystem?: string | null; // Gas Central Heating, Oil Boiler, LPG, Electric, etc.
   existingFuelType?: string | null;   // Mains Gas, Heating Oil, Bottled/Bulk LPG, Electricity, Solid Fuel
-  technologyType?: string | null;     // Air-to-water, Ground-source, Air-to-air
+  technologyType?: string | null;     // Air-to-water, Ground-source, Air-to-air, Fossil Hybrid
   previousGovernmentGrant?: string | null; // None, BUS, RHI, Unknown
   isOffGasUpliftConfirmedBySurvey?: boolean; // True only if surveyor verified decommissioning & fuel evidence
+  isHybridSystem?: boolean;           // True if system being installed is a fossil hybrid system
 }
 
 export interface BUSEligibilityOutputs {
@@ -43,7 +44,6 @@ export async function evaluateBUSEligibility(inputs: BUSEligibilityInputs): Prom
   const notes: string[] = [];
   const disclaimer = 'Statutory BUS grant eligibility subject to Ofgem voucher approval, MCS certification, and installer compliance.';
 
-  // Retrieve active BUS ruleset from DB if present
   let busRule: any = null;
   try {
     busRule = await db.get('SELECT * FROM bus_rules WHERE active = 1 ORDER BY effective_date DESC LIMIT 1');
@@ -56,6 +56,7 @@ export async function evaluateBUSEligibility(inputs: BUSEligibilityInputs): Prom
   const evidenceSource = 'Ofgem BUS Installer Guidance V5.1 & DESNZ Notice (21 July 2026)';
   const standardGrant = 7500.00;
   const maxUpliftGrant = 9000.00;
+  const airToAirGrant = 2500.00;
 
   const country = (inputs.country || 'England').trim();
   const propertyStatus = (inputs.propertyStatus || 'Existing property').trim();
@@ -67,16 +68,19 @@ export async function evaluateBUSEligibility(inputs: BUSEligibilityInputs): Prom
   const existingHeatingType = (inputs.existingHeatingSystem || 'Gas Central Heating').trim();
   const heatingLower = existingHeatingType.toLowerCase();
   const fuelLower = (inputs.existingFuelType || '').toLowerCase();
+  const statusLower = propertyStatus.toLowerCase();
+  const isSelfBuild = statusLower.includes('self-build') || statusLower.includes('self build');
 
   // Fuel classification pursuant to 21 July 2026 Notice
-  const isHybrid = heatingLower.includes('hybrid') || fuelLower.includes('hybrid');
+  const isHybrid = heatingLower.includes('hybrid') || fuelLower.includes('hybrid') || techType.includes('hybrid') || heatingLower.includes('+ ashp') || inputs.isHybridSystem === true;
   const isOil = (/\boil\b/i.test(heatingLower) || /\boil\b/i.test(fuelLower) || heatingLower.includes('kerosene') || fuelLower.includes('kerosene')) && !isHybrid;
   const isLpg = (/\blpg\b/i.test(heatingLower) || /\blpg\b/i.test(fuelLower) || heatingLower.includes('liquid petroleum') || fuelLower.includes('liquefied petroleum')) && !isHybrid;
   const isCoal = (/\bcoal\b/i.test(heatingLower) || /\bcoal\b/i.test(fuelLower) || heatingLower.includes('solid fuel') || fuelLower.includes('anthracite')) && !isHybrid;
   const isElectric = (/\belectric\b/i.test(heatingLower) || /\belectric\b/i.test(fuelLower) || heatingLower.includes('storage heater')) && !isHybrid;
 
   const isOffGas = gridStatus === 'OFF_GAS';
-  const qualifiesFor9000OffGasUplift = isOffGas && (isOil || isLpg);
+  // Per Property Owner Guidance V5.1 §3.13, Self-build properties qualify for £7,500 standard grant but do NOT qualify for £9,000 off-gas uplift
+  const qualifiesFor9000OffGasUplift = isOffGas && (isOil || isLpg) && !isSelfBuild;
 
   const existingFuelType = inputs.existingFuelType || (
     isOil ? 'Heating Oil' :
@@ -87,15 +91,41 @@ export async function evaluateBUSEligibility(inputs: BUSEligibilityInputs): Prom
     (isOffGas ? 'Off-Gas Fossil / Electric' : 'Mains Gas')
   );
 
-  // RULE 0: Technology Eligibility Check (Air-to-Air heat pumps INELIGIBLE under BUS Regulation 17)
-  if (techType.includes('air-to-air') || techType.includes('air to air')) {
-    reasons.push('Air-to-air heat pumps are strictly ineligible for BUS grant under Regulation 17 (only Air-to-Water, Ground-Source, and Shared Loop systems qualify).');
+  // RULE -1: Fossil Hybrid Ineligibility Check (Fossil-fuel hybrid heat pump systems are strictly INELIGIBLE under Ofgem Guidance V5.1 §3.07-3.10)
+  if (isHybrid) {
+    reasons.push('Fossil-fuel hybrid heat pump systems are strictly ineligible for Boiler Upgrade Scheme (BUS) funding under Ofgem Installer Guidance V5.1. The heat pump must provide 100% of space heating and hot water needs as a standalone system.');
     return {
       status: 'FAIL',
       busEligible: false,
-      grantCategory: 'INELIGIBLE_AIR_TO_AIR',
+      grantCategory: 'INELIGIBLE_FOSSIL_HYBRID',
       grantAmount: 0,
       grantType: 'NONE',
+      gridStatus,
+      existingHeatingType,
+      existingFuelType,
+      existingOilOrLpg: false,
+      busUpliftEligibility: false,
+      conditionalUpliftAvailable: false,
+      conditionalUpliftAmount: 0,
+      rulesetVersion: version,
+      reasons,
+      notes,
+      disclaimer,
+      sourceUrl,
+      ruleEvidenceId: 'BUS_ELIGIBILITY_GRANT_LEGISLATION',
+      evidenceSource: 'Ofgem BUS Installer Guidance V5.1 §3.07-3.10 & Property Owner Guidance V5.1 §3.09'
+    };
+  }
+
+  // RULE 0: Technology Eligibility Check (Air-to-Air heat pumps qualify for £2,500 under Guidance V5.1 §1.02 & §§3.08, 3.16-3.17)
+  if (techType.includes('air-to-air') || techType.includes('air to air')) {
+    notes.push('[BUS £2,500 AIR-TO-AIR] Residential property eligible for £2,500 Air-to-Air heat pump grant under Ofgem Guidance V5.1 §1.02 & §§3.08, 3.16-3.17.');
+    return {
+      status: 'PASS',
+      busEligible: true,
+      grantCategory: 'AIR_TO_AIR_RESIDENTIAL_£2500',
+      grantAmount: airToAirGrant,
+      grantType: 'STANDARD_ASHP',
       gridStatus,
       existingHeatingType,
       existingFuelType,
@@ -108,8 +138,8 @@ export async function evaluateBUSEligibility(inputs: BUSEligibilityInputs): Prom
       notes,
       disclaimer,
       sourceUrl,
-      ruleEvidenceId: 'BUS_INELIGIBLE_TECHNOLOGY',
-      evidenceSource
+      ruleEvidenceId: 'BUS_AIR_TO_AIR_GRANT_2500',
+      evidenceSource: 'Ofgem BUS Installer Guidance V5.1 §1.02 & Property Owner Guidance V5.1 §§3.08, 3.16-3.17'
     };
   }
 
@@ -141,9 +171,8 @@ export async function evaluateBUSEligibility(inputs: BUSEligibilityInputs): Prom
   }
 
   // RULE 2: Property Status (Developer New-Build Disqualified, Custom Self-Build Exempt)
-  const statusLower = propertyStatus.toLowerCase();
   if (statusLower.includes('developer') || statusLower.includes('new build') || statusLower.includes('new-build')) {
-    if (!statusLower.includes('self-build') && !statusLower.includes('self build')) {
+    if (!isSelfBuild) {
       reasons.push(`Developer new-build properties are strictly ineligible for BUS grant under Regulation 18.`);
       return {
         status: 'FAIL',
@@ -169,8 +198,8 @@ export async function evaluateBUSEligibility(inputs: BUSEligibilityInputs): Prom
     }
   }
 
-  if (statusLower.includes('self-build') || statusLower.includes('self build')) {
-    notes.push('Self-build eligible property - statutory evidence required.');
+  if (isSelfBuild) {
+    notes.push('Self-build eligible property - standard £7,500 grant applies (self-build properties do not qualify for £9,000 off-gas uplift under Guidance V5.1 §3.13).');
   }
 
   // RULE 3: Prior Government Funding Disqualification
@@ -238,7 +267,7 @@ export async function evaluateBUSEligibility(inputs: BUSEligibilityInputs): Prom
     grantType = 'STANDARD_ASHP';
     grantCategory = 'STANDARD_AWHP_GSHP_£7500';
     if (isOffGas) {
-      notes.push(`[BUS £7,500 STANDARD] Property is off-gas grid replacing ${existingFuelType} (Coal/Electric/Hybrid). Standard £7,500 BUS grant applies.`);
+      notes.push(`[BUS £7,500 STANDARD] Property is off-gas grid replacing ${existingFuelType} (Coal/Electric/Hybrid/Self-build). Standard £7,500 BUS grant applies.`);
     } else {
       notes.push(`[BUS £7,500 STANDARD] Property is on mains gas grid. Standard £7,500 BUS grant applies.`);
     }

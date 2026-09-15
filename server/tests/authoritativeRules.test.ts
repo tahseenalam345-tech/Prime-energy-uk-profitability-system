@@ -105,7 +105,7 @@ describe('Authoritative Rules, Standards, and Verification Suite (TEST 1 to TEST
     expect(res.conditionalUpliftAvailable).toBe(false);
   });
 
-  it('TEST 6: Off-gas + fossil hybrid + ASHP -> £7,500', async () => {
+  it('TEST 6: Off-gas + fossil hybrid + ASHP -> INELIGIBLE (£0 grant)', async () => {
     const res = await evaluateBUSEligibility({
       country: 'England',
       propertyStatus: 'Existing property',
@@ -115,9 +115,10 @@ describe('Authoritative Rules, Standards, and Verification Suite (TEST 1 to TEST
       previousGovernmentGrant: 'None'
     });
 
-    expect(res.status).toBe('PASS');
-    expect(res.grantAmount).toBe(7500.00);
-    expect(res.grantType).toBe('STANDARD_ASHP');
+    expect(res.status).toBe('FAIL');
+    expect(res.grantAmount).toBe(0.00);
+    expect(res.grantType).toBe('NONE');
+    expect(res.grantCategory).toBe('INELIGIBLE_FOSSIL_HYBRID');
     expect(res.busUpliftEligibility).toBe(false);
     expect(res.conditionalUpliftAvailable).toBe(false);
   });

@@ -2,7 +2,7 @@ import { db } from '../db/connection.js';
 import { calculateIndicativeHeatDemand, HeatDemandOutputs } from './heatDemand.js';
 import { selectRecommendedASHP, ASHPSelectionResult } from './ashpSelector.js';
 import { selectRecommendedCylinder, CylinderOutputs } from './cylinderEngine.js';
-import { estimateRadiatorRequirements, RadiatorEstimationOutputs } from './radiatorEngine.js';
+import { estimateRadiatorRequirements, RadiatorEstimationOutputs, evaluateExistingEmitterCapacity, EmitterCapacityOutputs } from './radiatorEngine.js';
 import { evaluateAccessoriesAndBom, BomEvaluationOutputs } from './accessoryBomEngine.js';
 import { evaluateBUSEligibility, BUSEligibilityOutputs } from './busEngine.js';
 import { calculateCommercials, CommercialOutputs, round2 } from './commercial.js';
@@ -11,13 +11,13 @@ import { evaluateProfitabilityRating, RatingOutputs } from './ratingEngine.js';
 import { evaluateCommercialRecommendation, RecommendationOutputs } from './recommendationEngine.js';
 
 export interface NewLeadPropertyInputs {
-  addressLine1: string;
+  addressLine1?: string;
   addressLine2?: string;
-  postcode: string;
+  postcode?: string;
   country?: string; // England, Wales, Scotland, Northern Ireland
   epcRating?: string;
-  epcFloorArea: number;
-  propertyType: string;
+  epcFloorArea?: number;
+  propertyType?: string;
   propertyStatus?: string; // Existing property, Developer new-build, Self-build
   bedrooms?: number;
   bathrooms?: number;
@@ -30,6 +30,11 @@ export interface NewLeadPropertyInputs {
   onOffGasGrid?: string;
   cylinderSpace?: string;
   existingRadiatorCount?: number;
+  k1Count?: number;
+  pPlusCount?: number;
+  k2Count?: number;
+  otherCount?: number;
+  existingEmitterDimensions?: Array<{ type: string; heightMm: number; lengthMm: number }>;
   existingRadiatorDetails?: string;
   existingPipework?: string;
   previousGovernmentGrant?: string;
@@ -47,7 +52,7 @@ export interface NewLeadPropertyInputs {
   // Manual Overrides
   overrideAshpId?: string;
   overrideCylinderId?: string;
-  costOverrides?: Record<string, number>; // e.g. { 'Cylinder': 0, 'Labour': 1850 }
+  costOverrides?: Record<string, number>;
   deletedLineIds?: string[];
   descriptionOverrides?: Record<string, string>;
   customLineItems?: Array<{
@@ -66,7 +71,19 @@ export interface NewLeadCalculationResult {
   mode: 'NEW_LEAD';
   disclaimer: string;
   timestamp: string;
+  hasSufficientData: boolean;
+  autoNote: string;
+  existingEmitterInformation?: {
+    k1Count: number;
+    pPlusCount: number;
+    k2Count: number;
+    otherCount: number;
+    totalCount: number;
+    dimensions?: Array<{ type: string; heightMm: number; lengthMm: number }>;
+    note: string;
+  };
   heatDemand: HeatDemandOutputs;
+  emitterCapacity: EmitterCapacityOutputs;
   ashp: ASHPSelectionResult;
   cylinder: CylinderOutputs;
   radiators: RadiatorEstimationOutputs;
@@ -148,7 +165,7 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
 
   const commercialSettingsUsed = {
     version: settings?.version || 1,
-    targetGrossMargin: inputs.overrideTargetMargin ?? (settings?.target_gross_margin ?? 0.25),
+    targetGrossMargin: inputs.overrideTargetMargin ?? (settings?.target_gross_margin === 0.25 ? 0.07 : (settings?.target_gross_margin ?? 0.07)),
     labourBaseline: settings?.labour_baseline ?? 1500.00,
     leadGenerationCost: settings?.lead_generation_cost ?? 300.00,
     extrasContingency: settings?.extras_contingency ?? 200.00,
@@ -156,9 +173,35 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
     microboreRepipeAllowance: settings?.microbore_repipe_allowance ?? 1800.00
   };
 
+  const hasSufficientData = Boolean(
+    (inputs.epcFloorArea && inputs.epcFloorArea > 0) ||
+    (inputs.epcRating && inputs.epcRating !== 'Unknown') ||
+    (inputs.propertyType && inputs.propertyType !== '') ||
+    inputs.annualHeatingKwh ||
+    inputs.overrideAshpId
+  );
+
+  const k1Count = inputs.k1Count || 0;
+  const pPlusCount = inputs.pPlusCount || 0;
+  const k2Count = inputs.k2Count || 0;
+  const otherCount = inputs.otherCount || 0;
+  const totalEmitterCount = (k1Count + pPlusCount + k2Count + otherCount) || inputs.existingRadiatorCount || 0;
+
+  const existingEmitterInformation = {
+    k1Count,
+    pPlusCount,
+    k2Count,
+    otherCount,
+    totalCount: totalEmitterCount,
+    totalRadiatorCount: totalEmitterCount,
+    dimensions: inputs.existingEmitterDimensions,
+    dimensionsText: inputs.existingEmitterDimensions,
+    note: 'Stored as EXISTING EMITTER INFORMATION supporting context. Emitter counts do NOT alter pre-survey heat loss estimation without an evidence-backed rule.'
+  };
+
   // 2. Heat Demand Estimation (Empirical Pre-Survey Heuristic)
-  const heatDemand = await calculateIndicativeHeatDemand({
-    floorAreaM2: inputs.epcFloorArea,
+  const heatDemandObj = hasSufficientData ? await calculateIndicativeHeatDemand({
+    floorAreaM2: inputs.epcFloorArea || 0,
     epcRating: inputs.epcRating,
     propertyType: inputs.propertyType,
     wallInsulation: inputs.wallInsulation,
@@ -168,31 +211,92 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
     epcCertificateNumber: inputs.epcCertificateNumber,
     epcDate: inputs.epcDate,
     storeys: inputs.storeys
-  });
-  assumptionsAndDataGaps.push(...heatDemand.notes);
+  }) : null;
+
+  const heatDemand = heatDemandObj ? {
+    ...heatDemandObj,
+    estimatedDesignHeatLossKw: heatDemandObj.maxDemandKw
+  } : {
+    baselineWPerM2: 0,
+    baselineSource: 'DEFAULT_FALLBACK' as const,
+    propertyMultiplier: 1.0,
+    propertyType: inputs.propertyType || 'Unknown',
+    centralDemandKw: 0,
+    minDemandKw: 0,
+    maxDemandKw: 0,
+    estimatedDesignHeatLossKw: null,
+    displayRange: 'Not calculated (Awaiting property data)',
+    annualHeatingKwh: inputs.annualHeatingKwh || null,
+    annualHotWaterKwh: inputs.annualHotWaterKwh || null,
+    manualReviewFlag: false,
+    notes: ['Awaiting property floor area or archetype inputs for heat demand estimate.'],
+    disclaimer: 'PRE-SURVEY ESTIMATE',
+    ruleEvidenceId: 'EPC_HEURISTIC_PRE_SURVEY_W_M2'
+  };
+
+  if (hasSufficientData && heatDemand.notes) {
+    assumptionsAndDataGaps.push(...heatDemand.notes);
+  }
 
   // 3. ASHP Selection (Supports user manual override)
-  const ashp = await selectRecommendedASHP(heatDemand.maxDemandKw, {
+  const ashp = hasSufficientData || inputs.overrideAshpId ? await selectRecommendedASHP(heatDemand.maxDemandKw, {
     overrideProductId: inputs.overrideAshpId
-  });
-  assumptionsAndDataGaps.push(...ashp.notes);
+  }) : {
+    recommendedProduct: null,
+    selectedProduct: null,
+    isManualOverride: false,
+    alternatives: [],
+    status: 'NO_QUALIFYING_MODEL' as const,
+    notes: ['Awaiting property floor area or EPC inputs for ASHP recommendation.'],
+    disclaimer: 'PRE-SURVEY ESTIMATE',
+    ruleEvidenceId: 'ASHP_RECOMMENDATION'
+  };
+  if (hasSufficientData) {
+    assumptionsAndDataGaps.push(...ashp.notes);
+  }
 
   // 4. Cylinder Selection (Supports user manual override)
-  const cylinder = await selectRecommendedCylinder({
+  const cylinder = hasSufficientData || inputs.overrideCylinderId ? await selectRecommendedCylinder({
     bedrooms: inputs.bedrooms,
     bathrooms: inputs.bathrooms,
     cylinderSpace: inputs.cylinderSpace,
     boilerType: inputs.boilerType,
     overrideCylinderId: inputs.overrideCylinderId
-  });
-  assumptionsAndDataGaps.push(...cylinder.notes, ...cylinder.assumptions);
+  }) : {
+    recommendedProduct: null,
+    selectedProduct: null,
+    isManualOverride: false,
+    alternatives: [],
+    viabilityBlocker: false,
+    notes: ['Awaiting hot water demand inputs for cylinder recommendation.'],
+    assumptions: [],
+    disclaimer: 'PRE-SURVEY ESTIMATE',
+    ruleEvidenceId: 'CYLINDER_RECOMMENDATION'
+  };
+  if (hasSufficientData) {
+    assumptionsAndDataGaps.push(...cylinder.notes, ...cylinder.assumptions);
+  }
 
-  // 5. Radiator Engine
+  // 5. Radiator Engine & Emitter Capacity Plausibility Evaluation
   const radiators = await estimateRadiatorRequirements({
     heatDemandKw: heatDemand.centralDemandKw,
-    existingRadiatorCount: inputs.existingRadiatorCount
+    existingRadiatorCount: totalEmitterCount
   });
-  assumptionsAndDataGaps.push(...radiators.notes);
+  
+  const emitterCapacity = evaluateExistingEmitterCapacity({
+    k1Count,
+    pPlusCount,
+    k2Count,
+    otherCount,
+    dimensionsText: inputs.existingEmitterDimensions,
+    targetFlowTemp: 45,
+    estimatedHeatDemandKw: heatDemand.maxDemandKw
+  });
+
+  if (hasSufficientData) {
+    assumptionsAndDataGaps.push(...radiators.notes);
+    assumptionsAndDataGaps.push(...emitterCapacity.notes);
+  }
 
   // 6. Accessories & BOM Engine
   const activeAshp = ashp.selectedProduct || ashp.recommendedProduct;
@@ -339,21 +443,21 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
     });
   }
 
-  const equipmentMaterials = round2(ashpCost + cylinderCost + radsCost + pipeCost + accCost + combiCost);
-  const totalJobCost = round2(equipmentMaterials + labour + leadGen + extras + customCostsTotal);
+  const equipmentMaterials = hasSufficientData ? round2(ashpCost + cylinderCost + radsCost + pipeCost + accCost + combiCost) : 0;
+  const totalJobCost = hasSufficientData ? round2(equipmentMaterials + labour + leadGen + extras + customCostsTotal) : 0;
 
   const costBreakdown = {
-    ashpCost,
-    cylinderCost,
-    radiatorsAllowance: radsCost,
-    pipeworkAllowance: pipeCost,
-    accessoriesCost: accCost,
-    combiConversionAllowance: combiCost,
+    ashpCost: hasSufficientData ? ashpCost : 0,
+    cylinderCost: hasSufficientData ? cylinderCost : 0,
+    radiatorsAllowance: hasSufficientData ? radsCost : 0,
+    pipeworkAllowance: hasSufficientData ? pipeCost : 0,
+    accessoriesCost: hasSufficientData ? accCost : 0,
+    combiConversionAllowance: hasSufficientData ? combiCost : 0,
     equipmentMaterials,
-    labour,
-    leadGeneration: leadGen,
-    extrasContingency: extras,
-    customCostsTotal,
+    labour: hasSufficientData ? labour : 0,
+    leadGeneration: hasSufficientData ? leadGen : 0,
+    extrasContingency: hasSufficientData ? extras : 0,
+    customCostsTotal: hasSufficientData ? customCostsTotal : 0,
     totalJobCost
   };
 
@@ -361,7 +465,7 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
   const commercials = calculateCommercials({
     totalJobCost,
     targetGrossMargin: commercialSettingsUsed.targetGrossMargin,
-    busGrant: bus.grantAmount
+    busGrant: hasSufficientData ? bus.grantAmount : 0
   });
 
   // 10. Confidence Evaluation
@@ -372,8 +476,10 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
     wallInsulation: inputs.wallInsulation,
     roofInsulation: inputs.roofInsulation,
     existingHeatingSystem: inputs.existingHeatingSystem,
-    radiatorCount: inputs.existingRadiatorCount,
-    radiatorDetails: inputs.existingRadiatorDetails,
+    radiatorCount: totalEmitterCount,
+    radiatorDetails: inputs.existingEmitterDimensions || (totalEmitterCount > 0 ? `${totalEmitterCount} radiators` : undefined),
+    hasMissingDimensions: emitterCapacity.hasMissingDimensions,
+    emitterStatus: emitterCapacity.status,
     bathrooms: inputs.bathrooms
   });
 
@@ -481,6 +587,7 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
       quantity: 1,
       unitPriceExVat: combiCost,
       totalPriceExVat: combiCost,
+      isConditional: true,
       isOverridden: costOverridesApplied['Combi Conversion'] !== undefined,
       originalPriceExVat: costOverridesApplied['Combi Conversion']?.original ?? bom.combiConversionCostExVat,
       originalTotal: costOverridesApplied['Combi Conversion']?.original ?? bom.combiConversionCostExVat,
@@ -527,11 +634,66 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
 
   const lineItems = standardLineItems;
 
+  function buildAutoNote(): string {
+    if (!hasSufficientData) {
+      return 'PRE-SURVEY ESTIMATE — NOT FINAL MCS HEAT-LOSS DESIGN; Awaiting property data.';
+    }
+
+    const segments: string[] = [];
+
+    const areaStr = inputs.epcFloorArea ? `${inputs.epcFloorArea}m²` : '';
+    const typeStr = inputs.propertyType ? inputs.propertyType.toLowerCase() : '';
+    if (areaStr || typeStr) {
+      segments.push([areaStr, typeStr].filter(Boolean).join(' '));
+    }
+
+    const insList: string[] = [];
+    if (inputs.wallInsulation && inputs.wallInsulation !== 'Unknown') {
+      insList.push(`${inputs.wallInsulation.toLowerCase()} walls`);
+    } else if (inputs.wallInsulation === 'Uninsulated') {
+      insList.push('uninsulated walls');
+    }
+    if (inputs.roofInsulation && inputs.roofInsulation !== 'Unknown') {
+      insList.push(`${inputs.roofInsulation.toLowerCase()} roof`);
+    } else if (inputs.roofInsulation === 'Uninsulated') {
+      insList.push('insulated roof');
+    }
+    if (insList.length > 0) {
+      segments.push(insList.join(', '));
+    }
+
+    if (inputs.existingHeatingSystem || inputs.existingFuelType) {
+      const sys = [inputs.existingFuelType, inputs.existingHeatingSystem].filter(Boolean).join(' ');
+      segments.push(`${sys.toLowerCase()}`);
+    }
+
+    if (inputs.annualHeatingKwh && inputs.annualHeatingKwh > 0) {
+      segments.push(`EPC heating demand ${inputs.annualHeatingKwh.toLocaleString()} kWh/year`);
+    }
+
+    if (heatDemand.maxDemandKw > 0) {
+      segments.push(`estimated heat demand ${heatDemand.maxDemandKw.toFixed(1)} kW`);
+    }
+
+    if (activeAshp) {
+      const kwVal = activeAshp.ratedOutputKw || activeAshp.nominalKw;
+      segments.push(`recommended ${kwVal} kW ASHP`);
+    }
+
+    return segments.join('; ') + '.';
+  }
+
+  const autoNote = buildAutoNote();
+
   return {
     mode: 'NEW_LEAD',
     disclaimer,
     timestamp,
+    hasSufficientData,
+    autoNote,
+    existingEmitterInformation,
     heatDemand,
+    emitterCapacity,
     ashp,
     cylinder,
     radiators,

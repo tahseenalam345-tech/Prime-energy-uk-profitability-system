@@ -49,6 +49,13 @@ export interface ASHPSelectionResult {
     priceExVat: number;
   }>;
   allAshpProducts?: ASHPProductItem[];
+  categorizedSuitableAshps?: {
+    preferred: ASHPProductItem[];
+    bestMatch: ASHPProductItem[];
+    valueCost: ASHPProductItem[];
+    alternatives: ASHPProductItem[];
+    allQualifying: ASHPProductItem[];
+  };
   status: 'OPTIMAL_MATCH' | 'HIGH_HEAT_DEMAND_WARNING' | 'NO_QUALIFYING_MODEL' | 'MANUAL_REVIEW_REQUIRED';
   notes: string[];
   disclaimer: string;
@@ -265,7 +272,26 @@ export async function selectRecommendedASHP(
     }
   }
 
-  // Generate alternative options list
+  // Categorize all technically suitable verified models (ratedOutputAtDesign >= upperBoundKw)
+  const allQualifying = allAshpProducts.filter(p => p.ratedOutputAtDesign >= upperBoundKw);
+
+  const preferredBrands = ['daikin', 'vaillant', 'mitsubishi', 'viessmann', 'baxi', 'grant'];
+  const preferred = allQualifying.filter(p => preferredBrands.some(b => p.brand.toLowerCase().includes(b)))
+    .sort((a, b) => (a.ratedOutputAtDesign - upperBoundKw) - (b.ratedOutputAtDesign - upperBoundKw));
+
+  const bestMatch = [...allQualifying].sort((a, b) => (a.ratedOutputAtDesign - upperBoundKw) - (b.ratedOutputAtDesign - upperBoundKw));
+  const valueCost = [...allQualifying].sort((a, b) => a.priceExVat - b.priceExVat);
+  const alternativesList = allQualifying;
+
+  const categorizedSuitableAshps = {
+    preferred: preferred.length > 0 ? preferred : bestMatch,
+    bestMatch,
+    valueCost,
+    alternatives: alternativesList,
+    allQualifying
+  };
+
+  // Generate alternative options list for legacy component backward compatibility
   const alternatives = allAshpProducts
     .filter(p => p.id !== selectedProduct?.id)
     .slice(0, 8)
@@ -290,6 +316,7 @@ export async function selectRecommendedASHP(
     overrideNote,
     alternatives,
     allAshpProducts,
+    categorizedSuitableAshps,
     status,
     notes,
     disclaimer,

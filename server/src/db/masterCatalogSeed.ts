@@ -3746,6 +3746,42 @@ export async function seedMasterProductCatalog(): Promise<MasterCatalogAuditRepo
   await initDatabase();
   console.log('=== INITIATING MASTER PRODUCT CATALOGUE MERGE & REBUILD ===');
 
+  await db.run(`
+    CREATE TABLE IF NOT EXISTS radiator_catalogue (
+      id TEXT PRIMARY KEY,
+      radiator_type TEXT NOT NULL,
+      height_mm INTEGER NOT NULL,
+      length_mm INTEGER NOT NULL,
+      requested_height_mm INTEGER,
+      requested_length_mm INTEGER,
+      source_title_dimensions TEXT,
+      normalized_height_mm INTEGER,
+      normalized_length_mm INTEGER,
+      dimension_match_type TEXT,
+      dimension_validation_status TEXT DEFAULT 'PASS',
+      manufacturer TEXT NOT NULL,
+      product_name TEXT NOT NULL,
+      sku TEXT UNIQUE,
+      heat_output_watts INTEGER NOT NULL,
+      source_btu INTEGER,
+      source_heat_output_w INTEGER,
+      output_test_condition TEXT DEFAULT 'dT50',
+      output_source_url TEXT,
+      supplier TEXT NOT NULL,
+      verification_type TEXT,
+      supplier_verification_status TEXT DEFAULT 'PROVISIONAL',
+      verification_status TEXT DEFAULT 'PROVISIONAL',
+      city_plumbing_price REAL,
+      source_price REAL,
+      source_vat_basis TEXT DEFAULT 'INC_VAT',
+      normalized_ex_vat_price REAL,
+      normalization_method TEXT,
+      vat_evidence_source TEXT,
+      pricing_confidence TEXT DEFAULT 'HIGH',
+      active INTEGER DEFAULT 1
+    );
+  `);
+
   let productsAdded = 0;
   let productsUpdated = 0;
   let productsRemoved = 0;
@@ -4069,14 +4105,14 @@ export async function seedMasterProductCatalog(): Promise<MasterCatalogAuditRepo
           INSERT OR IGNORE INTO products (
             id, family, brand, manufacturer, product_family, model, sku, category, product_type,
             system_type, radiator_type, height_mm, length_mm, output_w_delta_t50, output_w_low_temp,
-            supplier, supplier_sku, price_ex_vat, price_inc_vat, price_source_url, price_date,
+            supplier, supplier_sku, price_ex_vat, price_inc_vat, price_source_url, manufacturer_product_url, technical_datasheet_url, price_date,
             verification_status, manual_review_required, active
           ) VALUES (
             ?, 'RADIATOR', 'Stelrad', 'Stelrad Radiators Group', 'Compact', ?, ?, 'Included',
             'Convector Radiator', 'Domestic Wet Central Heating', ?, ?, ?, ?, ?,
-            'City Plumbing', ?, ?, ?, 'https://www.cityplumbing.co.uk', '2026-09-14',
+            'City Plumbing', ?, ?, ?, 'https://www.cityplumbing.co.uk', 'https://www.stelrad.com/radiators/standard-steel-radiators/classic-compact/', 'https://www.stelrad.com/wp-content/uploads/2021/04/Stelrad-Compact-Data-Sheet.pdf', '2026-09-14',
             'VERIFIED', 0, 1
-          )
+          ) ON CONFLICT(id) DO UPDATE SET radiator_type=excluded.radiator_type, height_mm=excluded.height_mm, length_mm=excluded.length_mm, output_w_delta_t50=excluded.output_w_delta_t50, output_w_low_temp=excluded.output_w_low_temp, active=1, verification_status='VERIFIED'
         `,
         args: [
           id, title, sku, t.type, 500, len, watts, Math.round(watts * 0.5),
