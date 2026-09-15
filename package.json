@@ -1,0 +1,40 @@
+{
+  "name": "prime-energy-heat-pump",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"tsx watch server/src/index.ts\" \"vite --config client/vite.config.ts\"",
+    "start": "tsx server/src/index.ts",
+    "server": "tsx watch server/src/index.ts",
+    "client": "vite --config client/vite.config.ts",
+    "build": "vite build --config client/vite.config.ts",
+    "test": "vitest run",
+    "seed": "tsx server/src/db/seed.ts"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.18.0",
+    "better-sqlite3": "^13.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.20.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "lucide-react": "^1.45.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.0"
+  }
+}

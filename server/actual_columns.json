@@ -1,0 +1,3178 @@
+{
+  "roles": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "name",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "description",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    }
+  ],
+  "users": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "name",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "email",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "role_id",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "password_hash",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "active",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "1",
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    }
+  ],
+  "audit_logs": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "user_id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "user_name",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "entity_type",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "entity_id",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "action",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "old_values",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "new_values",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "reason",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    }
+  ],
+  "commercial_settings": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "version",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "target_gross_margin",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": "0.25",
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "labour_baseline",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": "1500.00",
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "lead_generation_cost",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": "300.00",
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "extras_contingency",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": "200.00",
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "combi_conversion_allowance",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": "500.00",
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "combi_conversion_status",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'PROVISIONAL_PENDING_CONFIRMATION'",
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "microbore_repipe_allowance",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": "1800.00",
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "microbore_repipe_status",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'PROVISIONAL_PENDING_CONFIRMATION'",
+      "pk": 0
+    },
+    {
+      "cid": 10,
+      "name": "active",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "1",
+      "pk": 0
+    },
+    {
+      "cid": 11,
+      "name": "effective_from",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    },
+    {
+      "cid": 12,
+      "name": "updated_by",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 13,
+      "name": "notes",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    }
+  ],
+  "tax_rules": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "code",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "description",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "rate",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "effective_date",
+      "type": "DATE",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "active",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "1",
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "notes",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    }
+  ],
+  "products": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "family",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "manufacturer",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "model",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "category",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "nominal_capacity",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "rated_output_at_design",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "design_condition",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "flow_temperature",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "phase",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "1",
+      "pk": 0
+    },
+    {
+      "cid": 10,
+      "name": "electrical_requirements",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 11,
+      "name": "specifications",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 12,
+      "name": "product_source",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 13,
+      "name": "source_date",
+      "type": "DATE",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 14,
+      "name": "active",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "1",
+      "pk": 0
+    },
+    {
+      "cid": 15,
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    },
+    {
+      "cid": 16,
+      "name": "brand",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 17,
+      "name": "product_family",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 18,
+      "name": "sku",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 19,
+      "name": "product_type",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'Air-to-water ASHP'",
+      "pk": 0
+    },
+    {
+      "cid": 20,
+      "name": "system_type",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'Monobloc'",
+      "pk": 0
+    },
+    {
+      "cid": 21,
+      "name": "marketing_nominal_kw",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 22,
+      "name": "rated_output_kw",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 23,
+      "name": "rated_output_condition",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 24,
+      "name": "design_temperature",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 25,
+      "name": "capacity_source",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 26,
+      "name": "capacity_source_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 27,
+      "name": "refrigerant",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 28,
+      "name": "mcs_status",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'UNCLEAR'",
+      "pk": 0
+    },
+    {
+      "cid": 29,
+      "name": "mcs_product_name",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 30,
+      "name": "mcs_manufacturer",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 31,
+      "name": "mcs_product_reference",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 32,
+      "name": "mcs_directory_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 33,
+      "name": "mcs_verification_date",
+      "type": "DATE",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 34,
+      "name": "mcs_standard_version",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 35,
+      "name": "mcs_notes",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 36,
+      "name": "ofgem_pel_status",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'NOT_CHECKED'",
+      "pk": 0
+    },
+    {
+      "cid": 37,
+      "name": "ofgem_pel_version",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 38,
+      "name": "ofgem_source_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 39,
+      "name": "bus_product_eligibility_status",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'NOT_VERIFIED'",
+      "pk": 0
+    },
+    {
+      "cid": 40,
+      "name": "data_confidence",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'MEDIUM'",
+      "pk": 0
+    },
+    {
+      "cid": 41,
+      "name": "manual_review_required",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "0",
+      "pk": 0
+    },
+    {
+      "cid": 42,
+      "name": "verification_status",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'PROVISIONAL'",
+      "pk": 0
+    },
+    {
+      "cid": 43,
+      "name": "notes",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 44,
+      "name": "updated_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 45,
+      "name": "conflict_notes",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 46,
+      "name": "manufacturer_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 47,
+      "name": "technical_datasheet_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 48,
+      "name": "scop",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 49,
+      "name": "cop",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 50,
+      "name": "output_a_minus_7_w35",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 51,
+      "name": "output_a7_w45",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 52,
+      "name": "output_w55",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 53,
+      "name": "exact_capacity_litres",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 54,
+      "name": "height_mm",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 55,
+      "name": "diameter_mm",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 56,
+      "name": "depth_mm",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 57,
+      "name": "cylinder_type",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 58,
+      "name": "coil_area_m2",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 59,
+      "name": "heat_pump_compatible",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "1",
+      "pk": 0
+    },
+    {
+      "cid": 60,
+      "name": "compatible_ashp",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 61,
+      "name": "radiator_type",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 62,
+      "name": "length_mm",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 63,
+      "name": "output_w_delta_t50",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 64,
+      "name": "output_w_low_temp",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 65,
+      "name": "output_w_delta_t30",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 66,
+      "name": "output_w_delta_t40",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 67,
+      "name": "output_w_delta_t45",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 68,
+      "name": "supplier",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 69,
+      "name": "supplier_sku",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 70,
+      "name": "price_ex_vat",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 71,
+      "name": "price_inc_vat",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 72,
+      "name": "price_source_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 73,
+      "name": "price_date",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 74,
+      "name": "manufacturer_product_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 75,
+      "name": "technical_manual_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 76,
+      "name": "brochure_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 77,
+      "name": "mcs_product_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 78,
+      "name": "mcs_certificate_number",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 79,
+      "name": "source_verification_date",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 80,
+      "name": "source_verification_status",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'PROVISIONAL'",
+      "pk": 0
+    }
+  ],
+  "product_prices": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "product_id",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "supplier",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "source_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "date_collected",
+      "type": "DATE",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "price_ex_vat",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "price_inc_vat",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "vat_rate",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": "0.0",
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "unit",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'EACH'",
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "confidence",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 10,
+      "name": "is_current",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "1",
+      "pk": 0
+    },
+    {
+      "cid": 11,
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    },
+    {
+      "cid": 12,
+      "name": "source_type",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'CITY_PLUMBING'",
+      "pk": 0
+    },
+    {
+      "cid": 13,
+      "name": "price_basis",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'EX_VAT'",
+      "pk": 0
+    },
+    {
+      "cid": 14,
+      "name": "currency",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'GBP'",
+      "pk": 0
+    },
+    {
+      "cid": 15,
+      "name": "availability",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'In stock'",
+      "pk": 0
+    },
+    {
+      "cid": 16,
+      "name": "price_captured_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 17,
+      "name": "valid_from",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 18,
+      "name": "valid_to",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 19,
+      "name": "notes",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 20,
+      "name": "source_price",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 21,
+      "name": "source_vat_basis",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'EX_VAT'",
+      "pk": 0
+    },
+    {
+      "cid": 22,
+      "name": "normalized_ex_vat_price",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 23,
+      "name": "normalization_method",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'VERIFIED_EX_VAT'",
+      "pk": 0
+    },
+    {
+      "cid": 24,
+      "name": "normalization_confidence",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'HIGH'",
+      "pk": 0
+    },
+    {
+      "cid": 25,
+      "name": "supplier_sku",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 26,
+      "name": "price_date",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    }
+  ],
+  "requirement_rules": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "name",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "condition_type",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "trigger_field",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "trigger_operator",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "trigger_value",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "action_type",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "target_product_id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "target_allowance_code",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "quantity_formula",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 10,
+      "name": "description",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 11,
+      "name": "active",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "1",
+      "pk": 0
+    }
+  ],
+  "epc_baselines": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "epc_band",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "w_per_m2",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    }
+  ],
+  "fallback_insulation_tables": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "condition_key",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "description",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "w_per_m2",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    }
+  ],
+  "property_multipliers": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "property_type",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "multiplier",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "manual_review_flag",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "0",
+      "pk": 0
+    }
+  ],
+  "cylinder_sizing_rules": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "bedroom_min",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "bedroom_max",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "bathroom_min",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "1",
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "recommended_litres_min",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "recommended_litres_max",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "notes",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    }
+  ],
+  "radiator_ratio_configs": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "min_heat_kw",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "max_heat_kw",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "min_est_rads",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "max_est_rads",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "default_replacement_ratio_low",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": "0.40",
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "default_replacement_ratio_high",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": "0.60",
+      "pk": 0
+    }
+  ],
+  "confidence_weight_configs": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "field_key",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "label",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "max_weight",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    }
+  ],
+  "profitability_rating_configs": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "grade",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "min_margin",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "max_margin",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "color_code",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    }
+  ],
+  "bus_rules": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "rule_id",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "description",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "scope_countries",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "standard_grant",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": "7500.00",
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "off_gas_grant",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": "9000.00",
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "developer_new_build_eligible",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "0",
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "self_build_eligible",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "1",
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "prior_grant_disqualifies",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "1",
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "source",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 10,
+      "name": "source_url",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 11,
+      "name": "effective_date",
+      "type": "DATE",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 12,
+      "name": "review_date",
+      "type": "DATE",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 13,
+      "name": "version",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 14,
+      "name": "notes",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 15,
+      "name": "active",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "1",
+      "pk": 0
+    }
+  ],
+  "leads": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "reference_no",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "customer_name",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "email",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "phone",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "lead_source",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "status",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'NEW'",
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "assigned_to",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "updated_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    }
+  ],
+  "properties": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "lead_id",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "address_line1",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "address_line2",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "postcode",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "country",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": "'England'",
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "epc_rating",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "epc_floor_area",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "property_type",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "property_status",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 10,
+      "name": "bedrooms",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 11,
+      "name": "bathrooms",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 12,
+      "name": "ownership",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 13,
+      "name": "wall_insulation",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 14,
+      "name": "roof_insulation",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 15,
+      "name": "existing_heating_system",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 16,
+      "name": "boiler_type",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 17,
+      "name": "on_off_gas_grid",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 18,
+      "name": "existing_cylinder_details",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 19,
+      "name": "cylinder_space",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 20,
+      "name": "existing_radiator_count",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 21,
+      "name": "existing_radiator_details",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 22,
+      "name": "existing_pipework",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 23,
+      "name": "previous_government_grant",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 24,
+      "name": "fuse_board_condition",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 25,
+      "name": "conservation_area",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 26,
+      "name": "boundary_planning_risk",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 27,
+      "name": "listed_building",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 28,
+      "name": "sales_notes",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 29,
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    },
+    {
+      "cid": 30,
+      "name": "annual_heating_kwh",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 31,
+      "name": "annual_hot_water_kwh",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 32,
+      "name": "epc_certificate_number",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 33,
+      "name": "epc_date",
+      "type": "DATE",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 34,
+      "name": "existing_fuel_type",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'Mains Gas'",
+      "pk": 0
+    },
+    {
+      "cid": 35,
+      "name": "storeys",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "2",
+      "pk": 0
+    }
+  ],
+  "survey_design_inputs": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "lead_id",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "surveyor_user_id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "confirmed_design_heat_loss",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "design_outdoor_temp",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "design_flow_temp",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "selected_ashp_id",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "selected_cylinder_id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "exact_radiators_schedule",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "exact_pipework_schedule",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 10,
+      "name": "electrical_works_cost",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": "0.0",
+      "pk": 0
+    },
+    {
+      "cid": 11,
+      "name": "surveyor_notes",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 12,
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    }
+  ],
+  "quotes": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "quote_reference",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "lead_id",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "mode",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "total_job_cost",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "bus_grant",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "required_revenue",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "customer_contribution",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "actual_revenue",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "gross_profit",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 10,
+      "name": "gross_margin_percent",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 11,
+      "name": "confidence_score",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 12,
+      "name": "confidence_level",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 13,
+      "name": "profitability_grade",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 14,
+      "name": "commercial_recommendation",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 15,
+      "name": "status",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": "'DRAFT'",
+      "pk": 0
+    },
+    {
+      "cid": 16,
+      "name": "manual_override",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "0",
+      "pk": 0
+    },
+    {
+      "cid": 17,
+      "name": "override_reason",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 18,
+      "name": "created_by",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 19,
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    }
+  ],
+  "quote_line_items": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "quote_id",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "product_id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "category",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "description",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "quantity",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "unit_cost_ex_vat",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "total_cost_ex_vat",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "vat_rate",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": "0.0",
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "total_cost_inc_vat",
+      "type": "REAL",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    }
+  ],
+  "calculation_snapshots": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "quote_id",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "quote_reference",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "timestamp",
+      "type": "DATETIME",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "user_id",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "mode",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "inputs_json",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "products_json",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "prices_json",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "ruleset_versions_json",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 10,
+      "name": "commercial_settings_json",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 11,
+      "name": "outputs_json",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    }
+  ],
+  "rule_evidence": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "rule_id",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "rule_name",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "category",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "rule_value",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "authority",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "source_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "source_document",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "source_version",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "evidence_reference",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 10,
+      "name": "effective_from",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 11,
+      "name": "effective_to",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 12,
+      "name": "last_verified_at",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 13,
+      "name": "verification_status",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 14,
+      "name": "notes",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 15,
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    },
+    {
+      "cid": 16,
+      "name": "updated_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    }
+  ],
+  "radiator_catalogue": [
+    {
+      "cid": 0,
+      "name": "id",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 1
+    },
+    {
+      "cid": 1,
+      "name": "radiator_type",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 2,
+      "name": "height_mm",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 3,
+      "name": "length_mm",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 4,
+      "name": "requested_height_mm",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 5,
+      "name": "requested_length_mm",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 6,
+      "name": "source_title_dimensions",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 7,
+      "name": "normalized_height_mm",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 8,
+      "name": "normalized_length_mm",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 9,
+      "name": "dimension_match_type",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 10,
+      "name": "dimension_validation_status",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 11,
+      "name": "manufacturer",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 12,
+      "name": "product_name",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 13,
+      "name": "sku",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 14,
+      "name": "heat_output_watts",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 15,
+      "name": "source_btu",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 16,
+      "name": "source_heat_output_w",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 17,
+      "name": "output_test_condition",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 18,
+      "name": "output_source_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 19,
+      "name": "supplier",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": "'City Plumbing'",
+      "pk": 0
+    },
+    {
+      "cid": 20,
+      "name": "verification_type",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": "'SUPPLIER_CATALOGUE'",
+      "pk": 0
+    },
+    {
+      "cid": 21,
+      "name": "supplier_verification_status",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": "'VERIFIED_CURRENT'",
+      "pk": 0
+    },
+    {
+      "cid": 22,
+      "name": "verification_status",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": "'SUPPLIER_VERIFIED'",
+      "pk": 0
+    },
+    {
+      "cid": 23,
+      "name": "city_plumbing_price",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 24,
+      "name": "source_price",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 25,
+      "name": "source_vat_basis",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": "'INC_VAT'",
+      "pk": 0
+    },
+    {
+      "cid": 26,
+      "name": "normalized_ex_vat_price",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 27,
+      "name": "normalization_method",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 28,
+      "name": "vat_evidence_source",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 29,
+      "name": "source_page_evidence",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 30,
+      "name": "captured_vat_wording",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 31,
+      "name": "vat_evidence_timestamp",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 32,
+      "name": "vat_rate_percent",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 33,
+      "name": "pricing_confidence",
+      "type": "TEXT",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 34,
+      "name": "source_count",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": "1",
+      "pk": 0
+    },
+    {
+      "cid": 35,
+      "name": "source_url",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 36,
+      "name": "is_three_source_averaged",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": "0",
+      "pk": 0
+    },
+    {
+      "cid": 37,
+      "name": "source_price_1",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 38,
+      "name": "source_price_2",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 39,
+      "name": "source_price_3",
+      "type": "REAL",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 40,
+      "name": "source_sku_1",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 41,
+      "name": "source_sku_2",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 42,
+      "name": "source_sku_3",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 43,
+      "name": "source_url_1",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 44,
+      "name": "source_url_2",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 45,
+      "name": "source_url_3",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 46,
+      "name": "source_product_1",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 47,
+      "name": "source_product_2",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 48,
+      "name": "source_product_3",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 49,
+      "name": "selected_manufacturer",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 50,
+      "name": "selected_model",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 51,
+      "name": "selected_sku",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 52,
+      "name": "selection_rationale",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 53,
+      "name": "commercial_review_required",
+      "type": "INTEGER",
+      "notnull": 1,
+      "dflt_value": "0",
+      "pk": 0
+    },
+    {
+      "cid": 54,
+      "name": "commercial_review_reason",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 55,
+      "name": "source_metadata_json",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 56,
+      "name": "source_checked_at",
+      "type": "DATE",
+      "notnull": 1,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 57,
+      "name": "pricing_notes",
+      "type": "TEXT",
+      "notnull": 0,
+      "dflt_value": null,
+      "pk": 0
+    },
+    {
+      "cid": 58,
+      "name": "active",
+      "type": "INTEGER",
+      "notnull": 0,
+      "dflt_value": "1",
+      "pk": 0
+    },
+    {
+      "cid": 59,
+      "name": "created_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    },
+    {
+      "cid": 60,
+      "name": "updated_at",
+      "type": "DATETIME",
+      "notnull": 0,
+      "dflt_value": "CURRENT_TIMESTAMP",
+      "pk": 0
+    }
+  ]
+}
