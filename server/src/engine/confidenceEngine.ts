@@ -98,12 +98,9 @@ export async function evaluateConfidence(inputs: ConfidenceInputs): Promise<Conf
   // 7. Radiator Information (5 pts)
   const radWeight = weightMap.get('radiator_information') || { label: 'Radiator Information', maxWeight: 5 };
   const isUnknown = inputs.emitterStatus === 'UNKNOWN' || inputs.hasMissingDimensions === true;
-  if (!isUnknown && inputs.radiatorDetails) {
+  if (!isUnknown && inputs.radiatorCount && inputs.radiatorCount > 0) {
     totalScore += radWeight.maxWeight;
     breakdown.push({ field: 'radiator_information', label: radWeight.label, maxWeight: radWeight.maxWeight, awardedWeight: radWeight.maxWeight, status: 'COMPLETE' });
-  } else if (!isUnknown && inputs.radiatorCount && inputs.radiatorCount > 0) {
-    totalScore += Math.round(radWeight.maxWeight / 2);
-    breakdown.push({ field: 'radiator_information', label: radWeight.label, maxWeight: radWeight.maxWeight, awardedWeight: Math.round(radWeight.maxWeight / 2), status: 'PARTIAL' });
   } else {
     breakdown.push({ field: 'radiator_information', label: radWeight.label, maxWeight: radWeight.maxWeight, awardedWeight: 0, status: 'MISSING' });
   }

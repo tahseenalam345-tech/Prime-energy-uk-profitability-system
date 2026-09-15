@@ -30,12 +30,11 @@ export interface NewLeadPropertyInputs {
   onOffGasGrid?: string;
   cylinderSpace?: string;
   existingRadiatorCount?: number;
+  dominantRadiatorType?: string;
   k1Count?: number;
   pPlusCount?: number;
   k2Count?: number;
   otherCount?: number;
-  existingEmitterDimensions?: Array<{ type: string; heightMm: number; lengthMm: number }>;
-  existingRadiatorDetails?: string;
   existingPipework?: string;
   previousGovernmentGrant?: string;
   fuseBoardCondition?: string;
@@ -169,7 +168,7 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
     labourBaseline: settings?.labour_baseline ?? 1500.00,
     leadGenerationCost: settings?.lead_generation_cost ?? 300.00,
     extrasContingency: settings?.extras_contingency ?? 200.00,
-    combiConversionAllowance: settings?.combi_conversion_allowance ?? 500.00,
+    combiConversionAllowance: 0.00,
     microboreRepipeAllowance: settings?.microbore_repipe_allowance ?? 1800.00
   };
 
@@ -181,22 +180,13 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
     inputs.overrideAshpId
   );
 
-  const k1Count = inputs.k1Count || 0;
-  const pPlusCount = inputs.pPlusCount || 0;
-  const k2Count = inputs.k2Count || 0;
-  const otherCount = inputs.otherCount || 0;
-  const totalEmitterCount = (k1Count + pPlusCount + k2Count + otherCount) || inputs.existingRadiatorCount || 0;
+  const totalEmitterCount = inputs.existingRadiatorCount ?? ((inputs.k1Count || 0) + (inputs.pPlusCount || 0) + (inputs.k2Count || 0) + (inputs.otherCount || 0));
+  const dominantRadiatorType = inputs.dominantRadiatorType || 'MIXED_UNKNOWN';
 
   const existingEmitterInformation = {
-    k1Count,
-    pPlusCount,
-    k2Count,
-    otherCount,
-    totalCount: totalEmitterCount,
     totalRadiatorCount: totalEmitterCount,
-    dimensions: inputs.existingEmitterDimensions,
-    dimensionsText: inputs.existingEmitterDimensions,
-    note: 'Stored as EXISTING EMITTER INFORMATION supporting context. Emitter counts do NOT alter pre-survey heat loss estimation without an evidence-backed rule.'
+    dominantRadiatorType,
+    note: 'Stored as EXISTING EMITTER INFORMATION supporting context. Emitter counts do NOT alter pre-survey heat loss estimation.'
   };
 
   // 2. Heat Demand Estimation (Empirical Pre-Survey Heuristic)
@@ -284,11 +274,8 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
   });
   
   const emitterCapacity = evaluateExistingEmitterCapacity({
-    k1Count,
-    pPlusCount,
-    k2Count,
-    otherCount,
-    dimensionsText: inputs.existingEmitterDimensions,
+    existingRadiatorCount: totalEmitterCount,
+    dominantRadiatorType,
     targetFlowTemp: 45,
     estimatedHeatDemandKw: heatDemand.maxDemandKw
   });
@@ -328,7 +315,7 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
   let radsCost = round2(radiators.totalRadiatorCostExVat);
   let pipeCost = round2(bom.totalPipeworkCostExVat);
   let accCost = round2(bom.totalAccessoriesCostExVat);
-  let combiCost = round2(bom.combiConversionCostExVat);
+  let combiCost = 0.00; // Combi conversion allowance completely removed per Rule 14
   let labour = round2(commercialSettingsUsed.labourBaseline);
   let leadGen = round2(commercialSettingsUsed.leadGenerationCost);
   let extras = round2(commercialSettingsUsed.extrasContingency);
@@ -386,9 +373,6 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
   const accRes = applyOverride(['Accessories', 'accessoriesCost', 'Accessories & Controls', 'line_accessories'], accCost);
   accCost = accRes.value;
 
-  const combiRes = applyOverride(['Combi Conversion', 'combiCost', 'combiConversionAllowance', 'line_combi'], combiCost);
-  combiCost = combiRes.value;
-
   const labourRes = applyOverride(['Labour', 'labour', 'Installation Labour', 'line_labour'], labour);
   labour = labourRes.value;
 
@@ -443,7 +427,7 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
     });
   }
 
-  const equipmentMaterials = hasSufficientData ? round2(ashpCost + cylinderCost + radsCost + pipeCost + accCost + combiCost) : 0;
+  const equipmentMaterials = hasSufficientData ? round2(ashpCost + cylinderCost + radsCost + pipeCost + accCost) : 0;
   const totalJobCost = hasSufficientData ? round2(equipmentMaterials + labour + leadGen + extras + customCostsTotal) : 0;
 
   const costBreakdown = {
@@ -452,7 +436,7 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
     radiatorsAllowance: hasSufficientData ? radsCost : 0,
     pipeworkAllowance: hasSufficientData ? pipeCost : 0,
     accessoriesCost: hasSufficientData ? accCost : 0,
-    combiConversionAllowance: hasSufficientData ? combiCost : 0,
+    combiConversionAllowance: 0,
     equipmentMaterials,
     labour: hasSufficientData ? labour : 0,
     leadGeneration: hasSufficientData ? leadGen : 0,
@@ -477,9 +461,9 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
     roofInsulation: inputs.roofInsulation,
     existingHeatingSystem: inputs.existingHeatingSystem,
     radiatorCount: totalEmitterCount,
-    radiatorDetails: inputs.existingEmitterDimensions || (totalEmitterCount > 0 ? `${totalEmitterCount} radiators` : undefined),
-    hasMissingDimensions: emitterCapacity.hasMissingDimensions,
-    emitterStatus: emitterCapacity.status,
+    radiatorDetails: totalEmitterCount > 0 ? `${totalEmitterCount} radiators (mostly ${dominantRadiatorType})` : undefined,
+    hasMissingDimensions: !emitterCapacity.hasExactScheduleOrDimensions,
+    emitterStatus: emitterCapacity.confidenceLevel,
     bathrooms: inputs.bathrooms
   });
 
@@ -580,19 +564,6 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
       originalTotal: costOverridesApplied['Accessories']?.original ?? bom.totalAccessoriesCostExVat,
       isDeleted: deletedSet.has('line_accessories') || deletedSet.has('Accessories') || deletedSet.has('Accessories & Controls')
     },
-    ...(combiCost > 0 || deletedSet.has('line_combi') ? [{
-      id: 'line_combi',
-      category: 'Combi Conversion',
-      description: descOverrides['line_combi'] || descOverrides['Combi Conversion'] || 'Combi to unvented cylinder conversion relocation kit & hot/cold redirection',
-      quantity: 1,
-      unitPriceExVat: combiCost,
-      totalPriceExVat: combiCost,
-      isConditional: true,
-      isOverridden: costOverridesApplied['Combi Conversion'] !== undefined,
-      originalPriceExVat: costOverridesApplied['Combi Conversion']?.original ?? bom.combiConversionCostExVat,
-      originalTotal: costOverridesApplied['Combi Conversion']?.original ?? bom.combiConversionCostExVat,
-      isDeleted: deletedSet.has('line_combi') || deletedSet.has('Combi Conversion')
-    }] : []),
     {
       id: 'line_labour',
       category: 'Installation Labour',

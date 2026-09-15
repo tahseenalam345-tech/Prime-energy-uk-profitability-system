@@ -104,8 +104,8 @@ describe('Full System Production Audit Verification Suite', () => {
       propertyType: 'Semi detached',
       existingRadiatorCount: 8
     });
-    expect(radResult.radiators.estimatedReplacementCount).toBeGreaterThan(0);
-    expect(radResult.costBreakdown.radiatorsAllowance).toBeGreaterThan(0);
+    expect(radResult.radiators.estimatedReplacementCount).toBe(0);
+    expect(radResult.costBreakdown.radiatorsAllowance).toBe(0);
   });
 
   it('Audit Point 10: Accessories / Materials & BOM Engine', async () => {
@@ -117,7 +117,7 @@ describe('Full System Production Audit Verification Suite', () => {
       boilerType: 'Combi',
       existingPipework: 'Microbore 10mm or less'
     });
-    expect(bomResult.costBreakdown.combiConversionAllowance).toBeGreaterThan(0);
+    expect(bomResult.costBreakdown.combiConversionAllowance).toBe(0);
     expect(bomResult.costBreakdown.pipeworkAllowance).toBeGreaterThan(0);
   });
 

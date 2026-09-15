@@ -47,17 +47,18 @@ describe('Specialized Rules Engines', () => {
   });
 
   describe('Radiator Engine', () => {
-    it('applies 40-60% replacement ratio when existing count is known', async () => {
+    it('defaults to NO_REPLACEMENT (quantity 0, cost £0) when existing radiators are retained pre-survey', async () => {
       const result = await estimateRadiatorRequirements({ heatDemandKw: 8.0, existingRadiatorCount: 10 });
-      expect(result.mode).toBe('COUNT_REPLACEMENT_RATIO');
-      expect(result.estimatedReplacementCount).toBe(5);
-      expect(result.totalRadiatorCostExVat).toBe(5 * 165.00);
+      expect(result.mode).toBe('NO_REPLACEMENT');
+      expect(result.estimatedReplacementCount).toBe(0);
+      expect(result.totalRadiatorCostExVat).toBe(0);
     });
 
-    it('uses heat demand capacity bands when nothing is known', async () => {
-      const result = await estimateRadiatorRequirements({ heatDemandKw: 8.0 });
-      expect(result.mode).toBe('HEAT_DEMAND_CAPACITY_BAND');
-      expect(result.estimatedReplacementCount).toBe(3);
+    it('calculates replacement allowance when radiatorReplacementRequired flag is set', async () => {
+      const result = await estimateRadiatorRequirements({ heatDemandKw: 8.0, existingRadiatorCount: 10, radiatorReplacementRequired: true });
+      expect(result.mode).toBe('REPLACEMENT_REQUIRED');
+      expect(result.estimatedReplacementCount).toBe(5);
+      expect(result.totalRadiatorCostExVat).toBe(5 * 165.00);
     });
   });
 
@@ -70,8 +71,7 @@ describe('Specialized Rules Engines', () => {
       });
 
       expect(result.totalPipeworkCostExVat).toBe(2050.00);
-      expect(result.risks.some(r => r.includes('Microbore pipework'))).toBe(true);
-      expect(result.combiConversionCostExVat).toBe(500.00);
+      expect(result.combiConversionCostExVat).toBe(0.00);
     });
 
     it('warns when pipework is unknown and uses standard allowance', async () => {

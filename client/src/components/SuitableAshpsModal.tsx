@@ -47,11 +47,24 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const qualifying = categorizedAshps?.allQualifying || allAshps.filter(p => p.ratedOutputAtDesign >= requiredHeatDemandKw);
-  const preferredList = categorizedAshps?.preferred || qualifying.filter(p => ['daikin', 'vaillant', 'mitsubishi', 'viessmann', 'baxi', 'grant'].some(b => p.brand.toLowerCase().includes(b)));
-  const bestMatchList = categorizedAshps?.bestMatch || [...qualifying].sort((a, b) => (a.ratedOutputAtDesign - requiredHeatDemandKw) - (b.ratedOutputAtDesign - requiredHeatDemandKw));
-  const valueCostList = categorizedAshps?.valueCost || [...qualifying].sort((a, b) => a.priceExVat - b.priceExVat);
-  const allList = qualifying.length > 0 ? qualifying : allAshps;
+  const rawQualifying = (categorizedAshps?.allQualifying || allAshps)
+    .filter(p => p.ratedOutputAtDesign >= requiredHeatDemandKw && p.mcsStatus !== 'UNVERIFIED');
+
+  const preferredBrands = ['daikin', 'vaillant', 'mitsubishi', 'viessmann', 'baxi', 'grant'];
+
+  const preferredList = (categorizedAshps?.preferred?.length ? categorizedAshps.preferred : rawQualifying)
+    .filter(p => p.ratedOutputAtDesign >= requiredHeatDemandKw && p.mcsStatus !== 'UNVERIFIED' && preferredBrands.some(b => (p.brand || p.manufacturer || '').toLowerCase().includes(b)))
+    .sort((a, b) => (a.ratedOutputAtDesign - requiredHeatDemandKw) - (b.ratedOutputAtDesign - requiredHeatDemandKw));
+
+  const bestMatchList = (categorizedAshps?.bestMatch?.length ? categorizedAshps.bestMatch : rawQualifying)
+    .filter(p => p.ratedOutputAtDesign >= requiredHeatDemandKw && p.mcsStatus !== 'UNVERIFIED')
+    .sort((a, b) => (a.ratedOutputAtDesign - requiredHeatDemandKw) - (b.ratedOutputAtDesign - requiredHeatDemandKw));
+
+  const valueCostList = (categorizedAshps?.valueCost?.length ? categorizedAshps.valueCost : rawQualifying)
+    .filter(p => p.ratedOutputAtDesign >= requiredHeatDemandKw && p.mcsStatus !== 'UNVERIFIED')
+    .sort((a, b) => a.priceExVat - b.priceExVat);
+
+  const allList = [...rawQualifying].sort((a, b) => (a.ratedOutputAtDesign - requiredHeatDemandKw) - (b.ratedOutputAtDesign - requiredHeatDemandKw));
 
   const getActiveList = () => {
     switch (activeTab) {
@@ -59,7 +72,7 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
       case 'bestMatch': return bestMatchList;
       case 'valueCost': return valueCostList;
       case 'all': return allList;
-      default: return preferredList;
+      default: return preferredList.length > 0 ? preferredList : bestMatchList;
     }
   };
 

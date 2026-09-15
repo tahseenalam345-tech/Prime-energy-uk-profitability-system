@@ -93,7 +93,7 @@ const existingHeatingSystemOptions: SelectOption[] = [
 ];
 
 const boilerTypeOptions: SelectOption[] = [
-  { value: 'Combi', label: 'Combi', sublabel: 'Requires Cylinder & Conversion (£500)', badge: 'Conversion Req.' },
+  { value: 'Combi', label: 'Combi', sublabel: 'Existing combi boiler' },
   { value: 'System', label: 'System', sublabel: 'Existing cylinder present' },
   { value: 'Regular', label: 'Regular / Conventional', sublabel: 'Cold water tank + cylinder' },
   { value: 'Unknown', label: 'Unknown', sublabel: 'Manual survey check' },
@@ -116,6 +116,13 @@ const previousGovernmentGrantOptions: SelectOption[] = [
   { value: 'BUS', label: 'Previous BUS Claimed', sublabel: 'Disqualifies from BUS grant', badge: 'Disqualified' },
   { value: 'RHI', label: 'Previous Domestic RHI Claimed', sublabel: 'Disqualifies from BUS grant', badge: 'Disqualified' },
   { value: 'Unknown', label: 'Unknown', sublabel: 'Uncertainty Flag' },
+];
+
+const dominantRadiatorTypeOptions: SelectOption[] = [
+  { value: 'K1', label: 'Mostly K1 / Type 11', sublabel: 'Single panel, single convector' },
+  { value: 'P_PLUS', label: 'Mostly P+ / Type 21', sublabel: 'Double panel, single convector' },
+  { value: 'K2', label: 'Mostly K2 / Type 22', sublabel: 'Double panel, double convector' },
+  { value: 'MIXED_UNKNOWN', label: 'Mixed / Don\'t know', sublabel: 'Combination or unverified' },
 ];
 
 interface NewLeadViewProps {
@@ -153,12 +160,9 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [onOffGasGrid, setOnOffGasGrid] = useState('');
   const [cylinderSpace, setCylinderSpace] = useState('');
   
-  // Requirement 7: Radiator count breakdown inputs
-  const [k1Count, setK1Count] = useState<number | ''>('');
-  const [pPlusCount, setPPlusCount] = useState<number | ''>('');
-  const [k2Count, setK2Count] = useState<number | ''>('');
-  const [otherCount, setOtherCount] = useState<number | ''>('');
-  const [existingEmitterDimensions, setExistingEmitterDimensions] = useState('');
+  // Requirement 2: Simplified Radiator Inputs (Total count & Dominant type)
+  const [existingRadiatorCount, setExistingRadiatorCount] = useState<number | ''>('');
+  const [dominantRadiatorType, setDominantRadiatorType] = useState('');
 
   const [existingPipework, setExistingPipework] = useState('');
   const [previousGovernmentGrant, setPreviousGovernmentGrant] = useState('');
@@ -179,7 +183,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [descriptionOverrides, setDescriptionOverrides] = useState<Record<string, string>>({});
   const [customLineItems, setCustomLineItems] = useState<CustomLineItemInput[]>([]);
 
-  // 4. Equipment catalogs for modals
+  // 4. Equipment catalogs for modals (Cached ONCE on mount)
   const [ashpCatalog, setAshpCatalog] = useState<any[]>([]);
   const [cylinderCatalog, setCylinderCatalog] = useState<any[]>([]);
   const [ashpSearchQuery, setAshpSearchQuery] = useState('');
@@ -198,7 +202,9 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [savedQuoteRef, setSavedQuoteRef] = useState('');
   const [inputsChanged, setInputsChanged] = useState(false);
 
-  // Load catalogs on mount
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+
+  // Load catalogs ONCE on mount (Requirement 6: Do not refetch on every field change)
   useEffect(() => {
     async function loadCatalogs() {
       try {
@@ -215,8 +221,14 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
     loadCatalogs();
   }, []);
 
-  // Debounced backend calculation execution
+  // Ultra-fast debounced calculation execution with AbortController stale request cancellation
   const runCalculation = async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     setCalculating(true);
     setCalcError('');
     try {
@@ -242,11 +254,8 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         boilerType: boilerType || undefined,
         onOffGasGrid: onOffGasGrid || undefined,
         cylinderSpace: cylinderSpace || undefined,
-        k1Count: k1Count !== '' ? Number(k1Count) : undefined,
-        pPlusCount: pPlusCount !== '' ? Number(pPlusCount) : undefined,
-        k2Count: k2Count !== '' ? Number(k2Count) : undefined,
-        otherCount: otherCount !== '' ? Number(otherCount) : undefined,
-        existingEmitterDimensions: existingEmitterDimensions || undefined,
+        existingRadiatorCount: (existingRadiatorCount !== '' && Number(existingRadiatorCount) > 0) ? Number(existingRadiatorCount) : undefined,
+        dominantRadiatorType: dominantRadiatorType || undefined,
         existingPipework: existingPipework || undefined,
         previousGovernmentGrant: previousGovernmentGrant || undefined,
         salesNotes: salesNotes || undefined,
@@ -258,28 +267,29 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         customLineItems: customLineItems.length > 0 ? customLineItems : undefined
       };
 
-      const res = await api.calculateNewLead(payload);
+      const res = await api.calculateNewLead(payload, controller.signal);
       setResult(res);
       setInputsChanged(false);
     } catch (err: any) {
+      if (err.name === 'AbortError') return;
       setCalcError(err.message || 'Calculation failed');
     } finally {
       setCalculating(false);
     }
   };
 
-  // 300ms Debounce effect on property input changes
+  // 250ms Debounce effect on property input changes for instant responsiveness
   useEffect(() => {
     setInputsChanged(true);
     const timer = setTimeout(() => {
       runCalculation();
-    }, 300);
+    }, 250);
     return () => clearTimeout(timer);
   }, [
     epcFloorArea, epcRating, propertyType, propertyStatus, country,
     bedrooms, bathrooms, wallInsulation, roofInsulation, boilerType,
     cylinderSpace, existingPipework, onOffGasGrid, existingHeatingSystem, existingFuelType,
-    previousGovernmentGrant, k1Count, pPlusCount, k2Count, otherCount, existingEmitterDimensions,
+    previousGovernmentGrant, existingRadiatorCount, dominantRadiatorType,
     annualHeatingKwh, annualHotWaterKwh, overrideAshpId, overrideCylinderId,
     costOverrides, deletedLineIds, descriptionOverrides, customLineItems
   ]);
@@ -759,76 +769,43 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
               </div>
             </div>
 
-            {/* Requirement 7: Radiators breakdown inputs */}
+            {/* Requirement 2 & 3: Simplified Radiator Inputs */}
             <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <label className="form-label" style={{ fontWeight: 700, margin: 0 }}>
-                  Existing Radiator Inventory
+                  Existing Radiator Summary
                 </label>
                 <span className="badge badge-secondary" style={{ fontSize: '0.65rem' }}>
-                  EXISTING EMITTER INFORMATION
+                  PRE-SURVEY PLAUSIBILITY INDICATOR
                 </span>
               </div>
               <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                Record radiator types for context. Heat-demand is calculated strictly from fabric data, not invented radiator loss percentages.
+                Used only as a pre-survey emitter capacity plausibility indicator. Does not alter whole-house heat loss calculation.
               </p>
 
-              <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+              <div className="form-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
                 <div className="form-group">
-                  <label className="form-label">K1 / Type 11 Count</label>
+                  <label className="form-label">Total Radiators</label>
                   <input
                     type="number"
                     min="0"
+                    max="50"
                     className="form-control font-mono"
-                    placeholder="e.g. 3"
-                    value={k1Count}
-                    onChange={(e) => setK1Count(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="e.g. 8"
+                    value={existingRadiatorCount}
+                    onChange={(e) => setExistingRadiatorCount(e.target.value === '' ? '' : Number(e.target.value))}
                   />
                 </div>
                 <div className="form-group">
-                  <label className="form-label">P+ / Type 21 Count</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="form-control font-mono"
-                    placeholder="e.g. 2"
-                    value={pPlusCount}
-                    onChange={(e) => setPPlusCount(e.target.value === '' ? '' : Number(e.target.value))}
+                  <label className="form-label">What type are most of your existing radiators?</label>
+                  <SearchableSelect
+                    options={dominantRadiatorTypeOptions}
+                    value={dominantRadiatorType}
+                    onChange={(val) => setDominantRadiatorType(val || '')}
+                    placeholder="Select dominant type..."
+                    searchPlaceholder="Search radiator type..."
                   />
                 </div>
-                <div className="form-group">
-                  <label className="form-label">K2 / Type 22 Count</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="form-control font-mono"
-                    placeholder="e.g. 5"
-                    value={k2Count}
-                    onChange={(e) => setK2Count(e.target.value === '' ? '' : Number(e.target.value))}
-                  />
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Other / Unknown Count</label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="form-control font-mono"
-                    placeholder="e.g. 1"
-                    value={otherCount}
-                    onChange={(e) => setOtherCount(e.target.value === '' ? '' : Number(e.target.value))}
-                  />
-                </div>
-              </div>
-
-              <div className="form-group" style={{ marginTop: '10px' }}>
-                <label className="form-label">Optional Known Emitter Dimensions (Height × Length)</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="e.g. Lounge: 600x1200 K2, Bed 1: 600x1000 K1"
-                  value={existingEmitterDimensions}
-                  onChange={(e) => setExistingEmitterDimensions(e.target.value)}
-                />
               </div>
             </div>
 
@@ -1044,30 +1021,30 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', fontSize: '0.875rem' }}>
-                  {/* 1. Estimated Heat Demand */}
+                  {/* 1. Preliminary Estimated Heat Demand */}
                   <div style={{ padding: '10px 12px', background: 'var(--bg-panel)', borderRadius: '6px', border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
-                        <div style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>1. Estimated Heat Demand</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Pre-survey peak fabric heat loss heuristic</div>
+                        <div style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>1. Preliminary Estimated Heat Demand</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          Preliminary estimated heat demand — not an MCS/BS EN 12831 heat-load calculation.
+                        </div>
                       </div>
                       <strong style={{ color: 'var(--text-main)', fontSize: '1.05rem' }}>{result.heatDemand?.displayRange}</strong>
                     </div>
                   </div>
 
-                  {/* 2. Estimated Existing Emitter Capacity */}
+                  {/* 2. Estimated Existing Radiator Emitter Capacity */}
                   <div style={{ padding: '10px 12px', background: 'var(--bg-panel)', borderRadius: '6px', border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <div style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>2. Estimated Existing Emitter Capacity</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                          EN 442 output scaled to {result.emitterCapacity?.targetFlowTemp || 45}°C flow (ΔT{result.emitterCapacity?.targetDeltaT || 25})
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {result.emitterCapacity?.disclaimer || "Estimated existing radiator emitter capacity — pre-survey indicator only. Not an MCS heat-loss calculation, not BS EN 12831 design heat loss and not final heat-pump sizing."}
                         </div>
                       </div>
                       <strong style={{ color: 'var(--text-main)', fontSize: '1.05rem' }}>
-                        {result.emitterCapacity?.status === 'UNKNOWN'
-                          ? 'UNKNOWN (Missing data)'
-                          : `${result.emitterCapacity?.estimatedOutputKwAtTargetFlow} kW @ 45°C flow`}
+                        {result.emitterCapacity?.estimatedOutputKwAt30Display || result.emitterCapacity?.estimatedOutputKwAt50Display || 'Not calculated'}
                       </strong>
                     </div>
                   </div>
@@ -1075,16 +1052,16 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   {/* 3. Emitter Plausibility Check */}
                   <div style={{
                     padding: '10px 12px',
-                    background: result.emitterCapacity?.plausibilityCheck?.isAdequate ? '#f0fdf4' : '#fffbe6',
+                    background: result.emitterCapacity?.plausibilityCheck?.comparisonResult === 'High emitter capacity' || result.emitterCapacity?.plausibilityCheck?.comparisonResult === 'Plausible match' ? '#f0fdf4' : '#fffbe6',
                     borderRadius: '6px',
-                    border: `1px solid ${result.emitterCapacity?.plausibilityCheck?.isAdequate ? '#bbf7d0' : '#ffe58f'}`
+                    border: `1px solid ${result.emitterCapacity?.plausibilityCheck?.comparisonResult === 'High emitter capacity' || result.emitterCapacity?.plausibilityCheck?.comparisonResult === 'Plausible match' ? '#bbf7d0' : '#ffe58f'}`
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: result.emitterCapacity?.plausibilityCheck?.warningMessage ? '6px' : 0 }}>
-                      <span style={{ fontWeight: 600, color: result.emitterCapacity?.plausibilityCheck?.isAdequate ? '#15803d' : '#873800' }}>
-                        3. Emitter Plausibility Check
+                      <span style={{ fontWeight: 600, color: result.emitterCapacity?.plausibilityCheck?.comparisonResult === 'High emitter capacity' || result.emitterCapacity?.plausibilityCheck?.comparisonResult === 'Plausible match' ? '#15803d' : '#873800' }}>
+                        3. Emitter Plausibility Screen
                       </span>
-                      <span className={`badge ${result.emitterCapacity?.plausibilityCheck?.isAdequate ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.65rem' }}>
-                        {result.emitterCapacity?.plausibilityCheck?.statusLabel}
+                      <span className={`badge ${result.emitterCapacity?.plausibilityCheck?.comparisonResult === 'High emitter capacity' || result.emitterCapacity?.plausibilityCheck?.comparisonResult === 'Plausible match' ? 'badge-success' : 'badge-warning'}`} style={{ fontSize: '0.65rem' }}>
+                        {result.emitterCapacity?.plausibilityCheck?.comparisonResult || 'Unknown'}
                       </span>
                     </div>
                     {result.emitterCapacity?.plausibilityCheck?.warningMessage && (
@@ -1112,6 +1089,12 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                         ) : (
                           <span className="badge badge-success" style={{ fontSize: '0.65rem' }}>RECOMMENDED</span>
                         )}
+                        <span
+                          title="Recommended from the preliminary heat-demand estimate, product performance at the design condition, system requirements and Prime rules. Final MCS sizing requires the completed survey heat-loss calculation."
+                          style={{ cursor: 'help', display: 'inline-flex', alignItems: 'center' }}
+                        >
+                          <HelpCircle size={14} color="var(--primary)" />
+                        </span>
                       </div>
                       <button
                         onClick={() => setShowAshpHelpModal(true)}

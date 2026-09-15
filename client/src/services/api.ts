@@ -165,11 +165,12 @@ export const api = {
     return res.json();
   },
 
-  async calculateNewLead(inputs: any) {
+  async calculateNewLead(inputs: any, signal?: AbortSignal) {
     const res = await fetch(`${BASE_URL}/calculator/new-lead`, {
       method: 'POST',
       headers: getHeaders(),
-      body: JSON.stringify(inputs)
+      body: JSON.stringify(inputs),
+      signal
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));

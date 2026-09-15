@@ -7,10 +7,11 @@ export interface RadiatorEstimationInputs {
     productId: string;
     quantity: number;
   }> | null;
+  radiatorReplacementRequired?: boolean;
 }
 
 export interface RadiatorEstimationOutputs {
-  mode: 'EXACT_SCHEDULE' | 'COUNT_REPLACEMENT_RATIO' | 'HEAT_DEMAND_CAPACITY_BAND';
+  mode: 'EXACT_SCHEDULE' | 'NO_REPLACEMENT' | 'REPLACEMENT_REQUIRED';
   estimatedReplacementCount: number;
   displayQuantity: string;
   unitAllowanceCostExVat: number;
@@ -29,7 +30,7 @@ export interface RadiatorEstimationOutputs {
 
 export async function estimateRadiatorRequirements(inputs: RadiatorEstimationInputs): Promise<RadiatorEstimationOutputs> {
   const notes: string[] = [];
-  const disclaimer = 'ESTIMATED — actual radiator sizing requires room-by-room MCS heat-loss calculations and pipe sizing.';
+  const disclaimer = 'Pre-survey indicator only — actual radiator replacement requires room-by-room MCS heat-loss calculations.';
 
   // Default unit price for generic replacement radiator
   const genericRadRow = await db.get(`
@@ -41,7 +42,7 @@ export async function estimateRadiatorRequirements(inputs: RadiatorEstimationInp
 
   const unitAllowanceCostExVat = genericRadRow?.price_ex_vat || 165.00;
 
-  // Case 1: Exact radiator schedule provided (After Survey or detailed New Lead)
+  // Case 1: Exact radiator schedule provided (After Survey or detailed pre-survey schedule)
   if (inputs.exactRadiatorSchedule && inputs.exactRadiatorSchedule.length > 0) {
     let totalCost = 0;
     let totalCount = 0;
@@ -50,7 +51,6 @@ export async function estimateRadiatorRequirements(inputs: RadiatorEstimationInp
     const lineItems: RadiatorEstimationOutputs['lineItems'] = [];
 
     for (const item of inputs.exactRadiatorSchedule) {
-      // First check data-driven radiator_catalogue table
       const rad = await db.get(`
         SELECT rc.id, rc.product_name, rc.normalized_ex_vat_price, rc.verification_status, rc.pricing_confidence
         FROM radiator_catalogue rc
@@ -63,7 +63,6 @@ export async function estimateRadiatorRequirements(inputs: RadiatorEstimationInp
       let confidence = rad?.pricing_confidence;
 
       if (!rad) {
-        // Fallback to general products & product_prices tables
         const p = await db.get(`
           SELECT p.model, pr.price_ex_vat, pr.normalized_ex_vat_price, p.verification_status, pr.confidence
           FROM products p 
@@ -79,7 +78,6 @@ export async function estimateRadiatorRequirements(inputs: RadiatorEstimationInp
         }
       }
 
-      // Check if item is unverified or SOURCE_REQUIRED
       if (!model || status === 'SOURCE_REQUIRED' || price === null || confidence === 'PRICE_REQUIRED' || confidence === 'SOURCE_REQUIRED') {
         hasUnverifiedPrices = true;
         unverifiedItemIds.push(item.productId);
@@ -126,29 +124,23 @@ export async function estimateRadiatorRequirements(inputs: RadiatorEstimationInp
     };
   }
 
-  // Case 2: Only radiator count is known (Apply 40–60% replacement ratio allowance)
-  if (inputs.existingRadiatorCount && inputs.existingRadiatorCount > 0) {
+  // Case 2: Replacement explicitly required by business rule
+  if (inputs.radiatorReplacementRequired && inputs.existingRadiatorCount && inputs.existingRadiatorCount > 0) {
     const existingCount = inputs.existingRadiatorCount;
-    // 50% midpoint replacement ratio
     const replacementCount = Math.max(1, Math.round(existingCount * 0.50));
-    const minRange = Math.max(1, Math.floor(existingCount * 0.40));
-    const maxRange = Math.max(minRange, Math.ceil(existingCount * 0.60));
-
     const totalCost = replacementCount * unitAllowanceCostExVat;
 
-    notes.push(
-      `Property has ${existingCount} radiators. Applied configurable 40–60% heat pump upsizing replacement ratio (estimated ${replacementCount} units).`
-    );
+    notes.push(`Radiator upgrade explicitly flagged: ${replacementCount} replacement units estimated at £${unitAllowanceCostExVat}/unit.`);
 
     return {
-      mode: 'COUNT_REPLACEMENT_RATIO',
+      mode: 'REPLACEMENT_REQUIRED',
       estimatedReplacementCount: replacementCount,
-      displayQuantity: `${minRange}–${maxRange} radiators (approx. ${replacementCount} assumed)`,
+      displayQuantity: `${replacementCount} replacement radiators required`,
       unitAllowanceCostExVat,
       totalRadiatorCostExVat: totalCost,
       lineItems: [
         {
-          description: `Heat Pump Radiator Upsizing Allowance (${replacementCount} units @ 50% replacement ratio)`,
+          description: `Radiator Replacement Allowance (${replacementCount} units)`,
           quantity: replacementCount,
           unitPriceExVat: unitAllowanceCostExVat,
           totalPriceExVat: totalCost
@@ -159,170 +151,238 @@ export async function estimateRadiatorRequirements(inputs: RadiatorEstimationInp
     };
   }
 
-  // Case 3: Radiator count is unknown (Use heat demand capacity bands)
-  const kw = inputs.heatDemandKw;
-  let estCount = 3;
-  let displayBand = '2–4 units';
-
-  if (kw < 6.0) {
-    estCount = 1;
-    displayBand = '0–2 units';
-  } else if (kw < 10.0) {
-    estCount = 3;
-    displayBand = '2–4 units';
-  } else if (kw < 15.0) {
-    estCount = 5;
-    displayBand = '4–6 units';
-  } else {
-    estCount = 7;
-    displayBand = '6–8 units';
-  }
-
-  const totalCost = estCount * unitAllowanceCostExVat;
-  notes.push(
-    `No radiator information provided. Sized allowance from indicative heat demand (${kw.toFixed(1)} kW) band: ${displayBand}.`
-  );
+  // Case 3: Default — Existing radiator count represents existing property emitters.
+  // Rule 8: If no radiator replacement is required: replacement quantity = 0, replacement cost = £0.
+  // Do NOT silently create an "extra radiator allowance".
+  notes.push('Existing radiators reported. No automatic replacement allowance added pre-survey (Replacement quantity = 0, Cost = £0).');
 
   return {
-    mode: 'HEAT_DEMAND_CAPACITY_BAND',
-    estimatedReplacementCount: estCount,
-    displayQuantity: `${displayBand} (approx. ${estCount} assumed)`,
+    mode: 'NO_REPLACEMENT',
+    estimatedReplacementCount: 0,
+    displayQuantity: '0 units (£0 — existing emitters retained pre-survey)',
     unitAllowanceCostExVat,
-    totalRadiatorCostExVat: totalCost,
-    lineItems: [
-      {
-        description: `Indicative Radiator Replacement Allowance (${displayBand}, heat demand ${kw.toFixed(1)} kW)`,
-        quantity: estCount,
-        unitPriceExVat: unitAllowanceCostExVat,
-        totalPriceExVat: totalCost
-      }
-    ],
+    totalRadiatorCostExVat: 0,
+    lineItems: [],
     notes,
     disclaimer
   };
 }
 
+// Authoritative Stelrad Compact Reference Data (Reference Condition: Δt50 = 75/65/20°C, Δt30 = 55/45/20°C where documented)
+export const STELRAD_EXACT_CATALOGUE: Record<string, { uin?: string; type: string; height: number; length: number; wattsQ50: number; wattsQ30?: number; btuQ50: number }> = {
+  // Special data check requirement: 700 x 2600 K2 / UIN 143863 = 5099 W / 17,403 Btu/hr. Use 5099 W, not 4503 W.
+  '143863': { uin: '143863', type: 'K2', height: 700, length: 2600, wattsQ50: 5099, wattsQ30: 2598, btuQ50: 17403 },
+  'rad_k2_700x2600': { uin: '143863', type: 'K2', height: 700, length: 2600, wattsQ50: 5099, wattsQ30: 2598, btuQ50: 17403 },
+  
+  // Standard Stelrad Compact references
+  'rad_k1_600x1000': { type: 'K1', height: 600, length: 1000, wattsQ50: 968, wattsQ30: 493, btuQ50: 3303 },
+  'rad_p_plus_600x1000': { type: 'P+', height: 600, length: 1000, wattsQ50: 1332, wattsQ30: 679, btuQ50: 4545 },
+  'rad_k2_600x1000': { type: 'K2', height: 600, length: 1000, wattsQ50: 1747, wattsQ30: 890, btuQ50: 5961 },
+  'rad_k2_600x1200': { type: 'K2', height: 600, length: 1200, wattsQ50: 2096, wattsQ30: 1068, btuQ50: 7152 },
+  'rad_k2_600x1400': { type: 'K2', height: 600, length: 1400, wattsQ50: 2446, wattsQ30: 1246, btuQ50: 8346 }
+};
+
 export interface EmitterCapacityInputs {
-  k1Count?: number;
-  pPlusCount?: number;
-  k2Count?: number;
-  otherCount?: number;
-  dimensionsText?: string | Array<{ type: string; heightMm?: number; lengthMm?: number }>;
+  existingRadiatorCount?: number | null;
+  dominantRadiatorType?: 'K1' | 'P_PLUS' | 'K2' | 'MIXED' | 'UNKNOWN' | 'MIXED_UNKNOWN' | string | null;
+  isStandardHorizontalPanel?: boolean | 'YES' | 'NO' | 'DONT_KNOW' | null;
+  radiatorInfoConfidence?: 'VISUALLY_CONFIRMED' | 'APPROXIMATE' | 'UNKNOWN' | null;
+  exactRadiatorSchedule?: Array<{
+    productId?: string;
+    uin?: string;
+    type?: string;
+    heightMm?: number;
+    lengthMm?: number;
+    quantity?: number;
+  }> | null;
   targetFlowTemp?: number;
-  estimatedHeatDemandKw?: number;
+  estimatedHeatDemandKw?: number | null;
 }
 
 export interface EmitterCapacityOutputs {
-  k1Count: number;
-  pPlusCount: number;
-  k2Count: number;
-  otherCount: number;
   totalRadiatorCount: number;
-  hasMissingDimensions: boolean;
-  status: 'VERIFIED_DIMENSIONS' | 'PARTIAL' | 'UNKNOWN';
-  estimatedOutputKwAt50: number;
-  estimatedOutputKwAtTargetFlow: number;
-  targetFlowTemp: number;
-  targetDeltaT: number;
+  dominantRadiatorType: string;
+  isStandardHorizontalPanel: string;
+  radiatorInfoConfidence: string;
+  hasExactScheduleOrDimensions: boolean;
+  confidenceLevel: 'High' | 'Medium' | 'Low' | 'Unknown';
+  estimatedOutputKwAt50: number | null;
+  estimatedOutputKwAt50Display: string;
+  estimatedOutputKwAt30: number | null;
+  estimatedOutputKwAt30Display: string;
+  qualitativeSummary: string;
+  comparisonResult: 'Low emitter capacity' | 'Plausible match' | 'High emitter capacity' | 'Unknown';
   plausibilityCheck: {
     estimatedHeatDemandKw: number;
-    emitterCapacityKw: number;
-    isAdequate: boolean;
+    emitterCapacityKw: number | null;
+    comparisonResult: 'Low emitter capacity' | 'Plausible match' | 'High emitter capacity' | 'Unknown';
     warningMessage?: string;
     statusLabel: string;
   };
+  disclaimer: string;
+  heatDemandDisclaimer: string;
   notes: string[];
 }
 
 export function evaluateExistingEmitterCapacity(inputs: EmitterCapacityInputs): EmitterCapacityOutputs {
-  const k1Count = Math.max(0, inputs.k1Count || 0);
-  const pPlusCount = Math.max(0, inputs.pPlusCount || 0);
-  const k2Count = Math.max(0, inputs.k2Count || 0);
-  const otherCount = Math.max(0, inputs.otherCount || 0);
-  const totalCount = k1Count + pPlusCount + k2Count + otherCount;
+  const totalCount = Math.max(0, inputs.existingRadiatorCount || 0);
+  let dominantType = inputs.dominantRadiatorType || 'MIXED_UNKNOWN';
+  if (dominantType === 'P+') dominantType = 'P_PLUS';
 
-  const targetFlowTemp = inputs.targetFlowTemp || 45;
-  const targetDeltaT = Math.max(10, targetFlowTemp - 20);
+  const horizPanel = inputs.isStandardHorizontalPanel === true || inputs.isStandardHorizontalPanel === 'YES'
+    ? 'YES'
+    : inputs.isStandardHorizontalPanel === false || inputs.isStandardHorizontalPanel === 'NO'
+    ? 'NO'
+    : 'DONT_KNOW';
 
-  let hasMissingDimensions = true;
-  let dimensionsFoundCount = 0;
-
-  let totalWAt50 = 0;
-
-  if (typeof inputs.dimensionsText === 'string' && inputs.dimensionsText.trim().length > 0) {
-    const text = inputs.dimensionsText;
-    const matches = text.match(/\d{3,4}\s*[xX*]\s*\d{3,4}/g);
-    if (matches && matches.length > 0) {
-      hasMissingDimensions = false;
-      dimensionsFoundCount = matches.length;
-    }
-  } else if (Array.isArray(inputs.dimensionsText) && inputs.dimensionsText.length > 0) {
-    hasMissingDimensions = false;
-    dimensionsFoundCount = inputs.dimensionsText.length;
-  }
-
-  totalWAt50 += k1Count * 900;
-  totalWAt50 += pPlusCount * 1250;
-  totalWAt50 += k2Count * 1650;
-  totalWAt50 += otherCount * 1000;
-
-  const estimatedOutputKwAt50 = Math.round((totalWAt50 / 1000) * 100) / 100;
-
-  const scalingFactor = Math.pow(targetDeltaT / 50, 1.3);
-  const estimatedOutputKwAtTargetFlow = Math.round((estimatedOutputKwAt50 * scalingFactor) * 100) / 100;
-
-  const estimatedHeatDemandKw = Math.round((inputs.estimatedHeatDemandKw || 0) * 100) / 100;
+  const confidenceInput = inputs.radiatorInfoConfidence || 'UNKNOWN';
+  const estimatedHeatDemandKw = Math.round(((inputs.estimatedHeatDemandKw || 0)) * 10) / 10;
   const notes: string[] = [];
 
-  let status: EmitterCapacityOutputs['status'] = 'UNKNOWN';
-  if (totalCount === 0 || hasMissingDimensions) {
-    status = 'UNKNOWN';
-    notes.push('Radiator dimensions or inventory missing — stored as UNKNOWN. Confidence reduced.');
-  } else if (dimensionsFoundCount >= totalCount) {
-    status = 'VERIFIED_DIMENSIONS';
-    notes.push(`Calculated emitter capacity from EN 442 baseline output data for ${totalCount} radiators with verified dimensions.`);
-  } else {
-    status = 'PARTIAL';
-    notes.push(`Calculated emitter capacity for ${totalCount} radiators using standard type output heuristics.`);
+  const disclaimer = "Estimated existing radiator emitter capacity — pre-survey indicator only. Not an MCS heat-loss calculation, not BS EN 12831 design heat loss and not final heat-pump sizing.";
+  const heatDemandDisclaimer = "Preliminary estimated heat demand — not an MCS/BS EN 12831 heat-load calculation.";
+
+  // Check if exact schedule or exact dimensions/UIN are supplied
+  const hasExactSchedule = Boolean(inputs.exactRadiatorSchedule && inputs.exactRadiatorSchedule.length > 0);
+
+  if (hasExactSchedule) {
+    let sumQ50Watts = 0;
+    let sumQ30Watts = 0;
+    let missingQ30 = false;
+    let allUinsKnown = true;
+    let allDimsKnown = true;
+
+    for (const item of inputs.exactRadiatorSchedule!) {
+      const qty = item.quantity || 1;
+      const lookupKey = item.uin || item.productId || `rad_${(item.type || 'k2').toLowerCase().replace('+', '_plus')}_${item.heightMm}x${item.lengthMm}`;
+      const stelrad = STELRAD_EXACT_CATALOGUE[lookupKey];
+
+      if (stelrad) {
+        sumQ50Watts += stelrad.wattsQ50 * qty;
+        if (stelrad.wattsQ30) {
+          sumQ30Watts += stelrad.wattsQ30 * qty;
+        } else {
+          missingQ30 = true;
+        }
+      } else {
+        allUinsKnown = false;
+        allDimsKnown = false;
+      }
+    }
+
+    const kw50 = Math.round((sumQ50Watts / 1000) * 100) / 100;
+    const kw30 = !missingQ30 && sumQ30Watts > 0 ? Math.round((sumQ30Watts / 1000) * 100) / 100 : null;
+
+    let confidenceLevel: 'High' | 'Medium' | 'Low' | 'Unknown' = 'Medium';
+    if (allUinsKnown && confidenceInput === 'VISUALLY_CONFIRMED') {
+      confidenceLevel = 'High';
+    } else if (allDimsKnown) {
+      confidenceLevel = 'Medium';
+    }
+
+    let comparisonResult: 'Low emitter capacity' | 'Plausible match' | 'High emitter capacity' | 'Unknown' = 'Unknown';
+    if (kw30 !== null && estimatedHeatDemandKw > 0) {
+      if (kw30 < estimatedHeatDemandKw * 0.85) {
+        comparisonResult = 'Low emitter capacity';
+      } else if (kw30 <= estimatedHeatDemandKw * 1.25) {
+        comparisonResult = 'Plausible match';
+      } else {
+        comparisonResult = 'High emitter capacity';
+      }
+    } else if (kw50 > 0 && estimatedHeatDemandKw > 0) {
+      comparisonResult = 'Plausible match';
+    }
+
+    const warningMessage = comparisonResult === 'Low emitter capacity'
+      ? 'Existing emitter capacity may be insufficient at the proposed lower flow temperature.'
+      : undefined;
+
+    return {
+      totalRadiatorCount: totalCount || inputs.exactRadiatorSchedule!.length,
+      dominantRadiatorType: dominantType,
+      isStandardHorizontalPanel: horizPanel,
+      radiatorInfoConfidence: confidenceInput,
+      hasExactScheduleOrDimensions: true,
+      confidenceLevel,
+      estimatedOutputKwAt50: kw50,
+      estimatedOutputKwAt50Display: `${kw50.toFixed(2)} kW @ Δt50 (75/65/20°C)`,
+      estimatedOutputKwAt30: kw30,
+      estimatedOutputKwAt30Display: kw30 !== null ? `${kw30.toFixed(2)} kW @ Δt30 (55/45/20°C)` : 'Not calculated',
+      qualitativeSummary: `Calculated from exact manufacturer Stelrad data for ${inputs.exactRadiatorSchedule!.length} specified radiators.`,
+      comparisonResult,
+      plausibilityCheck: {
+        estimatedHeatDemandKw,
+        emitterCapacityKw: kw30 ?? kw50,
+        comparisonResult,
+        warningMessage,
+        statusLabel: comparisonResult
+      },
+      disclaimer,
+      heatDemandDisclaimer,
+      notes
+    };
   }
 
-  let isAdequate = false;
-  let warningMessage: string | undefined = undefined;
-  let statusLabel = 'UNKNOWN';
+  // Count / Dominant Type Only (No exact dimensions / UINs supplied)
+  // Rule 5: When only count + dominant type are known: produce qualitative emitter information only.
+  // Do NOT invent total radiator kW. Do NOT calculate house heat loss from radiator count/type.
+  const isUnknown = totalCount === 0 || dominantType === 'MIXED_UNKNOWN' || dominantType === 'UNKNOWN' || dominantType === 'Mixed' || dominantType === 'Don’t know';
 
-  if (totalCount === 0 || status === 'UNKNOWN') {
-    isAdequate = false;
-    statusLabel = 'UNKNOWN — Radiator information incomplete';
-    warningMessage = 'Radiator dimensions/model missing — stored as UNKNOWN. Emitter adequacy will be verified at site survey.';
-  } else if (estimatedOutputKwAtTargetFlow < estimatedHeatDemandKw) {
-    isAdequate = false;
-    statusLabel = 'WARNING — Potential Emitter Capacity Shortfall';
-    warningMessage = 'Existing emitter capacity may be low for the proposed heat-pump flow temperature.';
+  let confidenceLevel: 'High' | 'Medium' | 'Low' | 'Unknown' = 'Unknown';
+  let comparisonResult: 'Low emitter capacity' | 'Plausible match' | 'High emitter capacity' | 'Unknown' = 'Unknown';
+  let qualitativeSummary = '';
+
+  if (isUnknown) {
+    confidenceLevel = 'Unknown';
+    comparisonResult = 'Unknown';
+    qualitativeSummary = 'Radiator count or dominant type unsupplied or mixed unknown. Qualitative pre-survey indicator only.';
   } else {
-    isAdequate = true;
-    statusLabel = 'PASS — Estimated existing emitter capacity adequate';
+    confidenceLevel = 'Low';
+    if (dominantType === 'K2') {
+      comparisonResult = 'Plausible match';
+      qualitativeSummary = 'Mostly K2 radiators indicate higher potential emitter output per size than K1/P+. Qualitative indicator only; does NOT alter heat loss.';
+    } else if (dominantType === 'K1') {
+      comparisonResult = 'Low emitter capacity';
+      qualitativeSummary = 'Mostly K1 radiators may have lower low-temperature emitter capacity. Qualitative indicator only; does NOT alter heat loss.';
+    } else if (dominantType === 'P_PLUS' || dominantType === 'P+') {
+      comparisonResult = 'Plausible match';
+      qualitativeSummary = 'Mostly P+ (Type 21) radiators provide moderate emitter surface area. Qualitative indicator only; does NOT alter heat loss.';
+    } else {
+      comparisonResult = 'Unknown';
+      qualitativeSummary = 'Mixed or unknown radiator types; lower confidence pre-survey indicator.';
+    }
   }
+
+  notes.push('Count and dominant type supplied — reported as qualitative emitter indicator. Total radiator kW set to "Not calculated".');
+
+  const warningMessage = comparisonResult === 'Low emitter capacity'
+    ? 'Existing emitter capacity may be insufficient at the proposed lower flow temperature.'
+    : undefined;
 
   return {
-    k1Count,
-    pPlusCount,
-    k2Count,
-    otherCount,
     totalRadiatorCount: totalCount,
-    hasMissingDimensions,
-    status,
-    estimatedOutputKwAt50,
-    estimatedOutputKwAtTargetFlow,
-    targetFlowTemp,
-    targetDeltaT,
+    dominantRadiatorType: dominantType,
+    isStandardHorizontalPanel: horizPanel,
+    radiatorInfoConfidence: confidenceInput,
+    hasExactScheduleOrDimensions: false,
+    confidenceLevel,
+    estimatedOutputKwAt50: null,
+    estimatedOutputKwAt50Display: 'Not calculated',
+    estimatedOutputKwAt30: null,
+    estimatedOutputKwAt30Display: 'Not calculated',
+    qualitativeSummary,
+    comparisonResult,
     plausibilityCheck: {
       estimatedHeatDemandKw,
-      emitterCapacityKw: estimatedOutputKwAtTargetFlow,
-      isAdequate,
+      emitterCapacityKw: null,
+      comparisonResult,
       warningMessage,
-      statusLabel
+      statusLabel: comparisonResult
     },
+    disclaimer,
+    heatDemandDisclaimer,
     notes
   };
 }
+
 

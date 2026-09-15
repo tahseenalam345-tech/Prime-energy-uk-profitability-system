@@ -98,23 +98,8 @@ export async function evaluateAccessoriesAndBom(inputs: BomRuleInputs): Promise<
     }
   }
 
-  // 3. Combi Boiler Conversion Allowance
-  const boilerType = (inputs.boilerType || '').toLowerCase();
-  let combiConversionCostExVat = 0;
-  if (boilerType.includes('combi')) {
-    combiConversionCostExVat = combiAllowance;
-    lineItems.push({
-      productId: 'acc_combi_conversion_kit',
-      category: 'COMBI_CONVERSION',
-      description: 'Combi Boiler System Conversion Allowance (Cold main re-pipe & S-plan wiring modification)',
-      quantity: 1,
-      unitCostExVat: combiAllowance,
-      totalCostExVat: combiAllowance,
-      vatRate: 0.0,
-      notes: 'Required when replacing combi boiler with heat pump & hot water cylinder'
-    });
-    warnings.push('Existing system is Combi Boiler: Included £' + combiAllowance + ' system conversion allowance.');
-  }
+  // 3. Combi Boiler Conversion Allowance (Completely removed per Requirement 4)
+  const combiConversionCostExVat = 0;
 
   // 4. Pipework & Microbore Re-pipe Allowance
   let totalPipeworkCostExVat = 0;

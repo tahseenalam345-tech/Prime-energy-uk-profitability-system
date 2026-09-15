@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { calculateNewLeadEstimate } from '../src/engine/newLeadCalculator.js';
+import { evaluateExistingEmitterCapacity, STELRAD_EXACT_CATALOGUE } from '../src/engine/radiatorEngine.js';
 
 describe('Mode A — Final UX & Calculation Improvement Tests', () => {
 
@@ -87,44 +88,52 @@ describe('Mode A — Final UX & Calculation Improvement Tests', () => {
     expect(res.cylinder?.recommendedProduct?.volumeLitres).toBeGreaterThanOrEqual(250);
   });
 
-  it('7. RADIATOR TYPE CAPTURE — stores radiator counts as EXISTING EMITTER INFORMATION', async () => {
+  it('7. SIMPLIFIED RADIATOR TYPE CAPTURE — stores total radiator count and dominant type', async () => {
     const res = await calculateNewLeadEstimate({
       epcFloorArea: 100,
-      k1Count: 3,
-      pPlusCount: 2,
-      k2Count: 5,
-      otherCount: 1,
-      existingEmitterDimensions: 'Lounge: 600x1200 K2'
+      existingRadiatorCount: 10,
+      dominantRadiatorType: 'K2'
     });
 
     expect(res.existingEmitterInformation).toBeDefined();
-    expect(res.existingEmitterInformation?.k1Count).toBe(3);
-    expect(res.existingEmitterInformation?.pPlusCount).toBe(2);
-    expect(res.existingEmitterInformation?.k2Count).toBe(5);
-    expect(res.existingEmitterInformation?.otherCount).toBe(1);
-    expect(res.existingEmitterInformation?.totalRadiatorCount).toBe(11);
-    expect(res.existingEmitterInformation?.dimensionsText).toBe('Lounge: 600x1200 K2');
+    expect(res.existingEmitterInformation?.totalRadiatorCount).toBe(10);
+    expect(res.existingEmitterInformation?.dominantRadiatorType).toBe('K2');
   });
 
-  it('8. CONDITIONAL COSTS SEPARATION — combi conversion £500 is strictly conditional on Combi boiler', async () => {
-    const resNonCombi = await calculateNewLeadEstimate({
-      epcFloorArea: 100,
-      boilerType: 'System'
+  it('8. RADIATOR EFFECT — increasing radiator count does NOT incorrectly increase heat loss or heat pump size', async () => {
+    const res5Rads = await calculateNewLeadEstimate({
+      epcFloorArea: 120,
+      propertyType: 'Detached',
+      epcRating: 'D',
+      existingRadiatorCount: 5,
+      dominantRadiatorType: 'K1'
     });
-    const combiLineNon = resNonCombi.lineItems.find(l => l.category === 'Combi Conversion' || l.category === 'COMBI_CONVERSION');
-    expect(combiLineNon).toBeUndefined();
 
+    const res25Rads = await calculateNewLeadEstimate({
+      epcFloorArea: 120,
+      propertyType: 'Detached',
+      epcRating: 'D',
+      existingRadiatorCount: 25,
+      dominantRadiatorType: 'K2'
+    });
+
+    expect(res5Rads.heatDemand.maxDemandKw).toBe(res25Rads.heatDemand.maxDemandKw);
+    expect(res5Rads.ashp?.recommendedProduct?.id).toBe(res25Rads.ashp?.recommendedProduct?.id);
+  });
+
+  it('9. COMBI CONVERSION ABSENT — £500 combi conversion allowance is completely absent', async () => {
     const resCombi = await calculateNewLeadEstimate({
       epcFloorArea: 100,
       boilerType: 'Combi'
     });
-    const combiLineCombi = resCombi.lineItems.find(l => l.category === 'Combi Conversion' || l.category === 'COMBI_CONVERSION');
-    expect(combiLineCombi).toBeDefined();
-    expect(combiLineCombi?.totalPriceExVat).toBe(500);
-    expect(combiLineCombi?.isConditional).toBe(true);
+
+    const combiLine = resCombi.lineItems.find(l => l.category === 'Combi Conversion' || l.category === 'COMBI_CONVERSION' || l.description.toLowerCase().includes('combi conversion'));
+    expect(combiLine).toBeUndefined();
+    expect(resCombi.bom.combiConversionCostExVat).toBe(0);
+    expect(resCombi.costBreakdown.combiConversionAllowance).toBe(0);
   });
 
-  it('9. AUTO-NOTE GENERATION — produces ONE LINE ONLY note using supplied info', async () => {
+  it('10. AUTO-NOTE GENERATION — produces ONE LINE ONLY note using supplied info', async () => {
     const res = await calculateNewLeadEstimate({
       epcFloorArea: 120,
       propertyType: 'Semi detached',
@@ -145,44 +154,54 @@ describe('Mode A — Final UX & Calculation Improvement Tests', () => {
     expect(res.autoNote).toContain('recommended');
   });
 
-  it('10. EMITTER CAPACITY & PLAUSIBILITY CHECK — calculates EN 442 capacity @ 45°C flow and checks plausibility', async () => {
-    // Case A: Missing dimensions -> UNKNOWN & reduced confidence
-    const resUnknown = await calculateNewLeadEstimate({
+  it('11. RADIATOR BOM COST BUG FIX — existing radiator count does NOT create extra radiator BOM quantities or costs', async () => {
+    const res = await calculateNewLeadEstimate({
       epcFloorArea: 120,
       propertyType: 'Detached',
-      epcRating: 'D'
-      // No radiator counts/dimensions
+      existingRadiatorCount: 12,
+      dominantRadiatorType: 'K2'
     });
 
-    expect(resUnknown.emitterCapacity).toBeDefined();
-    expect(resUnknown.emitterCapacity?.status).toBe('UNKNOWN');
-    expect(resUnknown.emitterCapacity?.hasMissingDimensions).toBe(true);
-    expect(resUnknown.emitterCapacity?.plausibilityCheck.warningMessage).toContain('stored as UNKNOWN');
-    // Radiator confidence breakdown awarded 0
-    const radConf = resUnknown.confidence?.breakdown.find(b => b.field === 'radiator_information');
-    expect(radConf?.awardedWeight).toBe(0);
+    expect(res.radiators.estimatedReplacementCount).toBe(0);
+    expect(res.radiators.totalRadiatorCostExVat).toBe(0);
+    expect(res.costBreakdown.radiatorsAllowance).toBe(0);
+  });
 
-    // Case B: Emitter capacity low -> Warning "Existing emitter capacity may be low..."
-    // Floor area 140m² Detached ~ 10 kW heat demand. 2 x K1 radiators @ 45°C flow = ~0.73 kW capacity.
-    const resLow = await calculateNewLeadEstimate({
-      epcFloorArea: 140,
-      propertyType: 'Detached',
-      epcRating: 'E',
-      k1Count: 2,
-      existingEmitterDimensions: 'Lounge: 600x1000 K1, Bed: 600x1000 K1'
+  it('12. EXACT STELRAD DATA & 700x2600 K2 UIN 143863 = 5099 W', () => {
+    const item = STELRAD_EXACT_CATALOGUE['143863'];
+    expect(item).toBeDefined();
+    expect(item.wattsQ50).toBe(5099);
+    expect(item.btuQ50).toBe(17403);
+
+    const emitterOut = evaluateExistingEmitterCapacity({
+      exactRadiatorSchedule: [
+        { uin: '143863', quantity: 1 }
+      ],
+      estimatedHeatDemandKw: 8.5
     });
 
-    expect(resLow.emitterCapacity?.status).toBe('VERIFIED_DIMENSIONS');
-    expect(resLow.emitterCapacity?.estimatedOutputKwAtTargetFlow).toBeLessThan(resLow.heatDemand.maxDemandKw);
-    expect(resLow.emitterCapacity?.plausibilityCheck.isAdequate).toBe(false);
-    expect(resLow.emitterCapacity?.plausibilityCheck.warningMessage).toBe('Existing emitter capacity may be low for the proposed heat-pump flow temperature.');
+    expect(emitterOut.hasExactScheduleOrDimensions).toBe(true);
+    expect(emitterOut.estimatedOutputKwAt50).toBe(5.1); // 5099 W rounded to 5.1 kW
+  });
 
-    // Crucial check: Emitter capacity shortfall does NOT alter fabric heat loss calculation!
-    const resSameFabricNoRads = await calculateNewLeadEstimate({
-      epcFloorArea: 140,
-      propertyType: 'Detached',
-      epcRating: 'E'
+  it('13. MISSING DIMENSIONS — produces qualitative emitter result only without invented total kW', () => {
+    const emitterOut = evaluateExistingEmitterCapacity({
+      existingRadiatorCount: 10,
+      dominantRadiatorType: 'K2',
+      estimatedHeatDemandKw: 8.5
     });
-    expect(resLow.heatDemand.maxDemandKw).toBe(resSameFabricNoRads.heatDemand.maxDemandKw);
+
+    expect(emitterOut.hasExactScheduleOrDimensions).toBe(false);
+    expect(emitterOut.estimatedOutputKwAt50).toBeNull();
+    expect(emitterOut.estimatedOutputKwAt50Display).toBe('Not calculated');
+    expect(emitterOut.estimatedOutputKwAt30).toBeNull();
+    expect(emitterOut.estimatedOutputKwAt30Display).toBe('Not calculated');
+    expect(emitterOut.confidenceLevel).toBe('Low');
+    expect(emitterCapacityIsSeparateFromHeatDemand(8.5, emitterOut)).toBe(true);
   });
 });
+
+function emitterCapacityIsSeparateFromHeatDemand(heatDemandKw: number, emitterOut: any): boolean {
+  return emitterOut.plausibilityCheck.estimatedHeatDemandKw === heatDemandKw;
+}
+

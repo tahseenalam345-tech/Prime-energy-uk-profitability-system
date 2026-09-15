@@ -72,6 +72,13 @@ export interface ASHPSelectorOptions {
   overrideProductId?: string; // Manual user selection override
 }
 
+let productCache: { data: any[]; timestamp: number } | null = null;
+const CACHE_TTL_MS = 15000;
+
+export function clearProductCache() {
+  productCache = null;
+}
+
 export async function selectRecommendedASHP(
   upperBoundKw: number,
   optionsOrBrand?: string | ASHPSelectorOptions
@@ -87,7 +94,7 @@ export async function selectRecommendedASHP(
   const designOutdoor = options.designOutdoorTemp ?? -3;
   const designFlow = options.designFlowTemp ?? options.maxFlowTemperature ?? 45;
 
-  // Query all active products with current pricing and performance curves
+  // Query all active products with current pricing and performance curves (with 15s in-memory cache)
   const query = `
     SELECT 
       p.id, p.brand, p.manufacturer, p.product_family, p.model, p.sku,
@@ -109,40 +116,14 @@ export async function selectRecommendedASHP(
     ORDER BY COALESCE(p.rated_output_kw, p.rated_output_at_design, 999) ASC
   `;
 
-  const rawProducts = await db.all(query) as Array<{
-    id: string;
-    brand: string | null;
-    manufacturer: string;
-    product_family: string | null;
-    model: string;
-    sku: string | null;
-    nominal_capacity: number | null;
-    rated_output_kw: number | null;
-    design_condition: string;
-    flow_temperature: number;
-    output_a_minus_7_w35: number | null;
-    output_a7_w45: number | null;
-    output_w55: number | null;
-    refrigerant: string | null;
-    phase: number | null;
-    electrical_requirements: string | null;
-    product_type: string | null;
-    mcs_status: string | null;
-    mcs_product_reference: string | null;
-    mcs_directory_url: string | null;
-    ofgem_pel_status: string | null;
-    ofgem_source_url: string | null;
-    bus_product_eligibility_status: string | null;
-    data_confidence: string | null;
-    manual_review_required: number | null;
-    price_ex_vat: number | null;
-    price_inc_vat: number | null;
-    vat_rate: number | null;
-    supplier: string | null;
-    source_type: string | null;
-    confidence: string | null;
-    source_url: string | null;
-  }>;
+  let rawProducts: any[];
+  const now = Date.now();
+  if (productCache && (now - productCache.timestamp < CACHE_TTL_MS)) {
+    rawProducts = productCache.data;
+  } else {
+    rawProducts = await db.all(query) as any[];
+    productCache = { data: rawProducts, timestamp: now };
+  }
 
   const allAshpProducts: ASHPProductItem[] = rawProducts.map(p => {
     // Dynamic rated output selection based on design flow and outdoor temperatures
