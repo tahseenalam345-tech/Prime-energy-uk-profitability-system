@@ -131,7 +131,7 @@ export interface NewLeadCalculationResult {
 
 export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): Promise<NewLeadCalculationResult> {
   const timestamp = new Date().toISOString();
-  const disclaimer = 'PRE-SURVEY ESTIMATE ONLY — not an MCS final design. Sizing and costs subject to full technical site survey.';
+  const disclaimer = 'PRE-SURVEY ESTIMATE — NOT FINAL MCS HEAT-LOSS DESIGN. Sizing and costs subject to full technical site survey.';
   const assumptionsAndDataGaps: string[] = [];
   const costOverridesApplied: Record<string, { original: number; overridden: number }> = {};
 

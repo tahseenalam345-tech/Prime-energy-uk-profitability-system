@@ -103,4 +103,35 @@ describe('BUS Rules Engine', () => {
     expect(result.status).toBe('FAIL');
     expect(result.grantAmount).toBe(0);
   });
+
+  it('rejects air-to-air heat pump technology', async () => {
+    const result = await evaluateBUSEligibility({
+      country: 'England',
+      propertyStatus: 'Existing property',
+      onOffGasGrid: 'On gas grid',
+      existingHeatingSystem: 'Gas Boiler',
+      technologyType: 'Air-to-air',
+      previousGovernmentGrant: 'None'
+    });
+
+    expect(result.status).toBe('FAIL');
+    expect(result.busEligible).toBe(false);
+    expect(result.grantCategory).toBe('INELIGIBLE_AIR_TO_AIR');
+    expect(result.grantAmount).toBe(0);
+  });
+
+  it('assigns £7,500 standard grant for off-gas property replacing coal/electric', async () => {
+    const result = await evaluateBUSEligibility({
+      country: 'England',
+      propertyStatus: 'Existing property',
+      onOffGasGrid: 'Off gas grid',
+      existingHeatingSystem: 'Solid Fuel / Coal',
+      previousGovernmentGrant: 'None'
+    });
+
+    expect(result.status).toBe('PASS');
+    expect(result.busEligible).toBe(true);
+    expect(result.grantCategory).toBe('STANDARD_AWHP_GSHP_£7500');
+    expect(result.grantAmount).toBe(7500);
+  });
 });
