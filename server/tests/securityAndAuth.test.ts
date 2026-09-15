@@ -156,13 +156,13 @@ describe('Security, Authentication & RBAC Verification Suite', () => {
 
 
 
-  it('14. Initial Admin Bootstrap: provisions initial admin user tahseenamal345@gmail.com with bcrypt hash', async () => {
+  it('14. Initial Admin Bootstrap: provisions initial admin user tahseenalam345@gmail.com with bcrypt hash', async () => {
     const { bootstrapInitialAdmin } = await import('../src/db/bootstrapAdmin.js');
     await bootstrapInitialAdmin();
 
-    const admin = await db.get('SELECT email, password_hash, active FROM users WHERE email = ?', ['tahseenamal345@gmail.com']);
+    const admin = await db.get('SELECT email, password_hash, active FROM users WHERE email = ?', ['tahseenalam345@gmail.com']);
     expect(admin).toBeDefined();
-    expect(admin.email).toBe('tahseenamal345@gmail.com');
+    expect(admin.email).toBe('tahseenalam345@gmail.com');
     expect(admin.active).toBe(1);
     expect(admin.password_hash.startsWith('$2a$') || admin.password_hash.startsWith('$2b$')).toBe(true);
   });

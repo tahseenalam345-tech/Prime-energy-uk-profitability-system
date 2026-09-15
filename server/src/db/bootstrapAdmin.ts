@@ -28,7 +28,7 @@ export async function bootstrapInitialAdmin() {
     }
 
     const envEmail = cleanEnvVal(process.env.ADMIN_EMAIL);
-    const adminEmail = (envEmail || 'tahseenamal345@gmail.com').toLowerCase();
+    const adminEmail = (envEmail || 'tahseenalam345@gmail.com').toLowerCase();
 
     // Get ADMIN role ID
     const adminRole = await db.get("SELECT id FROM roles WHERE name = 'ADMIN'");
@@ -40,8 +40,10 @@ export async function bootstrapInitialAdmin() {
       ['admin@primeenergy.co.uk', roleId, adminEmail]
     );
 
-    // 2. Check if configured admin email exists
-    const existingAdmin = await db.get('SELECT id, password_hash FROM users WHERE LOWER(email) = ?', [adminEmail]);
+    // 2. Check if configured admin email or initial admin ID exists
+    const existingAdminByEmail = await db.get('SELECT id, email, password_hash FROM users WHERE LOWER(email) = ?', [adminEmail]);
+    const existingAdminById = await db.get('SELECT id, email, password_hash FROM users WHERE id = ?', ['user_admin_initial']);
+    const existingAdmin = existingAdminByEmail || existingAdminById;
 
     const rawPassword = cleanEnvVal(process.env.ADMIN_PASSWORD);
 
@@ -49,8 +51,8 @@ export async function bootstrapInitialAdmin() {
       const passwordHash = bcrypt.hashSync(rawPassword, 10);
       if (existingAdmin) {
         await db.run(
-          'UPDATE users SET password_hash = ?, role_id = ?, active = 1 WHERE id = ?',
-          [passwordHash, roleId, existingAdmin.id]
+          'UPDATE users SET email = ?, password_hash = ?, role_id = ?, active = 1 WHERE id = ?',
+          [adminEmail, passwordHash, roleId, existingAdmin.id]
         );
         console.log(`[Admin Bootstrap]: Synchronized password hash for owner admin (${adminEmail}) from ADMIN_PASSWORD env.`);
       } else {
@@ -63,8 +65,8 @@ export async function bootstrapInitialAdmin() {
     } else {
       if (existingAdmin) {
         await db.run(
-          'UPDATE users SET role_id = ?, active = 1 WHERE id = ?',
-          [roleId, existingAdmin.id]
+          'UPDATE users SET email = ?, role_id = ?, active = 1 WHERE id = ?',
+          [adminEmail, roleId, existingAdmin.id]
         );
         console.log(`[Admin Bootstrap]: Ensured active status for owner admin user (${adminEmail}).`);
       } else {
@@ -79,5 +81,7 @@ export async function bootstrapInitialAdmin() {
     }
   } catch (err: any) {
     console.error('[Admin Bootstrap]: Error checking/creating initial admin:', err?.message || err);
+    throw err;
   }
 }
+

@@ -82,7 +82,7 @@ authRouter.get('/me', authenticateToken, (req: AuthenticatedRequest, res: Respon
 // Diagnostic status endpoint (Non-sensitive env presence and admin status check)
 authRouter.get('/diagnostic-status', async (req: Request, res: Response) => {
   try {
-    const rawEmail = (process.env.ADMIN_EMAIL || 'tahseenamal345@gmail.com').trim().replace(/^["']|["']$/g, '');
+    const rawEmail = (process.env.ADMIN_EMAIL || 'tahseenalam345@gmail.com').trim().replace(/^["']|["']$/g, '');
     const cleanEmail = rawEmail.toLowerCase();
     const adminUser = await db.get('SELECT id, email, active, role_id FROM users WHERE LOWER(email) = ?', [cleanEmail]);
     

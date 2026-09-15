@@ -29,12 +29,12 @@ async function testAdminWorkflow() {
   }
 
   // 2. Verify New Owner Admin Login MUST PASS
-  console.log('\n[TEST 2] New Owner Admin (tahseenamal345@gmail.com) Login Check:');
+  console.log('\n[TEST 2] New Owner Admin (tahseenalam345@gmail.com) Login Check:');
   const newLoginRes = await fetch(`${baseUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      email: 'tahseenamal345@gmail.com',
+      email: 'tahseenalam345@gmail.com',
       password: process.env.ADMIN_PASSWORD || 'PrimePassword2026!'
     })
   });
@@ -76,7 +76,7 @@ async function testAdminWorkflow() {
   console.log('  - Active Admin Users Count:', activeAdmins?.length);
   console.log('  - Active Admin Emails:', activeAdmins?.map((u: any) => u.email).join(', '));
 
-  if (activeAdmins?.length !== 1 || activeAdmins[0].email !== 'tahseenamal345@gmail.com') {
+  if (activeAdmins?.length !== 1 || activeAdmins[0].email !== 'tahseenalam345@gmail.com') {
     console.warn('  ! NOTE: Deactivation will synchronize on Vercel deployment update.');
   }
 
