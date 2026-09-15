@@ -1,6 +1,11 @@
 import bcrypt from 'bcryptjs';
 import { db } from './connection.js';
 
+function cleanEnvVal(val?: string): string {
+  if (!val) return '';
+  return val.trim().replace(/^["']|["']$/g, '').trim();
+}
+
 export async function bootstrapInitialAdmin() {
   try {
     // Ensure all standard system roles exist
@@ -22,7 +27,8 @@ export async function bootstrapInitialAdmin() {
       }
     }
 
-    const adminEmail = (process.env.ADMIN_EMAIL || 'tahseenamal345@gmail.com').toLowerCase().trim();
+    const envEmail = cleanEnvVal(process.env.ADMIN_EMAIL);
+    const adminEmail = (envEmail || 'tahseenamal345@gmail.com').toLowerCase();
 
     // Get ADMIN role ID
     const adminRole = await db.get("SELECT id FROM roles WHERE name = 'ADMIN'");
@@ -35,18 +41,18 @@ export async function bootstrapInitialAdmin() {
     );
 
     // 2. Check if configured admin email exists
-    const existingAdmin = await db.get('SELECT id FROM users WHERE LOWER(email) = ?', [adminEmail]);
+    const existingAdmin = await db.get('SELECT id, password_hash FROM users WHERE LOWER(email) = ?', [adminEmail]);
 
-    if (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.trim().length > 0) {
-      const rawPassword = process.env.ADMIN_PASSWORD.trim();
+    const rawPassword = cleanEnvVal(process.env.ADMIN_PASSWORD);
+
+    if (rawPassword.length > 0) {
       const passwordHash = bcrypt.hashSync(rawPassword, 10);
-
       if (existingAdmin) {
         await db.run(
           'UPDATE users SET password_hash = ?, role_id = ?, active = 1 WHERE id = ?',
           [passwordHash, roleId, existingAdmin.id]
         );
-        console.log(`[Admin Bootstrap]: Updated password hash for owner admin user (${adminEmail}) from ADMIN_PASSWORD env.`);
+        console.log(`[Admin Bootstrap]: Synchronized password hash for owner admin (${adminEmail}) from ADMIN_PASSWORD env.`);
       } else {
         await db.run(
           `INSERT INTO users (id, name, email, role_id, password_hash, active) VALUES (?, ?, ?, ?, ?, 1)`,
@@ -60,10 +66,10 @@ export async function bootstrapInitialAdmin() {
           'UPDATE users SET role_id = ?, active = 1 WHERE id = ?',
           [roleId, existingAdmin.id]
         );
-        console.log(`[Admin Bootstrap]: Preserved existing password hash for owner admin user (${adminEmail}).`);
+        console.log(`[Admin Bootstrap]: Ensured active status for owner admin user (${adminEmail}).`);
       } else {
-        const rawPassword = 'PrimePassword2026!';
-        const passwordHash = bcrypt.hashSync(rawPassword, 10);
+        const fallbackPass = 'PrimePassword2026!';
+        const passwordHash = bcrypt.hashSync(fallbackPass, 10);
         await db.run(
           `INSERT INTO users (id, name, email, role_id, password_hash, active) VALUES (?, ?, ?, ?, ?, 1)`,
           ['user_admin_initial', 'System Admin', adminEmail, roleId, passwordHash]
@@ -75,4 +81,3 @@ export async function bootstrapInitialAdmin() {
     console.error('[Admin Bootstrap]: Error checking/creating initial admin:', err?.message || err);
   }
 }
-

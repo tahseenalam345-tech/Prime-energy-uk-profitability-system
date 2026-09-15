@@ -18,7 +18,7 @@ authRouter.post('/login', async (req: Request, res: Response) => {
       SELECT u.id, u.name, u.email, u.password_hash, u.role_id, r.name as role_name, r.description as role_description
       FROM users u
       JOIN roles r ON u.role_id = r.id
-      WHERE u.email = ? AND u.active = 1
+      WHERE LOWER(u.email) = ? AND u.active = 1
     `, [email.toLowerCase().trim()]);
 
     if (!user) {
@@ -77,6 +77,31 @@ authRouter.post('/logout', authenticateToken, async (req: AuthenticatedRequest, 
 // GET Current Authenticated User Profile
 authRouter.get('/me', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
   res.json({ user: req.user });
+});
+
+// Diagnostic status endpoint (Non-sensitive env presence and admin status check)
+authRouter.get('/diagnostic-status', async (req: Request, res: Response) => {
+  try {
+    const rawEmail = (process.env.ADMIN_EMAIL || 'tahseenamal345@gmail.com').trim().replace(/^["']|["']$/g, '');
+    const cleanEmail = rawEmail.toLowerCase();
+    const adminUser = await db.get('SELECT id, email, active, role_id FROM users WHERE LOWER(email) = ?', [cleanEmail]);
+    
+    res.json({
+      status: 'ok',
+      env: {
+        ADMIN_EMAIL_present: !!process.env.ADMIN_EMAIL,
+        ADMIN_PASSWORD_present: !!process.env.ADMIN_PASSWORD,
+      },
+      configuredAdminEmail: cleanEmail,
+      configuredAdminInDb: adminUser ? {
+        email: adminUser.email,
+        active: adminUser.active,
+        role_id: adminUser.role_id
+      } : null
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || 'Failed diagnostic check' });
+  }
 });
 
 // List all users including inactive (Admin ONLY)

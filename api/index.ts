@@ -7,10 +7,10 @@ export default async function handler(req: any, res: any) {
   if (!isBootstrapped) {
     try {
       await bootstrapInitialAdmin();
+      isBootstrapped = true;
     } catch (err) {
       console.error('[Vercel Bootstrap Error]:', err);
     }
-    isBootstrapped = true;
   }
   return app(req, res);
 }
