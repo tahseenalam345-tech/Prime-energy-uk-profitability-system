@@ -63,7 +63,7 @@ export const CompactRadiatorSelector: React.FC<CompactRadiatorSelectorProps> = (
     return uniqueLengths.map(l => {
       const item = matching.find(r => r.length_mm === l);
       const price = item?.normalized_ex_vat_price !== undefined && item?.normalized_ex_vat_price !== null
-        ? `£${item.normalized_ex_vat_price.toFixed(2)} ex VAT`
+        ? `£${Number(item.normalized_ex_vat_price || 0).toFixed(2)} ex VAT`
         : '';
       return {
         value: l,

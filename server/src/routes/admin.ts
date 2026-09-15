@@ -26,17 +26,17 @@ adminRouter.get('/commercial-settings', async (req: AuthenticatedRequest, res: R
 });
 
 // UPDATE Commercial Settings (creates new version, writes audit log)
-adminRouter.post('/commercial-settings', authenticateToken, requireRole('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+adminRouter.post('/commercial-settings', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const {
       targetGrossMargin,
       labourBaseline,
       leadGenerationCost,
       extrasContingency,
-      combiConversionAllowance,
+      accessoriesControlsCost,
       microboreRepipeAllowance,
       notes,
-      userId = 'user_admin'
+      userId = req.user?.id || 'user_admin'
     } = req.body;
 
     const current = await db.get('SELECT * FROM commercial_settings ORDER BY version DESC LIMIT 1') as any;
@@ -49,9 +49,9 @@ adminRouter.post('/commercial-settings', authenticateToken, requireRole('ADMIN')
         sql: `
           INSERT INTO commercial_settings (
             id, version, target_gross_margin, labour_baseline, lead_generation_cost,
-            extras_contingency, combi_conversion_allowance, combi_conversion_status,
+            extras_contingency, accessories_controls_cost, combi_conversion_allowance, combi_conversion_status,
             microbore_repipe_allowance, microbore_repipe_status, active, updated_by, notes
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, 0.00, 'REMOVED', ?, 'CONFIRMED', 1, ?, ?)
         `,
         args: [
           newId,
@@ -60,10 +60,8 @@ adminRouter.post('/commercial-settings', authenticateToken, requireRole('ADMIN')
           labourBaseline ?? current.labour_baseline,
           leadGenerationCost ?? current.lead_generation_cost,
           extrasContingency ?? current.extras_contingency,
-          combiConversionAllowance ?? current.combi_conversion_allowance,
-          'CONFIRMED',
+          accessoriesControlsCost ?? current.accessories_controls_cost ?? 968.00,
           microboreRepipeAllowance ?? current.microbore_repipe_allowance,
-          'CONFIRMED',
           userId,
           notes || `Updated commercial settings to v${newVersion}`
         ]
@@ -81,7 +79,7 @@ adminRouter.post('/commercial-settings', authenticateToken, requireRole('ADMIN')
           'UPDATE',
           JSON.stringify(current),
           JSON.stringify(req.body),
-          notes || 'Commercial settings updated by Admin'
+          notes || 'Commercial settings updated'
         ]
       }
     ], 'write');

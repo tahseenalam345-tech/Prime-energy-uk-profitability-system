@@ -144,14 +144,14 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [propertyType, setPropertyType] = useState('');
   const [propertyStatus, setPropertyStatus] = useState('');
   const [epcRating, setEpcRating] = useState('');
-  const [epcFloorArea, setEpcFloorArea] = useState<number | ''>('');
-  const [storeys, setStoreys] = useState<number | ''>('');
-  const [annualHeatingKwh, setAnnualHeatingKwh] = useState<number | ''>('');
-  const [annualHotWaterKwh, setAnnualHotWaterKwh] = useState<number | ''>('');
+  const [epcFloorArea, setEpcFloorArea] = useState<string>('');
+  const [storeys, setStoreys] = useState<string>('');
+  const [annualHeatingKwh, setAnnualHeatingKwh] = useState<string>('');
+  const [annualHotWaterKwh, setAnnualHotWaterKwh] = useState<string>('');
   const [epcCertificateNumber, setEpcCertificateNumber] = useState('');
 
-  const [bedrooms, setBedrooms] = useState<number | ''>('');
-  const [bathrooms, setBathrooms] = useState<number | ''>('');
+  const [bedrooms, setBedrooms] = useState<string>('');
+  const [bathrooms, setBathrooms] = useState<string>('');
   const [wallInsulation, setWallInsulation] = useState('');
   const [roofInsulation, setRoofInsulation] = useState('');
   const [existingHeatingSystem, setExistingHeatingSystem] = useState('');
@@ -161,14 +161,17 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [cylinderSpace, setCylinderSpace] = useState('');
   
   // Requirement 2: Simplified Radiator Inputs (Total count & Dominant type)
-  const [existingRadiatorCount, setExistingRadiatorCount] = useState<number | ''>('');
+  const [existingRadiatorCount, setExistingRadiatorCount] = useState<string>('');
   const [dominantRadiatorType, setDominantRadiatorType] = useState('');
 
   const [existingPipework, setExistingPipework] = useState('');
   const [previousGovernmentGrant, setPreviousGovernmentGrant] = useState('');
   const [salesNotes, setSalesNotes] = useState('');
 
-  // 2. Equipment manual override & selection modal states
+  // 2. Draft Autosave & Recovery State
+  const [draftStatus, setDraftStatus] = useState<'IDLE' | 'SAVING' | 'SAVED' | 'RESTORED'>('IDLE');
+
+  // 3. Equipment manual override & selection modal states
   const [overrideAshpId, setOverrideAshpId] = useState<string | null>(null);
   const [overrideCylinderId, setOverrideCylinderId] = useState<string | null>(null);
   const [showAshpModal, setShowAshpModal] = useState(false);
@@ -177,24 +180,24 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [showAshpHelpModal, setShowAshpHelpModal] = useState(false);
   const [showCylinderHelpModal, setShowCylinderHelpModal] = useState(false);
 
-  // 3. Commercial cost overrides, deleted lines, description overrides, and custom line items
+  // 4. Commercial cost overrides, deleted lines, description overrides, and custom line items
   const [costOverrides, setCostOverrides] = useState<Record<string, number>>({});
   const [deletedLineIds, setDeletedLineIds] = useState<string[]>([]);
   const [descriptionOverrides, setDescriptionOverrides] = useState<Record<string, string>>({});
   const [customLineItems, setCustomLineItems] = useState<CustomLineItemInput[]>([]);
 
-  // 4. Equipment catalogs for modals (Cached ONCE on mount)
+  // 5. Equipment catalogs for modals (Cached ONCE on mount)
   const [ashpCatalog, setAshpCatalog] = useState<any[]>([]);
   const [cylinderCatalog, setCylinderCatalog] = useState<any[]>([]);
   const [ashpSearchQuery, setAshpSearchQuery] = useState('');
   const [ashpBrandFilter, setAshpBrandFilter] = useState('ALL');
   const [cylinderSearchQuery, setCylinderSearchQuery] = useState('');
 
-  // 5. Rule Evidence popover state
+  // 6. Rule Evidence popover state
   const [activeRuleEvidence, setActiveRuleEvidence] = useState<RuleEvidence | null>(null);
   const [showEvidenceModal, setShowEvidenceModal] = useState(false);
 
-  // 6. Calculation output state & Recalculate indicator
+  // 7. Calculation output state & Recalculate indicator
   const [calculating, setCalculating] = useState(false);
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [calcError, setCalcError] = useState('');
@@ -202,7 +205,132 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [savedQuoteRef, setSavedQuoteRef] = useState('');
   const [inputsChanged, setInputsChanged] = useState(false);
 
-  const abortControllerRef = React.useRef<AbortController | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Restore Draft from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedDraft = localStorage.getItem('prime_lead_draft');
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed && typeof parsed === 'object') {
+          if (parsed.customerName) setCustomerName(parsed.customerName);
+          if (parsed.email) setEmail(parsed.email);
+          if (parsed.phone) setPhone(parsed.phone);
+          if (parsed.leadSource) setLeadSource(parsed.leadSource);
+          if (parsed.addressLine1) setAddressLine1(parsed.addressLine1);
+          if (parsed.postcode) setPostcode(parsed.postcode);
+          if (parsed.country) setCountry(parsed.country);
+          if (parsed.epcRating) setEpcRating(parsed.epcRating);
+          if (parsed.epcFloorArea !== undefined) setEpcFloorArea(parsed.epcFloorArea);
+          if (parsed.storeys !== undefined) setStoreys(parsed.storeys);
+          if (parsed.annualHeatingKwh !== undefined) setAnnualHeatingKwh(parsed.annualHeatingKwh);
+          if (parsed.annualHotWaterKwh !== undefined) setAnnualHotWaterKwh(parsed.annualHotWaterKwh);
+          if (parsed.epcCertificateNumber) setEpcCertificateNumber(parsed.epcCertificateNumber);
+          if (parsed.propertyType) setPropertyType(parsed.propertyType);
+          if (parsed.propertyStatus) setPropertyStatus(parsed.propertyStatus);
+          if (parsed.bedrooms !== undefined) setBedrooms(parsed.bedrooms);
+          if (parsed.bathrooms !== undefined) setBathrooms(parsed.bathrooms);
+          if (parsed.wallInsulation) setWallInsulation(parsed.wallInsulation);
+          if (parsed.roofInsulation) setRoofInsulation(parsed.roofInsulation);
+          if (parsed.existingHeatingSystem) setExistingHeatingSystem(parsed.existingHeatingSystem);
+          if (parsed.existingFuelType) setExistingFuelType(parsed.existingFuelType);
+          if (parsed.boilerType) setBoilerType(parsed.boilerType);
+          if (parsed.onOffGasGrid) setOnOffGasGrid(parsed.onOffGasGrid);
+          if (parsed.cylinderSpace) setCylinderSpace(parsed.cylinderSpace);
+          if (parsed.existingRadiatorCount !== undefined) setExistingRadiatorCount(parsed.existingRadiatorCount);
+          if (parsed.dominantRadiatorType) setDominantRadiatorType(parsed.dominantRadiatorType);
+          if (parsed.existingPipework) setExistingPipework(parsed.existingPipework);
+          if (parsed.previousGovernmentGrant) setPreviousGovernmentGrant(parsed.previousGovernmentGrant);
+          if (parsed.salesNotes) setSalesNotes(parsed.salesNotes);
+          setDraftStatus('RESTORED');
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load draft from localStorage', err);
+    }
+  }, []);
+
+  // Autosave Draft on field changes (debounced 500ms, skip empty initial state)
+  useEffect(() => {
+    const hasInputs = Boolean(
+      customerName || addressLine1 || postcode || epcRating || epcFloorArea ||
+      propertyType || bedrooms || bathrooms || salesNotes || existingRadiatorCount
+    );
+
+    if (!hasInputs) return;
+
+    setDraftStatus('SAVING');
+    const timer = setTimeout(() => {
+      try {
+        const draftPayload = {
+          customerName, email, phone, leadSource, addressLine1, postcode, country, epcRating, epcFloorArea,
+          storeys, annualHeatingKwh, annualHotWaterKwh, epcCertificateNumber,
+          propertyType, propertyStatus, bedrooms, bathrooms, wallInsulation, roofInsulation,
+          existingHeatingSystem, existingFuelType, boilerType, onOffGasGrid, cylinderSpace,
+          existingRadiatorCount, dominantRadiatorType, existingPipework, previousGovernmentGrant, salesNotes
+        };
+        localStorage.setItem('prime_lead_draft', JSON.stringify(draftPayload));
+        setDraftStatus('SAVED');
+      } catch (err) {
+        console.error('Autosave failed', err);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [
+    customerName, email, phone, leadSource, addressLine1, postcode, country, epcRating, epcFloorArea,
+    storeys, annualHeatingKwh, annualHotWaterKwh, epcCertificateNumber,
+    propertyType, propertyStatus, bedrooms, bathrooms, wallInsulation, roofInsulation,
+    existingHeatingSystem, existingFuelType, boilerType, onOffGasGrid, cylinderSpace,
+    existingRadiatorCount, dominantRadiatorType, existingPipework, previousGovernmentGrant, salesNotes
+  ]);
+
+  // Permanently Discard Draft
+  const handleDiscardDraft = () => {
+    try {
+      localStorage.removeItem('prime_lead_draft');
+      setCustomerName('');
+      setEmail('');
+      setPhone('');
+      setLeadSource('');
+      setAddressLine1('');
+      setPostcode('');
+      setCountry('');
+      setEpcRating('');
+      setEpcFloorArea('');
+      setStoreys('');
+      setAnnualHeatingKwh('');
+      setAnnualHotWaterKwh('');
+      setEpcCertificateNumber('');
+      setPropertyType('');
+      setPropertyStatus('');
+      setBedrooms('');
+      setBathrooms('');
+      setWallInsulation('');
+      setRoofInsulation('');
+      setExistingHeatingSystem('');
+      setExistingFuelType('');
+      setBoilerType('');
+      setOnOffGasGrid('');
+      setCylinderSpace('');
+      setExistingRadiatorCount('');
+      setDominantRadiatorType('');
+      setExistingPipework('');
+      setPreviousGovernmentGrant('');
+      setSalesNotes('');
+      setOverrideAshpId(null);
+      setOverrideCylinderId(null);
+      setCostOverrides({});
+      setDeletedLineIds([]);
+      setDescriptionOverrides({});
+      setCustomLineItems([]);
+      setDraftStatus('IDLE');
+      setResult(null);
+    } catch (err) {
+      console.error('Failed to discard draft', err);
+    }
+  };
 
   // Load catalogs ONCE on mount (Requirement 6: Do not refetch on every field change)
   useEffect(() => {
@@ -457,7 +585,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
     <div className="new-lead-view-container">
       {/* Header & Mandatory Disclaimer Banner */}
       <div style={{ marginBottom: '20px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-main)', letterSpacing: '-0.02em' }}>
               Mode A — New Lead / Pre-Survey Check
@@ -466,11 +594,41 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
               Pre-Survey commercial viability estimate from preliminary property data. Sizing and costs are indicative.
             </p>
           </div>
-          {savedQuoteRef && (
-            <div className="badge badge-success" style={{ fontSize: '0.875rem', padding: '6px 12px' }}>
-              <CheckCircle2 size={16} /> Locked Snapshot Saved: {savedQuoteRef}
-            </div>
-          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {draftStatus === 'SAVED' && (
+              <span className="badge badge-success" style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <CheckCircle2 size={13} /> Draft saved
+              </span>
+            )}
+            {draftStatus === 'SAVING' && (
+              <span className="badge badge-warning" style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <RefreshCw size={13} className="animate-spin" /> Saving draft...
+              </span>
+            )}
+            {draftStatus === 'RESTORED' && (
+              <span className="badge badge-info" style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <History size={13} /> Draft restored from session
+              </span>
+            )}
+
+            {(draftStatus === 'SAVED' || draftStatus === 'RESTORED' || customerName || addressLine1 || epcFloorArea) && (
+              <button
+                onClick={handleDiscardDraft}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '0.75rem', padding: '5px 10px', color: '#ef4444', borderColor: '#fca5a5', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                title="Permanently delete this saved draft"
+              >
+                <Trash2 size={13} /> Discard Draft
+              </button>
+            )}
+
+            {savedQuoteRef && (
+              <div className="badge badge-success" style={{ fontSize: '0.875rem', padding: '6px 12px' }}>
+                <CheckCircle2 size={16} /> Locked Snapshot Saved: {savedQuoteRef}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Prominent Mode A Warning Banner (Requirement 12) */}
@@ -824,8 +982,21 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
         {/* RIGHT COLUMN: REAL-TIME COMMERCIAL VIABILITY SUMMARY */}
         <div>
+          {/* Requirement 4: Visible Recalculation Loading State */}
+          {calculating && (
+            <div style={{
+              background: '#0f172a', border: '1px solid #38bdf8', color: '#38bdf8',
+              padding: '10px 16px', borderRadius: '10px', marginBottom: '16px',
+              display: 'flex', alignItems: 'center', gap: '10px',
+              boxShadow: '0 4px 14px rgba(56, 189, 248, 0.15)'
+            }}>
+              <RefreshCw size={16} className="animate-spin" />
+              <span style={{ fontSize: '0.875rem', fontWeight: 700 }}>Recalculating estimates…</span>
+            </div>
+          )}
+
           {/* Requirement 9: Recalculation Notice Banner */}
-          {inputsChanged && result && result.hasSufficientData && (
+          {!calculating && inputsChanged && result && result.hasSufficientData && (
             <div style={{
               background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af',
               padding: '10px 14px', borderRadius: '8px', marginBottom: '16px',
@@ -1106,12 +1277,16 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                     </div>
 
                     <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)', marginBottom: '4px' }}>
-                      {result.ashp?.selectedProduct?.brand || result.ashp?.recommendedProduct?.brand} {result.ashp?.selectedProduct?.model || result.ashp?.recommendedProduct?.model}
+                      {result.ashp?.selectedProduct || result.ashp?.recommendedProduct ? (
+                        `${result.ashp?.selectedProduct?.brand || result.ashp?.recommendedProduct?.brand} ${result.ashp?.selectedProduct?.model || result.ashp?.recommendedProduct?.model} — ${(result.ashp?.selectedProduct?.ratedOutputKw || result.ashp?.recommendedProduct?.ratedOutputKw || result.ashp?.selectedProduct?.nominalKw || 0)} kW`
+                      ) : (
+                        'No ASHP Model Selected'
+                      )}
                     </div>
 
                     <div style={{ display: 'flex', gap: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                      <span>Nominal: <strong>{result.ashp?.selectedProduct?.nominalKw || result.ashp?.recommendedProduct?.nominalKw} kW</strong></span>
-                      <span>Rated: <strong style={{ color: '#059669' }}>{result.ashp?.selectedProduct?.ratedOutputKw || result.ashp?.recommendedProduct?.ratedOutputKw} kW</strong> (@ {result.ashp?.selectedProduct?.ratedOutputCondition || result.ashp?.recommendedProduct?.ratedOutputCondition})</span>
+                      <span>Marketing: <strong>{result.ashp?.selectedProduct?.nominalKw || result.ashp?.recommendedProduct?.nominalKw || 0} kW</strong></span>
+                      <span>Rated Design: <strong style={{ color: '#059669' }}>{result.ashp?.selectedProduct?.ratedOutputKw || result.ashp?.recommendedProduct?.ratedOutputKw || 0} kW</strong> (@ {result.ashp?.selectedProduct?.ratedOutputCondition || result.ashp?.recommendedProduct?.ratedOutputCondition || 'A-2/W45'})</span>
                       <span>Price: <strong>£{(result.ashp?.selectedProduct?.priceExVat || result.ashp?.recommendedProduct?.priceExVat || 0).toLocaleString()} ex VAT</strong></span>
                     </div>
 
@@ -1181,9 +1356,11 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
                     <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)', marginBottom: '4px' }}>
                       {result.cylinder?.selectedProduct ? (
-                        `${result.cylinder.selectedProduct.volumeLitres} L — ${result.cylinder.selectedProduct.brand} ${result.cylinder.selectedProduct.model}`
+                        `${result.cylinder.selectedProduct.brand} ${result.cylinder.selectedProduct.model} — ${result.cylinder.selectedProduct.volumeLitres}L`
+                      ) : result.cylinder?.recommendedProduct ? (
+                        `${result.cylinder.recommendedProduct.brand} ${result.cylinder.recommendedProduct.model} — ${result.cylinder.recommendedProduct.volumeLitres}L`
                       ) : (
-                        result.cylinder?.displayCapacity || '200 L Unvented Cylinder'
+                        `${result.cylinder?.recommendedVolumeLitres || 200}L Unvented Cylinder (based on DHW rules)`
                       )}
                     </div>
 

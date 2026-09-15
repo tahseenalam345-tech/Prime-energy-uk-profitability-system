@@ -101,6 +101,11 @@ export async function initDatabase() {
     const schema = fs.readFileSync(schemaPath, 'utf8');
     await db.exec(schema);
   }
+  try {
+    await db.execute('ALTER TABLE commercial_settings ADD COLUMN accessories_controls_cost REAL DEFAULT 968.00');
+  } catch (err) {
+    // Column already exists
+  }
 }
 
 export default db;

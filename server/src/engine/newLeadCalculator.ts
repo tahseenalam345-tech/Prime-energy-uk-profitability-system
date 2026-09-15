@@ -268,16 +268,19 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
   }
 
   // 5. Radiator Engine & Emitter Capacity Plausibility Evaluation
-  const radiators = await estimateRadiatorRequirements({
-    heatDemandKw: heatDemand.centralDemandKw,
-    existingRadiatorCount: totalEmitterCount
-  });
-  
   const emitterCapacity = evaluateExistingEmitterCapacity({
     existingRadiatorCount: totalEmitterCount,
     dominantRadiatorType,
     targetFlowTemp: 45,
     estimatedHeatDemandKw: heatDemand.maxDemandKw
+  });
+
+  const isLowCapacityIndicated = emitterCapacity.matchStatus === 'LOW_EMITTER_CAPACITY' || emitterCapacity.matchStatus === 'INSUFFICIENT_EMITTER_CAPACITY';
+
+  const radiators = await estimateRadiatorRequirements({
+    heatDemandKw: heatDemand.centralDemandKw,
+    existingRadiatorCount: totalEmitterCount,
+    isLowCapacityIndicated
   });
 
   if (hasSufficientData) {
@@ -646,9 +649,16 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
       segments.push(`estimated heat demand ${heatDemand.maxDemandKw.toFixed(1)} kW`);
     }
 
-    if (activeAshp) {
-      const kwVal = activeAshp.ratedOutputKw || activeAshp.nominalKw;
-      segments.push(`recommended ${kwVal} kW ASHP`);
+    if (activeAshp || cylinder.recommendedVolumeLitres || cylinder.selectedProduct) {
+      const kwVal = activeAshp ? (activeAshp.ratedOutputAtDesign ?? activeAshp.ratedOutputKw ?? activeAshp.nominalCapacity ?? activeAshp.marketingNominalKw ?? activeAshp.nominalKw) : null;
+      const cylVol = cylinder.selectedProduct?.volumeLitres || cylinder.recommendedVolumeLitres || (cylinder.displayCapacity !== 'UNSPECIFIED' ? cylinder.displayCapacity : null);
+
+      const recParts: string[] = [];
+      if (kwVal) recParts.push(`${kwVal} kW ASHP`);
+      if (cylVol) recParts.push(`${typeof cylVol === 'number' ? `${cylVol}L` : cylVol} cylinder`);
+      if (recParts.length > 0) {
+        segments.push(`recommended ${recParts.join(' + ')}`);
+      }
     }
 
     return segments.join('; ') + '.';

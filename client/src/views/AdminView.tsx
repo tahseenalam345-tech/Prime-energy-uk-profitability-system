@@ -16,11 +16,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
   const [successMessage, setSuccessMessage] = useState('');
 
   // Editable fields
-  const [targetMargin, setTargetMargin] = useState<number>(25);
+  const [targetMargin, setTargetMargin] = useState<number>(7);
   const [labourBase, setLabourBase] = useState<number>(1500);
   const [leadGenCost, setLeadGenCost] = useState<number>(300);
   const [extrasCost, setExtrasCost] = useState<number>(200);
-  const [combiAllowance, setCombiAllowance] = useState<number>(500);
+  const [accessoriesCost, setAccessoriesCost] = useState<number>(968);
   const [microboreAllowance, setMicroboreAllowance] = useState<number>(1800);
   const [notes, setNotes] = useState('');
 
@@ -48,12 +48,12 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
       const s = settingsRes.settings;
       if (s) {
         setSettings(s);
-        setTargetMargin(Math.round(s.target_gross_margin * 100));
-        setLabourBase(s.labour_baseline);
-        setLeadGenCost(s.lead_generation_cost);
-        setExtrasCost(s.extras_contingency);
-        setCombiAllowance(s.combi_conversion_allowance);
-        setMicroboreAllowance(s.microbore_repipe_allowance);
+        setTargetMargin(Math.round((s.target_gross_margin ?? 0.07) * 100));
+        setLabourBase(s.labour_baseline ?? 1500);
+        setLeadGenCost(s.lead_generation_cost ?? 300);
+        setExtrasCost(s.extras_contingency ?? 200);
+        setAccessoriesCost(s.accessories_controls_cost ?? 968);
+        setMicroboreAllowance(s.microbore_repipe_allowance ?? 1800);
       }
       setAuditLogs(logsRes.logs || []);
       setUsersList(usersRes.users || []);
@@ -145,7 +145,6 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
-
     e.preventDefault();
     setSavingSettings(true);
     setSuccessMessage('');
@@ -155,9 +154,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
         labourBaseline: Number(labourBase),
         leadGenerationCost: Number(leadGenCost),
         extrasContingency: Number(extrasCost),
-        combiConversionAllowance: Number(combiAllowance),
+        accessoriesControlsCost: Number(accessoriesCost),
         microboreRepipeAllowance: Number(microboreAllowance),
-        notes: notes || `Commercial settings updated by ${currentUser?.name}`,
+        notes: notes || `Commercial settings updated by ${currentUser?.name || 'User'}`,
         userId: currentUser?.id || 'user_admin'
       });
       setSuccessMessage('Commercial settings version updated successfully. Historical calculations preserved.');
@@ -169,7 +168,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
     }
   };
 
-  const isAdmin = currentUser?.role_name === 'ADMIN';
+  const canEditSettings = currentUser?.role_name === 'ADMIN' || currentUser?.role_name === 'ESTIMATOR' || currentUser?.role_name === 'SALES';
 
   return (
     <div>
@@ -219,10 +218,10 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
         )}
       </div>
 
-      {!isAdmin && (
+      {!canEditSettings && (
         <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', padding: '12px 18px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.875rem' }}>
           <AlertTriangle size={16} style={{ display: 'inline', marginRight: '6px' }} />
-          <strong>Read-Only View:</strong> You are currently logged in with the <strong>{currentUser?.role_name}</strong> role. Only <strong>ADMIN</strong> users can commit modifications to commercial settings.
+          <strong>Read-Only View:</strong> You are currently logged in with the <strong>{currentUser?.role_name}</strong> role. Contact an authorized Commercial Manager or Admin to modify settings.
         </div>
       )}
 
@@ -253,31 +252,31 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
               <label className="form-label">Target Gross Margin % *</label>
               <input
                 type="number"
-                min="5"
+                min="1"
                 max="60"
                 step="0.5"
                 className="form-control"
                 value={targetMargin}
-                disabled={!isAdmin}
+                disabled={!canEditSettings}
                 onChange={(e) => setTargetMargin(Number(e.target.value))}
                 required
               />
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Default: 25.0% deterministic gross margin</span>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Prime Energy default setting: 7.0% target margin</span>
             </div>
 
             <div className="form-group">
               <label className="form-label">Baseline Labour Cost (£) *</label>
               <input
                 type="number"
-                min="500"
+                min="0"
                 step="50"
                 className="form-control"
                 value={labourBase}
-                disabled={!isAdmin}
+                disabled={!canEditSettings}
                 onChange={(e) => setLabourBase(Number(e.target.value))}
                 required
               />
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Prime Energy stated baseline: £1,500</span>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Prime Energy baseline: £1,500</span>
             </div>
 
             <div className="form-group">
@@ -288,11 +287,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
                 step="50"
                 className="form-control"
                 value={leadGenCost}
-                disabled={!isAdmin}
+                disabled={!canEditSettings}
                 onChange={(e) => setLeadGenCost(Number(e.target.value))}
                 required
               />
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Prime Energy stated baseline: £300</span>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Prime Energy baseline: £300</span>
             </div>
 
             <div className="form-group">
@@ -303,26 +302,26 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
                 step="50"
                 className="form-control"
                 value={extrasCost}
-                disabled={!isAdmin}
+                disabled={!canEditSettings}
                 onChange={(e) => setExtrasCost(Number(e.target.value))}
                 required
               />
-              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Prime Energy stated baseline: £200</span>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Prime Energy baseline: £200</span>
             </div>
 
             <div className="form-group">
-              <label className="form-label">Combi Conversion Allowance (£)</label>
+              <label className="form-label">Accessories & Controls Allowance (£) *</label>
               <input
                 type="number"
                 min="0"
-                step="50"
+                step="25"
                 className="form-control"
-                value={combiAllowance}
-                disabled={!isAdmin}
-                onChange={(e) => setCombiAllowance(Number(e.target.value))}
+                value={accessoriesCost}
+                disabled={!canEditSettings}
+                onChange={(e) => setAccessoriesCost(Number(e.target.value))}
                 required
               />
-              <span style={{ fontSize: '0.75rem', color: '#b45309' }}>Marked provisional pending confirmation</span>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>MagnaClean, AV feet, flex hoses, controller, isolator default: £968</span>
             </div>
 
             <div className="form-group">
@@ -333,11 +332,11 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
                 step="50"
                 className="form-control"
                 value={microboreAllowance}
-                disabled={!isAdmin}
+                disabled={!canEditSettings}
                 onChange={(e) => setMicroboreAllowance(Number(e.target.value))}
                 required
               />
-              <span style={{ fontSize: '0.75rem', color: '#b45309' }}>Marked provisional pending confirmation</span>
+              <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Provisional re-pipe allowance baseline: £1,800</span>
             </div>
           </div>
 

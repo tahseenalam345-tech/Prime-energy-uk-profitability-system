@@ -4,24 +4,28 @@ import { Badge } from './Badge.js';
 
 export interface SuitableAshpItem {
   id: string;
-  brand: string;
-  manufacturer: string;
-  productFamily: string;
-  model: string;
-  sku: string | null;
-  nominalCapacity: number;
-  ratedOutputAtDesign: number;
-  designCondition: string;
-  mcsStatus: string;
-  mcsReference: string | null;
-  priceExVat: number;
-  supplier: string;
+  brand?: string | null;
+  manufacturer?: string | null;
+  productFamily?: string | null;
+  model?: string | null;
+  sku?: string | null;
+  nominalCapacity?: number | null;
+  marketingNominalKw?: number | null;
+  ratedOutputAtDesign?: number | null;
+  ratedOutputKw?: number | null;
+  designCondition?: string | null;
+  ratedOutputCondition?: string | null;
+  mcsStatus?: string | null;
+  mcsReference?: string | null;
+  priceExVat?: number | null;
+  supplier?: string | null;
 }
 
 export interface SuitableAshpsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  requiredHeatDemandKw: number;
+  requiredHeatDemandKw?: number;
+  estimatedHeatDemandKw?: number;
   selectedAshpId?: string | null;
   onSelectAshp: (productId: string) => void;
   categorizedAshps?: {
@@ -38,6 +42,7 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
   isOpen,
   onClose,
   requiredHeatDemandKw,
+  estimatedHeatDemandKw,
   selectedAshpId,
   onSelectAshp,
   categorizedAshps,
@@ -47,24 +52,51 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
 
   if (!isOpen) return null;
 
-  const rawQualifying = (categorizedAshps?.allQualifying || allAshps)
-    .filter(p => p.ratedOutputAtDesign >= requiredHeatDemandKw && p.mcsStatus !== 'UNVERIFIED');
+  const reqDemand = Number(requiredHeatDemandKw ?? estimatedHeatDemandKw ?? 0);
+
+  const safeQualifyingList = (categorizedAshps?.allQualifying && categorizedAshps.allQualifying.length > 0)
+    ? categorizedAshps.allQualifying
+    : (allAshps && allAshps.length > 0)
+    ? allAshps
+    : [];
+
+  const filterQualifying = (list: SuitableAshpItem[]) => {
+    return list.filter(p => {
+      const rated = Number(p.ratedOutputAtDesign ?? p.ratedOutputKw ?? 0);
+      const isVerified = (p.mcsStatus || '').toUpperCase() !== 'UNVERIFIED';
+      return (reqDemand === 0 || rated >= reqDemand) && isVerified;
+    });
+  };
+
+  const rawQualifying = filterQualifying(safeQualifyingList);
 
   const preferredBrands = ['daikin', 'vaillant', 'mitsubishi', 'viessmann', 'baxi', 'grant'];
 
-  const preferredList = (categorizedAshps?.preferred?.length ? categorizedAshps.preferred : rawQualifying)
-    .filter(p => p.ratedOutputAtDesign >= requiredHeatDemandKw && p.mcsStatus !== 'UNVERIFIED' && preferredBrands.some(b => (p.brand || p.manufacturer || '').toLowerCase().includes(b)))
-    .sort((a, b) => (a.ratedOutputAtDesign - requiredHeatDemandKw) - (b.ratedOutputAtDesign - requiredHeatDemandKw));
+  const getBrandString = (p: SuitableAshpItem) => (p.brand || p.manufacturer || '').toLowerCase();
 
-  const bestMatchList = (categorizedAshps?.bestMatch?.length ? categorizedAshps.bestMatch : rawQualifying)
-    .filter(p => p.ratedOutputAtDesign >= requiredHeatDemandKw && p.mcsStatus !== 'UNVERIFIED')
-    .sort((a, b) => (a.ratedOutputAtDesign - requiredHeatDemandKw) - (b.ratedOutputAtDesign - requiredHeatDemandKw));
+  const preferredList = (categorizedAshps?.preferred?.length ? filterQualifying(categorizedAshps.preferred) : rawQualifying)
+    .filter(p => preferredBrands.some(b => getBrandString(p).includes(b)))
+    .sort((a, b) => {
+      const ratedA = Number(a.ratedOutputAtDesign ?? a.ratedOutputKw ?? 0);
+      const ratedB = Number(b.ratedOutputAtDesign ?? b.ratedOutputKw ?? 0);
+      return (ratedA - reqDemand) - (ratedB - reqDemand);
+    });
 
-  const valueCostList = (categorizedAshps?.valueCost?.length ? categorizedAshps.valueCost : rawQualifying)
-    .filter(p => p.ratedOutputAtDesign >= requiredHeatDemandKw && p.mcsStatus !== 'UNVERIFIED')
-    .sort((a, b) => a.priceExVat - b.priceExVat);
+  const bestMatchList = (categorizedAshps?.bestMatch?.length ? filterQualifying(categorizedAshps.bestMatch) : rawQualifying)
+    .sort((a, b) => {
+      const ratedA = Number(a.ratedOutputAtDesign ?? a.ratedOutputKw ?? 0);
+      const ratedB = Number(b.ratedOutputAtDesign ?? b.ratedOutputKw ?? 0);
+      return (ratedA - reqDemand) - (ratedB - reqDemand);
+    });
 
-  const allList = [...rawQualifying].sort((a, b) => (a.ratedOutputAtDesign - requiredHeatDemandKw) - (b.ratedOutputAtDesign - requiredHeatDemandKw));
+  const valueCostList = (categorizedAshps?.valueCost?.length ? filterQualifying(categorizedAshps.valueCost) : rawQualifying)
+    .sort((a, b) => Number(a.priceExVat ?? 0) - Number(b.priceExVat ?? 0));
+
+  const allList = [...rawQualifying].sort((a, b) => {
+    const ratedA = Number(a.ratedOutputAtDesign ?? a.ratedOutputKw ?? 0);
+    const ratedB = Number(b.ratedOutputAtDesign ?? b.ratedOutputKw ?? 0);
+    return (ratedA - reqDemand) - (ratedB - reqDemand);
+  });
 
   const getActiveList = () => {
     switch (activeTab) {
@@ -89,7 +121,7 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
               <h2 className="text-xl font-bold text-white">Technically Suitable Verified Heat Pumps</h2>
             </div>
             <p className="text-sm text-slate-400 mt-1">
-              Required Output: <span className="font-semibold text-emerald-400">≥ {requiredHeatDemandKw.toFixed(1)} kW</span> at design condition | All models verified
+              Required Output: <span className="font-semibold text-emerald-400">≥ {reqDemand > 0 ? reqDemand.toFixed(1) : 'N/A'} kW</span> at design condition | All models verified
             </p>
           </div>
           <button
@@ -158,8 +190,11 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
           ) : (
             activeItems.map((item) => {
               const isSelected = selectedAshpId === item.id;
-              const isUndersized = item.ratedOutputAtDesign < requiredHeatDemandKw;
-              const surplus = item.ratedOutputAtDesign - requiredHeatDemandKw;
+              const ratedOutput = Number(item.ratedOutputAtDesign ?? item.ratedOutputKw ?? 0);
+              const nominalKw = Number(item.nominalCapacity ?? item.marketingNominalKw ?? 0);
+              const isUndersized = reqDemand > 0 && ratedOutput < reqDemand;
+              const surplus = reqDemand > 0 ? ratedOutput - reqDemand : 0;
+              const priceEx = Number(item.priceExVat ?? 0);
 
               return (
                 <div
@@ -174,7 +209,7 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
                 >
                   <div className="space-y-1.5 flex-1">
                     <div className="flex items-center space-x-2.5">
-                      <span className="font-bold text-white text-base">{item.brand} {item.model}</span>
+                      <span className="font-bold text-white text-base">{item.brand || item.manufacturer || 'Generic'} {item.model || item.id}</span>
                       {isSelected && (
                         <span className="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
                           <CheckCircle2 className="w-3 h-3" /> Currently Selected
@@ -189,25 +224,25 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
                       <div>
-                        Rated Output: <span className="font-bold text-emerald-400">{item.ratedOutputAtDesign} kW</span> ({item.designCondition})
+                        Rated Output: <span className="font-bold text-emerald-400">{ratedOutput > 0 ? `${ratedOutput.toFixed(1)} kW` : 'N/A'}</span> ({item.designCondition || item.ratedOutputCondition || 'A-2/W45'})
                       </div>
                       <div>
-                        Marketing kW: <span className="text-slate-300">{item.nominalCapacity} kW</span>
+                        Marketing kW: <span className="text-slate-300">{nominalKw > 0 ? `${nominalKw.toFixed(1)} kW` : 'N/A'}</span>
                       </div>
                       <div>
                         Surplus: <span className={surplus >= 0 ? 'text-emerald-400' : 'text-red-400'}>
-                          {surplus >= 0 ? `+${surplus.toFixed(1)} kW` : `${surplus.toFixed(1)} kW`}
+                          {reqDemand > 0 ? (surplus >= 0 ? `+${surplus.toFixed(1)} kW` : `${surplus.toFixed(1)} kW`) : 'N/A'}
                         </span>
                       </div>
                       <div>
-                        Supplier: <span className="text-slate-300">{item.supplier}</span>
+                        Supplier: <span className="text-slate-300">{item.supplier || 'City Plumbing'}</span>
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center space-x-4 justify-between md:justify-end">
                     <div className="text-right">
-                      <div className="text-lg font-bold text-white">£{item.priceExVat.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="text-lg font-bold text-white">£{priceEx.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                       <div className="text-xs text-slate-400">ex. VAT</div>
                     </div>
 

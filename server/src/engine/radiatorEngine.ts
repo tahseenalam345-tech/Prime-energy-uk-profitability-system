@@ -8,6 +8,7 @@ export interface RadiatorEstimationInputs {
     quantity: number;
   }> | null;
   radiatorReplacementRequired?: boolean;
+  isLowCapacityIndicated?: boolean;
 }
 
 export interface RadiatorEstimationOutputs {
@@ -124,36 +125,54 @@ export async function estimateRadiatorRequirements(inputs: RadiatorEstimationInp
     };
   }
 
-  // Case 2: Replacement explicitly required by business rule
-  if (inputs.radiatorReplacementRequired && inputs.existingRadiatorCount && inputs.existingRadiatorCount > 0) {
-    const existingCount = inputs.existingRadiatorCount;
-    const replacementCount = Math.max(1, Math.round(existingCount * 0.50));
-    const totalCost = replacementCount * unitAllowanceCostExVat;
+  // Case 2: Replacement required by business rule OR indicated by emitter capacity shortfall
+  const needsUpgrade = Boolean(inputs.radiatorReplacementRequired || inputs.isLowCapacityIndicated);
 
-    notes.push(`Radiator upgrade explicitly flagged: ${replacementCount} replacement units estimated at £${unitAllowanceCostExVat}/unit.`);
+  if (needsUpgrade) {
+    const count = inputs.existingRadiatorCount;
+    if (count && count > 0) {
+      const ratio = inputs.radiatorReplacementRequired ? 0.50 : 0.40;
+      const replacementCount = Math.max(1, Math.round(count * ratio));
+      const totalCost = replacementCount * unitAllowanceCostExVat;
 
-    return {
-      mode: 'REPLACEMENT_REQUIRED',
-      estimatedReplacementCount: replacementCount,
-      displayQuantity: `${replacementCount} replacement radiators required`,
-      unitAllowanceCostExVat,
-      totalRadiatorCostExVat: totalCost,
-      lineItems: [
-        {
-          description: `Radiator Replacement Allowance (${replacementCount} units)`,
-          quantity: replacementCount,
-          unitPriceExVat: unitAllowanceCostExVat,
-          totalPriceExVat: totalCost
-        }
-      ],
-      notes,
-      disclaimer
-    };
+      notes.push(`Radiator upgrade indicated: ${replacementCount} replacement units estimated at £${unitAllowanceCostExVat}/unit.`);
+
+      return {
+        mode: 'REPLACEMENT_REQUIRED',
+        estimatedReplacementCount: replacementCount,
+        displayQuantity: `${replacementCount} radiator replacements estimated`,
+        unitAllowanceCostExVat,
+        totalRadiatorCostExVat: totalCost,
+        lineItems: [
+          {
+            description: `Radiator Replacement Allowance (${replacementCount} units)`,
+            quantity: replacementCount,
+            unitPriceExVat: unitAllowanceCostExVat,
+            totalPriceExVat: totalCost
+          }
+        ],
+        notes,
+        disclaimer
+      };
+    } else {
+      // Upgrade indicated, but insufficient info to quantify exact replacement count pre-survey
+      notes.push('Radiator upgrade indicated, but exact replacement count cannot be quantified pre-survey without radiator count.');
+
+      return {
+        mode: 'REPLACEMENT_REQUIRED',
+        estimatedReplacementCount: 0,
+        displayQuantity: 'Upgrade quantity not quantified pre-survey',
+        unitAllowanceCostExVat,
+        totalRadiatorCostExVat: 0,
+        lineItems: [],
+        notes,
+        disclaimer
+      };
+    }
   }
 
   // Case 3: Default — Existing radiator count represents existing property emitters.
   // Rule 8: If no radiator replacement is required: replacement quantity = 0, replacement cost = £0.
-  // Do NOT silently create an "extra radiator allowance".
   notes.push('Existing radiators reported. No automatic replacement allowance added pre-survey (Replacement quantity = 0, Cost = £0).');
 
   return {

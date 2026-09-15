@@ -440,7 +440,7 @@ export const GoldenFormulaExplainer: React.FC = () => {
             £{simBusGrant.toLocaleString()}
           </div>
           <div style={{ fontSize: '0.72rem', color: '#a7f3d0', marginTop: '4px' }}>
-            Covers {grantSharePct.toFixed(1)}% of Required Revenue
+            Covers {(Number(grantSharePct || 0)).toFixed(1)}% of Required Revenue
           </div>
           <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '3px', background: '#10b981' }} />
         </div>
@@ -487,7 +487,7 @@ export const GoldenFormulaExplainer: React.FC = () => {
               borderRadius: '4px',
               fontWeight: 800
             }}>
-              {grossMarginPercent.toFixed(1)}%
+              {(Number(grossMarginPercent || 0)).toFixed(1)}%
             </span>
           </div>
           <div style={{ fontSize: '1.65rem', fontWeight: 800, color: '#60a5fa', letterSpacing: '-0.02em' }}>
@@ -522,11 +522,11 @@ export const GoldenFormulaExplainer: React.FC = () => {
               <div style={{ display: 'flex', gap: '16px', fontSize: '0.78rem' }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#10b981', display: 'inline-block' }} />
-                  BUS Grant: <strong>{grantSharePct.toFixed(1)}%</strong> (£{simBusGrant.toLocaleString()})
+                  BUS Grant: <strong>{(Number(grantSharePct || 0)).toFixed(1)}%</strong> (£{simBusGrant.toLocaleString()})
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#f59e0b', display: 'inline-block' }} />
-                  Customer Pays: <strong>{custSharePct.toFixed(1)}%</strong> (£{customerContribution.toLocaleString(undefined, { maximumFractionDigits: 2 })})
+                  Customer Pays: <strong>{(Number(custSharePct || 0)).toFixed(1)}%</strong> (£{customerContribution.toLocaleString(undefined, { maximumFractionDigits: 2 })})
                 </span>
               </div>
             </div>
@@ -554,9 +554,9 @@ export const GoldenFormulaExplainer: React.FC = () => {
                   color: '#ffffff',
                   transition: 'width 0.3s ease'
                 }}
-                title={`BUS Grant: £${simBusGrant} (${grantSharePct.toFixed(1)}%)`}
+                title={`BUS Grant: £${simBusGrant} (${(Number(grantSharePct || 0)).toFixed(1)}%)`}
               >
-                {grantSharePct > 18 ? `BUS Grant £${simBusGrant.toLocaleString()} (${grantSharePct.toFixed(1)}%)` : ''}
+                {grantSharePct > 18 ? `BUS Grant £${simBusGrant.toLocaleString()} (${(Number(grantSharePct || 0)).toFixed(1)}%)` : ''}
               </div>
               <div
                 style={{
@@ -570,7 +570,7 @@ export const GoldenFormulaExplainer: React.FC = () => {
                   color: '#ffffff',
                   transition: 'width 0.3s ease'
                 }}
-                title={`Customer Contribution: £${customerContribution.toFixed(2)} (${custSharePct.toFixed(1)}%)`}
+                title={`Customer Contribution: £${(Number(customerContribution || 0)).toFixed(2)} (${(Number(custSharePct || 0)).toFixed(1)}%)`}
               >
                 {custSharePct > 15 ? `Customer £${customerContribution.toLocaleString(undefined, { maximumFractionDigits: 0 })}` : ''}
               </div>
@@ -585,11 +585,11 @@ export const GoldenFormulaExplainer: React.FC = () => {
                 <div style={{ display: 'flex', gap: '16px', fontSize: '0.78rem' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#64748b', display: 'inline-block' }} />
-                    Job Cost: <strong>{costSharePct.toFixed(1)}%</strong> (£{simJobCost.toLocaleString()})
+                    Job Cost: <strong>{(Number(costSharePct || 0)).toFixed(1)}%</strong> (£{simJobCost.toLocaleString()})
                   </span>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#3b82f6', display: 'inline-block' }} />
-                    Gross Profit: <strong>{profitSharePct.toFixed(1)}%</strong> (£{grossProfit.toLocaleString(undefined, { maximumFractionDigits: 2 })})
+                    Gross Profit: <strong>{(Number(profitSharePct || 0)).toFixed(1)}%</strong> (£{grossProfit.toLocaleString(undefined, { maximumFractionDigits: 2 })})
                   </span>
                 </div>
               </div>
@@ -617,7 +617,7 @@ export const GoldenFormulaExplainer: React.FC = () => {
                     transition: 'width 0.3s ease'
                   }}
                 >
-                  {costSharePct > 15 ? `Total Job Cost £${simJobCost.toLocaleString()} (${costSharePct.toFixed(1)}%)` : ''}
+                  {costSharePct > 15 ? `Total Job Cost £${simJobCost.toLocaleString()} (${(Number(costSharePct || 0)).toFixed(1)}%)` : ''}
                 </div>
                 <div
                   style={{
@@ -632,7 +632,7 @@ export const GoldenFormulaExplainer: React.FC = () => {
                     transition: 'width 0.3s ease'
                   }}
                 >
-                  {profitSharePct > 10 ? `Profit £${grossProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} (${profitSharePct.toFixed(1)}%)` : ''}
+                  {profitSharePct > 10 ? `Profit £${grossProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} (${(Number(profitSharePct || 0)).toFixed(1)}%)` : ''}
                 </div>
               </div>
             </div>
@@ -655,7 +655,7 @@ export const GoldenFormulaExplainer: React.FC = () => {
                 </div>
               </div>
               <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: 700, background: 'rgba(52,211,153,0.1)', padding: '3px 8px', borderRadius: '6px' }}>
-                Formula Verified: Profit = £{grossProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} ({grossMarginPercent.toFixed(1)}%)
+                Formula Verified: Profit = £{grossProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} ({(Number(grossMarginPercent || 0)).toFixed(1)}%)
               </span>
             </div>
 
@@ -862,7 +862,7 @@ export const GoldenFormulaExplainer: React.FC = () => {
                           fontWeight: 800,
                           fontSize: '0.75rem'
                         }}>
-                          {row.marginPercent.toFixed(1)}%
+                          {(Number(row?.marginPercent || 0)).toFixed(1)}%
                         </span>
                       </td>
                       <td style={{ padding: '14px 16px', textAlign: 'center' }}>
@@ -993,7 +993,7 @@ export const GoldenFormulaExplainer: React.FC = () => {
           <span>Active Simulation: <strong>Cost £{simJobCost.toLocaleString()} @ {simMarginPct}% Margin</strong> with <strong>£{simBusGrant.toLocaleString()} BUS Grant</strong></span>
         </div>
         <div>
-          Delivering: <strong>£{grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Profit ({grossMarginPercent.toFixed(1)}% True Margin)</strong>
+          Delivering: <strong>£{grossProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Profit ({(Number(grossMarginPercent || 0)).toFixed(1)}% True Margin)</strong>
         </div>
       </div>
     </div>
