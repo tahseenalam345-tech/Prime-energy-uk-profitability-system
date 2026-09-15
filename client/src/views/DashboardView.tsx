@@ -46,9 +46,9 @@ export const PIPELINE_STAGES = [
   { id: 'OTHER', name: 'Other', statuses: ['On Hold', 'Cancelled'] }
 ];
 
-function normalizeStatusKey(status: string): string {
+function normalizeStatusKey(status?: string | null): string {
   if (!status) return '';
-  return status.trim().toUpperCase();
+  return String(status).trim().toUpperCase();
 }
 
 function getStatusBadgeClass(status: string): string {
@@ -1342,7 +1342,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
 
     // 3. Status Filter (from SearchableSelect)
     if (statusFilter) {
-      result = result.filter(j => j.status.toLowerCase() === statusFilter.toLowerCase());
+      result = result.filter(j => (j.status || '').toLowerCase() === (statusFilter || '').toLowerCase());
     }
 
     // 4. Job Type Filter

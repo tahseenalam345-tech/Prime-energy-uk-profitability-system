@@ -3,11 +3,16 @@ import { CheckCircle2, AlertTriangle, XCircle, Info, HelpCircle } from 'lucide-r
 
 interface BadgeProps {
   type?: 'bus' | 'confidence' | 'grade' | 'recommendation' | 'status' | 'custom';
-  value: string;
+  value?: string | null;
 }
 
 export const Badge: React.FC<BadgeProps> = ({ type = 'custom', value }) => {
-  const val = value.toUpperCase();
+  const displayVal = value != null ? String(value) : '';
+  const val = displayVal.trim().toUpperCase();
+
+  if (!val) {
+    return <span className="badge badge-neutral">—</span>;
+  }
 
   // BUS Badges
   if (type === 'bus' || val === 'PASS' || val === 'FAIL' || val === 'UNCERTAIN') {
@@ -91,16 +96,16 @@ export const Badge: React.FC<BadgeProps> = ({ type = 'custom', value }) => {
   // Commercial Recommendation Badges
   if (type === 'recommendation') {
     if (val.includes('PROCEED WITH CAUTION')) {
-      return <span className="badge badge-warning"><AlertTriangle size={13} /> {value}</span>;
+      return <span className="badge badge-warning"><AlertTriangle size={13} /> {displayVal}</span>;
     }
     if (val.includes('DO NOT PROCEED')) {
-      return <span className="badge badge-danger"><XCircle size={13} /> {value}</span>;
+      return <span className="badge badge-danger"><XCircle size={13} /> {displayVal}</span>;
     }
     if (val.includes('SURVEY REQUIRED') || val.includes('CUSTOMER CONTRIBUTION')) {
-      return <span className="badge badge-info"><Info size={13} /> {value}</span>;
+      return <span className="badge badge-info"><Info size={13} /> {displayVal}</span>;
     }
-    return <span className="badge badge-success"><CheckCircle2 size={13} /> {value}</span>;
+    return <span className="badge badge-success"><CheckCircle2 size={13} /> {displayVal}</span>;
   }
 
-  return <span className="badge badge-neutral">{value}</span>;
+  return <span className="badge badge-neutral">{displayVal}</span>;
 };
