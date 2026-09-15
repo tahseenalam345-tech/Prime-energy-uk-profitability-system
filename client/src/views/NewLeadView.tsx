@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Calculator, AlertTriangle, ShieldCheck, CheckCircle2,
   Info, Save, ArrowRight, HelpCircle, FileCheck, Search,
