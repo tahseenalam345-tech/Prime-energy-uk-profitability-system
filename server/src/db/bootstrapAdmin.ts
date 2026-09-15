@@ -23,8 +23,6 @@ export async function bootstrapInitialAdmin() {
     }
 
     const adminEmail = (process.env.ADMIN_EMAIL || 'tahseenamal345@gmail.com').toLowerCase().trim();
-    const rawPassword = process.env.ADMIN_PASSWORD || 'PrimePassword2026!';
-    const passwordHash = bcrypt.hashSync(rawPassword, 10);
 
     // Get ADMIN role ID
     const adminRole = await db.get("SELECT id FROM roles WHERE name = 'ADMIN'");
@@ -39,20 +37,39 @@ export async function bootstrapInitialAdmin() {
     // 2. Check if configured admin email exists
     const existingAdmin = await db.get('SELECT id FROM users WHERE LOWER(email) = ?', [adminEmail]);
 
-    if (existingAdmin) {
-      // Synchronize existing admin account password, role, and active status
-      await db.run(
-        'UPDATE users SET password_hash = ?, role_id = ?, active = 1 WHERE id = ?',
-        [passwordHash, roleId, existingAdmin.id]
-      );
-      console.log(`[Admin Bootstrap]: Updated & activated single owner admin user (${adminEmail}). Legacy admin deactivated.`);
+    if (process.env.ADMIN_PASSWORD && process.env.ADMIN_PASSWORD.trim().length > 0) {
+      const rawPassword = process.env.ADMIN_PASSWORD.trim();
+      const passwordHash = bcrypt.hashSync(rawPassword, 10);
+
+      if (existingAdmin) {
+        await db.run(
+          'UPDATE users SET password_hash = ?, role_id = ?, active = 1 WHERE id = ?',
+          [passwordHash, roleId, existingAdmin.id]
+        );
+        console.log(`[Admin Bootstrap]: Updated password hash for owner admin user (${adminEmail}) from ADMIN_PASSWORD env.`);
+      } else {
+        await db.run(
+          `INSERT INTO users (id, name, email, role_id, password_hash, active) VALUES (?, ?, ?, ?, ?, 1)`,
+          ['user_admin_initial', 'System Admin', adminEmail, roleId, passwordHash]
+        );
+        console.log(`[Admin Bootstrap]: Created owner admin user (${adminEmail}) from ADMIN_PASSWORD env.`);
+      }
     } else {
-      // Create new initial owner admin account
-      await db.run(
-        `INSERT INTO users (id, name, email, role_id, password_hash, active) VALUES (?, ?, ?, ?, ?, 1)`,
-        ['user_admin_initial', 'System Admin', adminEmail, roleId, passwordHash]
-      );
-      console.log(`[Admin Bootstrap]: Created single owner admin user (${adminEmail}). Legacy admin deactivated.`);
+      if (existingAdmin) {
+        await db.run(
+          'UPDATE users SET role_id = ?, active = 1 WHERE id = ?',
+          [roleId, existingAdmin.id]
+        );
+        console.log(`[Admin Bootstrap]: Preserved existing password hash for owner admin user (${adminEmail}).`);
+      } else {
+        const rawPassword = 'PrimePassword2026!';
+        const passwordHash = bcrypt.hashSync(rawPassword, 10);
+        await db.run(
+          `INSERT INTO users (id, name, email, role_id, password_hash, active) VALUES (?, ?, ?, ?, ?, 1)`,
+          ['user_admin_initial', 'System Admin', adminEmail, roleId, passwordHash]
+        );
+        console.log(`[Admin Bootstrap]: Created initial owner admin user (${adminEmail}) with fallback password.`);
+      }
     }
   } catch (err: any) {
     console.error('[Admin Bootstrap]: Error checking/creating initial admin:', err?.message || err);

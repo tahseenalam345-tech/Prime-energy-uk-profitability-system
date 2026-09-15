@@ -158,17 +158,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           );
         })}
 
-        {!currentUser && (
-          <button
-            key="login"
-            onClick={() => setCurrentTab('login')}
-            className={`nav-link nav-tab-login ${currentTab === 'login' ? 'active' : ''}`}
-            style={{ marginLeft: 'auto', background: 'rgba(5, 150, 105, 0.12)', border: '1px solid rgba(52, 211, 153, 0.25)', color: '#34d399' }}
-          >
-            <LogIn size={16} className="nav-tab-icon" />
-            <span>Login</span>
-          </button>
-        )}
       </nav>
     </header>
   );

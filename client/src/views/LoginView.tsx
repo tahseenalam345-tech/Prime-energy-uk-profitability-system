@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Flame, Lock, Mail, AlertCircle, LogIn, Sun, Moon, Shield } from 'lucide-react';
+import { Flame, Lock, Mail, AlertCircle, LogIn, Sun, Moon, Shield, Eye, EyeOff } from 'lucide-react';
 import { api } from '../services/api.js';
 import { User } from '../types.js';
 
@@ -18,6 +18,7 @@ export const LoginView: React.FC<LoginViewProps> = ({
 }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -191,14 +192,14 @@ export const LoginView: React.FC<LoginViewProps> = ({
             <div style={{ position: 'relative' }}>
               <Lock size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#9ca3af' }} />
               <input
-                type="password"
+                type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
                 style={{
                   width: '100%',
-                  padding: '11px 12px 11px 38px',
+                  padding: '11px 40px 11px 38px',
                   borderRadius: '10px',
                   border: theme === 'dark' ? '1px solid #374151' : '1px solid #d1d5db',
                   background: theme === 'dark' ? '#1f2937' : '#ffffff',
@@ -207,6 +208,26 @@ export const LoginView: React.FC<LoginViewProps> = ({
                   outline: 'none'
                 }}
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  cursor: 'pointer',
+                  color: '#9ca3af',
+                  display: 'flex',
+                  alignItems: 'center'
+                }}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
           </div>
 
