@@ -1,20 +1,30 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { db } from '../db/connection.js';
+import { authenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
 
 export const adminRouter = Router();
 
+// Require authentication for all admin endpoints
+adminRouter.use(authenticateToken);
+
+function safeErrorResponse(res: Response, err: any, defaultMsg: string) {
+  console.error(`[Admin Router Error]:`, err);
+  const msg = process.env.NODE_ENV === 'production' ? defaultMsg : (err.message || defaultMsg);
+  res.status(500).json({ error: msg });
+}
+
 // GET Commercial Settings
-adminRouter.get('/commercial-settings', async (req: Request, res: Response) => {
+adminRouter.get('/commercial-settings', requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const settings = await db.get('SELECT * FROM commercial_settings ORDER BY version DESC LIMIT 1');
     res.json({ settings });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to fetch commercial settings' });
+    safeErrorResponse(res, err, 'Failed to fetch commercial settings');
   }
 });
 
 // UPDATE Commercial Settings (creates new version, writes audit log)
-adminRouter.post('/commercial-settings', async (req: Request, res: Response) => {
+adminRouter.post('/commercial-settings', requireRole('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const {
       targetGrossMargin,
@@ -414,7 +424,7 @@ adminRouter.get('/products/:id', async (req: Request, res: Response) => {
 });
 
 // UPDATE Product Specifications & Governance Verification
-adminRouter.post('/products/:id', async (req: Request, res: Response) => {
+adminRouter.post('/products/:id', requireRole('ADMIN', 'ESTIMATOR'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const productId = req.params.id;
     const {
@@ -510,7 +520,7 @@ adminRouter.post('/products/:id', async (req: Request, res: Response) => {
 });
 
 // ADD / UPDATE Product Price
-adminRouter.post('/products/:id/price', async (req: Request, res: Response) => {
+adminRouter.post('/products/:id/price', requireRole('ADMIN', 'ESTIMATOR'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const productId = req.params.id;
     const {
@@ -597,7 +607,7 @@ adminRouter.get('/bus-rules', async (req: Request, res: Response) => {
 });
 
 // UPDATE BUS Ruleset
-adminRouter.post('/bus-rules/:id', async (req: Request, res: Response) => {
+adminRouter.post('/bus-rules/:id', requireRole('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { standardGrant, offGasGrant, notes, userId = 'user_admin' } = req.body;
     const current = await db.get('SELECT * FROM bus_rules WHERE id = ?', [req.params.id]) as any;

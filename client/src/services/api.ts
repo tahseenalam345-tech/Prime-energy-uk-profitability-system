@@ -1,44 +1,104 @@
-const BASE_URL = '/api';
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+
+function getHeaders(customHeaders: Record<string, string> = {}): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...customHeaders
+  };
+
+  if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
+    const token = localStorage.getItem('prime_energy_token');
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+
+  return headers;
+}
 
 export const api = {
+  async login(email: string, password?: string) {
+    const res = await fetch(`${BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ email, password: password || 'PrimePassword2026!' })
+    });
+    const data = await res.json();
+    if (res.ok && data.token) {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('prime_energy_token', data.token);
+      }
+    }
+    return data;
+  },
+
+  async logout() {
+    try {
+      await fetch(`${BASE_URL}/auth/logout`, {
+        method: 'POST',
+        headers: getHeaders()
+      });
+    } catch {}
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('prime_energy_token');
+    }
+  },
+
+  async me() {
+    const res = await fetch(`${BASE_URL}/auth/me`, {
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
   async getUsers() {
-    const res = await fetch(`${BASE_URL}/auth/users`);
+    const res = await fetch(`${BASE_URL}/auth/users`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async getDashboardSummary() {
-    const res = await fetch(`${BASE_URL}/reports/dashboard-summary`);
+    const res = await fetch(`${BASE_URL}/reports/dashboard-summary`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async getJobs() {
-    const res = await fetch(`${BASE_URL}/reports/jobs`);
+    const res = await fetch(`${BASE_URL}/reports/jobs`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async updateJobStatus(id: string, status: string, userId = 'user_sales', userName = 'Sarah Jenkins (Sales)') {
     const res = await fetch(`${BASE_URL}/leads/${id}/status`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify({ status, userId, userName })
     });
     return res.json();
   },
 
   async getLeads() {
-    const res = await fetch(`${BASE_URL}/leads`);
+    const res = await fetch(`${BASE_URL}/leads`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async getLead(id: string) {
-    const res = await fetch(`${BASE_URL}/leads/${id}`);
+    const res = await fetch(`${BASE_URL}/leads/${id}`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async createLead(data: any) {
     const res = await fetch(`${BASE_URL}/leads`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(data)
     });
     return res.json();
@@ -47,7 +107,7 @@ export const api = {
   async updateLead(id: string, data: any) {
     const res = await fetch(`${BASE_URL}/leads/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(data)
     });
     return res.json();
@@ -55,7 +115,8 @@ export const api = {
 
   async deleteLead(id: string) {
     const res = await fetch(`${BASE_URL}/leads/${id}`, {
-      method: 'DELETE'
+      method: 'DELETE',
+      headers: getHeaders()
     });
     return res.json();
   },
@@ -63,11 +124,11 @@ export const api = {
   async calculateNewLead(inputs: any) {
     const res = await fetch(`${BASE_URL}/calculator/new-lead`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(inputs)
     });
     if (!res.ok) {
-      const err = await res.json();
+      const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Calculation error');
     }
     return res.json();
@@ -76,23 +137,27 @@ export const api = {
   async calculateAfterSurvey(inputs: any) {
     const res = await fetch(`${BASE_URL}/calculator/after-survey`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(inputs)
     });
     if (!res.ok) {
-      const err = await res.json();
+      const err = await res.json().catch(() => ({}));
       throw new Error(err.error || 'Survey calculation error');
     }
     return res.json();
   },
 
   async getQuotes() {
-    const res = await fetch(`${BASE_URL}/quotes`);
+    const res = await fetch(`${BASE_URL}/quotes`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async getQuote(id: string) {
-    const res = await fetch(`${BASE_URL}/quotes/${id}`);
+    const res = await fetch(`${BASE_URL}/quotes/${id}`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
@@ -107,12 +172,10 @@ export const api = {
       calc.cylinder = cylClean;
     }
     const bodyStr = JSON.stringify({ ...data, calculationResult: calc });
-    const bytes = new Blob([bodyStr]).size;
-    console.log(`[API saveQuote] POST /api/quotes - Payload Size: ${bytes} bytes (${(bytes / 1024).toFixed(2)} KB)`);
 
     const res = await fetch(`${BASE_URL}/quotes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: bodyStr
     });
     if (!res.ok) {
@@ -138,12 +201,10 @@ export const api = {
       userId: data.createdBy || data.userId || 'user_sales'
     };
     const bodyStr = JSON.stringify(bodyObj);
-    const bytes = new Blob([bodyStr]).size;
-    console.log(`[API saveQuoteSnapshot] POST /api/quotes - Payload Size: ${bytes} bytes (${(bytes / 1024).toFixed(2)} KB)`);
 
     const res = await fetch(`${BASE_URL}/quotes`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: bodyStr
     });
     if (!res.ok) {
@@ -154,13 +215,16 @@ export const api = {
   },
 
   async getQuoteSnapshot(id: string) {
-    const res = await fetch(`${BASE_URL}/quotes/${id}/snapshot`);
+    const res = await fetch(`${BASE_URL}/quotes/${id}/snapshot`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async verifySnapshot(id: string) {
     const res = await fetch(`${BASE_URL}/quotes/${id}/verify-snapshot`, {
-      method: 'POST'
+      method: 'POST',
+      headers: getHeaders()
     });
     return res.json();
   },
@@ -168,7 +232,7 @@ export const api = {
   async overrideQuote(id: string, data: { userId: string; reason: string; customerContributionOverride?: number; targetMarginOverride?: number }) {
     const res = await fetch(`${BASE_URL}/quotes/${id}/override`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(data)
     });
     return res.json();
@@ -176,133 +240,130 @@ export const api = {
 
   async getProducts(family?: string) {
     const url = family ? `${BASE_URL}/admin/products?family=${family}` : `${BASE_URL}/admin/products`;
-    const res = await fetch(url);
+    const res = await fetch(url, { headers: getHeaders() });
     return res.json();
   },
 
-  async getProductsDetailed(params?: { 
-    family?: string; 
-    brand?: string; 
-    mcs_status?: string; 
-    ofgem_pel_status?: string; 
-    verification_status?: string; 
-    search?: string;
-    radiator_type?: string;
-    height_mm?: string | number;
-    length_mm?: string | number;
-    min_kw?: string | number;
-    max_kw?: string | number;
-    kw_rating?: string | number;
-    min_litres?: string | number;
-    max_litres?: string | number;
-    litres?: string | number;
-    min_watts?: string | number;
-    max_watts?: string | number;
-    watts?: string | number;
-    pipe_size_mm?: string | number;
-    accessory_type?: string;
-  }) {
+  async getProductsDetailed(params?: any) {
     const query = new URLSearchParams();
-    if (params?.family) query.set('family', params.family);
-    if (params?.brand) query.set('brand', params.brand);
-    if (params?.mcs_status) query.set('mcs_status', params.mcs_status);
-    if (params?.ofgem_pel_status) query.set('ofgem_pel_status', params.ofgem_pel_status);
-    if (params?.verification_status) query.set('verification_status', params.verification_status);
-    if (params?.radiator_type) query.set('radiator_type', params.radiator_type);
-    if (params?.height_mm) query.set('height_mm', String(params.height_mm));
-    if (params?.length_mm) query.set('length_mm', String(params.length_mm));
-    if (params?.min_kw) query.set('min_kw', String(params.min_kw));
-    if (params?.max_kw) query.set('max_kw', String(params.max_kw));
-    if (params?.kw_rating) query.set('kw_rating', String(params.kw_rating));
-    if (params?.min_litres) query.set('min_litres', String(params.min_litres));
-    if (params?.max_litres) query.set('max_litres', String(params.max_litres));
-    if (params?.litres) query.set('litres', String(params.litres));
-    if (params?.min_watts) query.set('min_watts', String(params.min_watts));
-    if (params?.max_watts) query.set('max_watts', String(params.max_watts));
-    if (params?.watts) query.set('watts', String(params.watts));
-    if (params?.pipe_size_mm) query.set('pipe_size_mm', String(params.pipe_size_mm));
-    if (params?.accessory_type) query.set('accessory_type', params.accessory_type);
-    if (params?.search) query.set('search', params.search);
+    if (params) {
+      Object.keys(params).forEach(key => {
+        if (params[key] !== undefined && params[key] !== null) {
+          query.set(key, String(params[key]));
+        }
+      });
+    }
 
-    const res = await fetch(`${BASE_URL}/admin/products?${query.toString()}`);
+    const res = await fetch(`${BASE_URL}/admin/products?${query.toString()}`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async getProduct(id: string) {
-    const res = await fetch(`${BASE_URL}/admin/products/${id}`);
+    const res = await fetch(`${BASE_URL}/admin/products/${id}`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async updateProduct(id: string, data: any) {
     const res = await fetch(`${BASE_URL}/admin/products/${id}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(data)
     });
     return res.json();
   },
 
   async getProductStatsSummary() {
-    const res = await fetch(`${BASE_URL}/admin/products/stats/summary`);
+    const res = await fetch(`${BASE_URL}/admin/products/stats/summary`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async updateProductPrice(productId: string, data: any) {
     const res = await fetch(`${BASE_URL}/admin/products/${productId}/price`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(data)
     });
     return res.json();
   },
 
   async getCommercialSettings() {
-    const res = await fetch(`${BASE_URL}/admin/commercial-settings`);
+    const res = await fetch(`${BASE_URL}/admin/commercial-settings`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async updateCommercialSettings(data: any) {
     const res = await fetch(`${BASE_URL}/admin/commercial-settings`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getHeaders(),
       body: JSON.stringify(data)
     });
     return res.json();
   },
 
   async getBusRules() {
-    const res = await fetch(`${BASE_URL}/admin/bus-rules`);
+    const res = await fetch(`${BASE_URL}/admin/bus-rules`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async getEstimationTables() {
-    const res = await fetch(`${BASE_URL}/admin/estimation-tables`);
+    const res = await fetch(`${BASE_URL}/admin/estimation-tables`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async getAuditLogs() {
-    const res = await fetch(`${BASE_URL}/admin/audit-logs`);
+    const res = await fetch(`${BASE_URL}/admin/audit-logs`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
-  async getRuleEvidence(params?: { category?: string; status?: string; search?: string }) {
+  async getRuleEvidence(params?: any) {
     const query = new URLSearchParams();
-    if (params?.category) query.set('category', params.category);
-    if (params?.status) query.set('status', params.status);
-    if (params?.search) query.set('search', params.search);
+    if (params) {
+      Object.keys(params).forEach(key => {
+        if (params[key]) query.set(key, params[key]);
+      });
+    }
 
-    const res = await fetch(`${BASE_URL}/admin/rule-evidence?${query.toString()}`);
+    const res = await fetch(`${BASE_URL}/admin/rule-evidence?${query.toString()}`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async getCylinders() {
-    const res = await fetch(`${BASE_URL}/admin/cylinders`);
+    const res = await fetch(`${BASE_URL}/admin/cylinders`, {
+      headers: getHeaders()
+    });
     return res.json();
   },
 
   async getRadiatorCatalogue(type?: string) {
     const query = type ? `?type=${encodeURIComponent(type)}` : '';
-    const res = await fetch(`${BASE_URL}/admin/radiators${query}`);
+    const res = await fetch(`${BASE_URL}/admin/radiators${query}`, {
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
+  async updateBusRules(id: string, data: any) {
+    const res = await fetch(`${BASE_URL}/admin/bus-rules/${id}`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
     return res.json();
   }
 };

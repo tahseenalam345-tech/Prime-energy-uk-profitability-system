@@ -1,7 +1,14 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { db } from '../db/connection.js';
+import { authenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
 
 export const reportsRouter = Router();
+
+function safeErrorResponse(res: Response, err: any, defaultMsg: string) {
+  console.error(`[Reports Router Error]:`, err);
+  const msg = process.env.NODE_ENV === 'production' ? defaultMsg : (err.message || defaultMsg);
+  res.status(500).json({ error: msg });
+}
 
 export const PIPELINE_CATEGORIES = {
   NEW_LEADS: {
@@ -131,7 +138,6 @@ async function fetchAllJobsData() {
       }
     }
 
-    // Extract heat requirement safely
     let heatRequirementKw: number | null = null;
     let heatRequirementDisplay: string = '—';
     if (outputs?.heatDemand) {
@@ -142,7 +148,6 @@ async function fetchAllJobsData() {
       heatRequirementDisplay = `${heatRequirementKw} kW (MCS)`;
     }
 
-    // Extract ASHP Model
     let ashpModel: string = '—';
     if (outputs?.ashp?.recommendedProduct?.model) {
       ashpModel = outputs.ashp.recommendedProduct.model;
@@ -151,7 +156,6 @@ async function fetchAllJobsData() {
       if (ashpItem) ashpModel = ashpItem.description;
     }
 
-    // Extract Cylinder
     let cylinderModel: string = '—';
     if (outputs?.cylinder?.recommendedProduct?.model) {
       cylinderModel = outputs.cylinder.recommendedProduct.model;
@@ -162,7 +166,6 @@ async function fetchAllJobsData() {
       if (cylItem) cylinderModel = cylItem.description;
     }
 
-    // Extract Radiators
     let radiatorSchedule: string = '—';
     if (outputs?.radiators?.displayQuantity) {
       radiatorSchedule = outputs.radiators.displayQuantity;
@@ -170,9 +173,7 @@ async function fetchAllJobsData() {
       radiatorSchedule = `${outputs.radiators.estimatedReplacementCount} units allowance`;
     }
 
-    // Cost Breakdown components
     const costBreakdown = outputs?.costBreakdown || null;
-
     const hasCommercialData = r.quote_id !== null && r.total_job_cost !== null;
 
     return {
@@ -188,7 +189,6 @@ async function fetchAllJobsData() {
       assigned_to: r.assigned_to,
       created_at: r.created_at,
       updated_at: r.updated_at,
-      // Property
       property: {
         address_line1: r.address_line1,
         address_line2: r.address_line2,
@@ -218,7 +218,6 @@ async function fetchAllJobsData() {
         listed_building: r.listed_building,
         sales_notes: r.sales_notes
       },
-      // Commercial Quote
       commercial: hasCommercialData ? {
         quote_id: r.quote_id,
         quote_reference: r.quote_reference,
@@ -241,7 +240,6 @@ async function fetchAllJobsData() {
         lead_gen_cost: costBreakdown?.leadGeneration ?? null,
         extras_contingency: costBreakdown?.extrasContingency ?? null
       } : null,
-      // Design & Heat
       design: {
         heatRequirementKw,
         heatRequirementDisplay,
@@ -258,7 +256,6 @@ async function fetchAllJobsData() {
 async function calculateSummaryAndAttention(jobs: any[]) {
   const totalJobs = jobs.length;
 
-  // Status groupings
   const pendingStatuses = [
     'New', 'Pending Check', 'Quotation Draft', 'Customer Contribution Required',
     'Survey Pending', 'Survey Received', 'Design Complete', 'Ready for Installation', 'Installation Scheduled'
@@ -272,7 +269,6 @@ async function calculateSummaryAndAttention(jobs: any[]) {
   const quotationsVerified = jobs.filter(j => verifiedStatuses.includes(j.status)).length;
   const cancelled = jobs.filter(j => cancelledStatuses.includes(j.status)).length;
 
-  // Category counts
   const categoryCounts: Record<string, number> = {
     'New Leads': 0,
     'Quotation': 0,
@@ -281,7 +277,6 @@ async function calculateSummaryAndAttention(jobs: any[]) {
     'Other': 0
   };
 
-  // Status counts
   const statusCounts: Record<string, number> = {};
   for (const s of ALL_17_STATUSES) {
     statusCounts[s] = 0;
@@ -296,7 +291,6 @@ async function calculateSummaryAndAttention(jobs: any[]) {
     statusCounts[j.status] = (statusCounts[j.status] || 0) + 1;
   }
 
-  // Commercial totals (strictly from actual jobs with commercial data)
   const quotedJobs = jobs.filter(j => j.hasCommercialData && j.commercial);
   const jobsWithCommercialCount = quotedJobs.length;
 
@@ -321,7 +315,6 @@ async function calculateSummaryAndAttention(jobs: any[]) {
     ? Math.round((marginSum / jobsWithCommercialCount) * 10) / 10
     : 0;
 
-  // Genuine Needs Attention Items (Strictly based on real data)
   const needsAttention: Array<{
     id: string;
     type: 'warning' | 'alert' | 'info';
@@ -335,7 +328,6 @@ async function calculateSummaryAndAttention(jobs: any[]) {
   }> = [];
 
   for (const j of jobs) {
-    // 1. Pending Pre-Survey Checks (e.g. unknown cylinder space, microbore risk)
     if (j.status === 'Pending Check') {
       needsAttention.push({
         id: `att_check_${j.id}`,
@@ -350,7 +342,6 @@ async function calculateSummaryAndAttention(jobs: any[]) {
       });
     }
 
-    // 2. Microbore Pipework Risk
     if (j.property.existing_pipework?.includes('Microbore') && j.status !== 'Cancelled' && j.status !== 'Completed') {
       needsAttention.push({
         id: `att_pipe_${j.id}`,
@@ -365,7 +356,6 @@ async function calculateSummaryAndAttention(jobs: any[]) {
       });
     }
 
-    // 3. Missing Survey Design
     if (j.status === 'Survey Pending') {
       needsAttention.push({
         id: `att_survey_${j.id}`,
@@ -380,7 +370,6 @@ async function calculateSummaryAndAttention(jobs: any[]) {
       });
     }
 
-    // 4. Quotation not verified / Draft
     if (j.commercial && (j.commercial.status === 'DRAFT' || j.status === 'Quotation Draft')) {
       needsAttention.push({
         id: `att_draft_${j.id}`,
@@ -395,7 +384,6 @@ async function calculateSummaryAndAttention(jobs: any[]) {
       });
     }
 
-    // 5. Customer Contribution Required
     if (j.commercial && j.commercial.customer_contribution > 0 && j.status === 'Customer Contribution Required') {
       needsAttention.push({
         id: `att_contrib_${j.id}`,
@@ -410,7 +398,6 @@ async function calculateSummaryAndAttention(jobs: any[]) {
       });
     }
 
-    // 6. Low Margin Quote (< 25% target margin)
     if (j.commercial && j.commercial.gross_margin_percent < 25.0 && j.status !== 'Cancelled') {
       needsAttention.push({
         id: `att_margin_${j.id}`,
@@ -425,7 +412,6 @@ async function calculateSummaryAndAttention(jobs: any[]) {
       });
     }
 
-    // 7. Cancelled Jobs
     if (j.status === 'Cancelled') {
       needsAttention.push({
         id: `att_canc_${j.id}`,
@@ -441,7 +427,6 @@ async function calculateSummaryAndAttention(jobs: any[]) {
     }
   }
 
-  // Recent Activity from audit_logs
   const recentAudit = await db.all(`
     SELECT id, user_name, entity_type, entity_id, action, old_values, new_values, reason, created_at
     FROM audit_logs
@@ -497,8 +482,8 @@ async function calculateSummaryAndAttention(jobs: any[]) {
   };
 }
 
-// GET all enriched jobs
-reportsRouter.get('/jobs', async (req: Request, res: Response) => {
+// GET all enriched jobs (Protected)
+reportsRouter.get('/jobs', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const jobs = await fetchAllJobsData();
     const summary = await calculateSummaryAndAttention(jobs);
@@ -510,13 +495,12 @@ reportsRouter.get('/jobs', async (req: Request, res: Response) => {
       categories: Object.values(PIPELINE_CATEGORIES)
     });
   } catch (error: any) {
-    console.error('Error fetching jobs:', error);
-    res.status(500).json({ error: error.message || 'Failed to fetch jobs' });
+    safeErrorResponse(res, error, 'Failed to fetch jobs report');
   }
 });
 
-// GET dashboard summary (enhanced for backwards-compatibility & high-level KPIs)
-reportsRouter.get('/dashboard-summary', async (req: Request, res: Response) => {
+// GET dashboard summary (Protected)
+reportsRouter.get('/dashboard-summary', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const jobs = await fetchAllJobsData();
     const summary = await calculateSummaryAndAttention(jobs);
@@ -544,7 +528,6 @@ reportsRouter.get('/dashboard-summary', async (req: Request, res: Response) => {
       categories: Object.values(PIPELINE_CATEGORIES)
     });
   } catch (error: any) {
-    console.error('Error fetching dashboard summary:', error);
-    res.status(500).json({ error: error.message || 'Failed to fetch dashboard summary' });
+    safeErrorResponse(res, error, 'Failed to fetch dashboard summary');
   }
 });

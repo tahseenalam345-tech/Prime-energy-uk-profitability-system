@@ -1,4 +1,33 @@
-node_modules/
-**/node_modules/
+# Environment and secrets
 .env
-.env.local
+.env.*
+!.env.example
+
+# Node dependencies
+node_modules/
+
+# Build outputs
+dist/
+client/dist/
+
+# SQLite databases, journals, logs, and backups
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*_backup*
+*.backup
+
+# Audit outputs and raw cached JSON dumps
+server/actual_columns.json
+server/audit_output.json
+server/backup_audit_summary.json
+server/city_plumbing_all_radiators.json
+server/city_plumbing_raw.json
+server/city_plumbing_vat_evidence_cache.json
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

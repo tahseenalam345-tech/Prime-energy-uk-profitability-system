@@ -1,11 +1,18 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { db } from '../db/connection.js';
 import { saveCalculationSnapshot, getCalculationSnapshot, verifyHistoricalSnapshotReproduction } from '../engine/snapshotEngine.js';
+import { authenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
 
 export const quotesRouter = Router();
 
+function safeErrorResponse(res: Response, err: any, defaultMsg: string) {
+  console.error(`[Quotes Router Error]:`, err);
+  const msg = process.env.NODE_ENV === 'production' ? defaultMsg : (err.message || defaultMsg);
+  res.status(500).json({ error: msg });
+}
+
 // GET all quotes
-quotesRouter.get('/', async (req: Request, res: Response) => {
+quotesRouter.get('/', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const query = `
       SELECT 
@@ -22,12 +29,12 @@ quotesRouter.get('/', async (req: Request, res: Response) => {
     const quotes = await db.all(query);
     res.json({ quotes });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to fetch quotes' });
+    safeErrorResponse(res, err, 'Failed to fetch quotes');
   }
 });
 
 // GET single quote with line items
-quotesRouter.get('/:id', async (req: Request, res: Response) => {
+quotesRouter.get('/:id', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const quote = await db.get(`
       SELECT 
@@ -48,16 +55,15 @@ quotesRouter.get('/:id', async (req: Request, res: Response) => {
 
     res.json({ quote, lineItems, hasSnapshot: !!snapshot });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to fetch quote' });
+    safeErrorResponse(res, err, 'Failed to fetch quote');
   }
 });
 
 // SAVE a calculated quote and lock snapshot
-quotesRouter.post('/', async (req: Request, res: Response) => {
+quotesRouter.post('/', authenticateToken, requireRole('ADMIN', 'SALES', 'SURVEYOR', 'ESTIMATOR'), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const contentLength = req.headers['content-length'];
-    console.log(`[Server POST /api/quotes] Received Request - Content-Length: ${contentLength} bytes (${contentLength ? (Number(contentLength) / 1024).toFixed(2) : 0} KB)`);
-    const { leadId, calculationResult, userId = 'user_sales' } = req.body;
+    const { leadId, calculationResult } = req.body;
+    const userId = req.user?.id || req.body.userId || 'user_sales';
 
     if (!leadId || !calculationResult) {
       return res.status(400).json({ error: 'leadId and calculationResult are required.' });
@@ -144,10 +150,8 @@ quotesRouter.post('/', async (req: Request, res: Response) => {
       ]
     });
 
-    // Execute atomic quote creation
     await db.batch(batchStatements, 'write');
 
-    // Save calculation snapshot
     const snapshotId = await saveCalculationSnapshot({
       quoteId,
       quoteReference: quoteRef,
@@ -171,13 +175,12 @@ quotesRouter.post('/', async (req: Request, res: Response) => {
 
     res.status(201).json({ quoteId, quoteReference: quoteRef, snapshotId });
   } catch (err: any) {
-    console.error('[Server POST /api/quotes Error]:', err);
-    res.status(500).json({ error: err.message || 'Failed to save quote' });
+    safeErrorResponse(res, err, 'Failed to save quote');
   }
 });
 
 // GET historical snapshot
-quotesRouter.get('/:id/snapshot', async (req: Request, res: Response) => {
+quotesRouter.get('/:id/snapshot', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const snapshot = await getCalculationSnapshot(req.params.id);
     if (!snapshot) {
@@ -185,24 +188,25 @@ quotesRouter.get('/:id/snapshot', async (req: Request, res: Response) => {
     }
     res.json({ snapshot });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to fetch snapshot' });
+    safeErrorResponse(res, err, 'Failed to fetch snapshot');
   }
 });
 
 // VERIFY & REPRODUCE snapshot
-quotesRouter.post('/:id/verify-snapshot', async (req: Request, res: Response) => {
+quotesRouter.post('/:id/verify-snapshot', authenticateToken, requireRole('ADMIN', 'ESTIMATOR'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const result = await verifyHistoricalSnapshotReproduction(req.params.id);
     res.json(result);
   } catch (error: any) {
-    res.status(500).json({ error: error.message });
+    safeErrorResponse(res, error, 'Snapshot verification failed');
   }
 });
 
-// COMMERCIAL OVERRIDE (Estimator / Manager only)
-quotesRouter.post('/:id/override', async (req: Request, res: Response) => {
+// COMMERCIAL OVERRIDE (ADMIN & ESTIMATOR ONLY)
+quotesRouter.post('/:id/override', authenticateToken, requireRole('ADMIN', 'ESTIMATOR'), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { userId, reason, customerContributionOverride, targetMarginOverride } = req.body;
+    const { reason, customerContributionOverride, targetMarginOverride } = req.body;
+    const userId = req.user?.id || 'user_estimator';
 
     if (!reason || reason.trim().length < 5) {
       return res.status(400).json({ error: 'A valid commercial justification reason is required for manual overrides.' });
@@ -257,7 +261,7 @@ quotesRouter.post('/:id/override', async (req: Request, res: Response) => {
         `,
         args: [
           `audit_${Date.now()}`,
-          userId || 'user_estimator',
+          userId,
           'QUOTE',
           req.params.id,
           'OVERRIDE',
@@ -281,6 +285,6 @@ quotesRouter.post('/:id/override', async (req: Request, res: Response) => {
       }
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to execute override' });
+    safeErrorResponse(res, err, 'Failed to execute override');
   }
 });

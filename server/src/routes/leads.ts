@@ -1,10 +1,17 @@
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { db } from '../db/connection.js';
+import { authenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
 
 export const leadsRouter = Router();
 
+function safeErrorResponse(res: Response, err: any, defaultMsg: string) {
+  console.error(`[Leads Router Error]:`, err);
+  const msg = process.env.NODE_ENV === 'production' ? defaultMsg : (err.message || defaultMsg);
+  res.status(500).json({ error: msg });
+}
+
 // GET all leads
-leadsRouter.get('/', async (req: Request, res: Response) => {
+leadsRouter.get('/', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const query = `
       SELECT 
@@ -18,12 +25,12 @@ leadsRouter.get('/', async (req: Request, res: Response) => {
     const leads = await db.all(query);
     res.json({ leads });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to fetch leads' });
+    safeErrorResponse(res, err, 'Failed to fetch leads');
   }
 });
 
 // GET single lead by ID
-leadsRouter.get('/:id', async (req: Request, res: Response) => {
+leadsRouter.get('/:id', authenticateToken, requireRole('ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const lead = await db.get(`
       SELECT 
@@ -42,7 +49,6 @@ leadsRouter.get('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Lead not found' });
     }
 
-    // Also fetch quotes associated with this lead
     const quotes = await db.all(`
       SELECT id, quote_reference, mode, total_job_cost, bus_grant, customer_contribution,
              gross_profit, gross_margin_percent, profitability_grade, confidence_level,
@@ -54,16 +60,17 @@ leadsRouter.get('/:id', async (req: Request, res: Response) => {
 
     res.json({ lead, quotes });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to fetch lead' });
+    safeErrorResponse(res, err, 'Failed to fetch lead');
   }
 });
 
 // CREATE a new lead and property
-leadsRouter.post('/', async (req: Request, res: Response) => {
+leadsRouter.post('/', authenticateToken, requireRole('ADMIN', 'SALES', 'SURVEYOR', 'ESTIMATOR'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const data = req.body;
     const leadId = `lead_${Date.now()}`;
     const refNo = `PEL-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const userId = req.user?.id || data.assignedTo || 'user_sales';
 
     await db.batch([
       {
@@ -79,7 +86,7 @@ leadsRouter.post('/', async (req: Request, res: Response) => {
           data.phone || null,
           data.leadSource || 'Manual Entry',
           'NEW',
-          data.assignedTo || 'user_sales'
+          userId
         ]
       },
       {
@@ -129,14 +136,16 @@ leadsRouter.post('/', async (req: Request, res: Response) => {
 
     res.status(201).json({ id: leadId, referenceNo: refNo });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to create lead' });
+    safeErrorResponse(res, err, 'Failed to create lead');
   }
 });
 
 // UPDATE lead status and record audit log
-leadsRouter.patch('/:id/status', async (req: Request, res: Response) => {
+leadsRouter.patch('/:id/status', authenticateToken, requireRole('ADMIN', 'SALES', 'SURVEYOR', 'ESTIMATOR'), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const { status, userId = 'user_sales', userName = 'Sarah Jenkins (Sales)', reason } = req.body;
+    const { status, reason } = req.body;
+    const userId = req.user?.id || 'user_sales';
+    const userName = req.user?.name || 'System User';
 
     if (!status) {
       return res.status(400).json({ error: 'status is required' });
@@ -170,7 +179,7 @@ leadsRouter.patch('/:id/status', async (req: Request, res: Response) => {
           'UPDATE_STATUS',
           JSON.stringify({ status: oldStatus }),
           JSON.stringify({ status: newStatus }),
-          reason || `Status changed from "${oldStatus}" to "${newStatus}" via Dashboard 2.0`
+          reason || `Status changed from "${oldStatus}" to "${newStatus}"`
         ]
       }
     ], 'write');
@@ -182,15 +191,18 @@ leadsRouter.patch('/:id/status', async (req: Request, res: Response) => {
       newStatus
     });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to update lead status' });
+    safeErrorResponse(res, err, 'Failed to update lead status');
   }
 });
 
 // UPDATE lead details
-leadsRouter.put('/:id', async (req: Request, res: Response) => {
+leadsRouter.put('/:id', authenticateToken, requireRole('ADMIN', 'SALES', 'SURVEYOR', 'ESTIMATOR'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const leadId = req.params.id;
     const data = req.body;
+    const userId = req.user?.id || 'user_sales';
+    const userName = req.user?.name || 'System User';
+
     const lead = await db.get('SELECT * FROM leads WHERE id = ?', [leadId]);
     if (!lead) {
       return res.status(404).json({ error: 'Lead not found' });
@@ -251,14 +263,14 @@ leadsRouter.put('/:id', async (req: Request, res: Response) => {
       `,
       args: [
         auditId,
-        data.userId || 'user_sales',
-        data.userName || 'Sarah Jenkins (Sales)',
+        userId,
+        userName,
         'LEAD',
         leadId,
         'UPDATE',
         JSON.stringify({ customer_name: lead.customer_name, status: lead.status }),
         JSON.stringify({ customer_name: data.customerName, status: data.status }),
-        data.reason || 'Lead updated from spreadsheet'
+        data.reason || 'Lead updated'
       ]
     });
 
@@ -266,14 +278,17 @@ leadsRouter.put('/:id', async (req: Request, res: Response) => {
 
     res.json({ success: true, leadId });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to update lead' });
+    safeErrorResponse(res, err, 'Failed to update lead');
   }
 });
 
-// DELETE a lead and all associated data
-leadsRouter.delete('/:id', async (req: Request, res: Response) => {
+// DELETE a lead (Admin or Sales only)
+leadsRouter.delete('/:id', authenticateToken, requireRole('ADMIN', 'SALES'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const leadId = req.params.id;
+    const userId = req.user?.id || 'user_sales';
+    const userName = req.user?.name || 'System User';
+
     const lead = await db.get('SELECT * FROM leads WHERE id = ?', [leadId]);
     if (!lead) {
       return res.status(404).json({ error: 'Lead not found' });
@@ -295,8 +310,8 @@ leadsRouter.delete('/:id', async (req: Request, res: Response) => {
         `,
         args: [
           auditId,
-          'user_sales',
-          'Sarah Jenkins (Sales)',
+          userId,
+          userName,
           'LEAD',
           leadId,
           'DELETE',
@@ -308,6 +323,6 @@ leadsRouter.delete('/:id', async (req: Request, res: Response) => {
 
     res.json({ success: true, leadId, referenceNo: lead.reference_no, customerName: lead.customer_name });
   } catch (err: any) {
-    res.status(500).json({ error: err.message || 'Failed to delete lead' });
+    safeErrorResponse(res, err, 'Failed to delete lead');
   }
 });
