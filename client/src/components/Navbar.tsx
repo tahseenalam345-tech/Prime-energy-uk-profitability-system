@@ -1,13 +1,12 @@
 import React, { useRef, useEffect } from 'react';
-import { Flame, Calculator, ClipboardCheck, Users, FileText, Package, Tag, BookOpen, BarChart3, Settings, Shield, Sun, Moon } from 'lucide-react';
+import { Flame, Calculator, ClipboardCheck, Users, FileText, Package, Tag, BookOpen, BarChart3, Settings, Shield, Sun, Moon, LogOut } from 'lucide-react';
 import { User } from '../types.js';
 
 interface NavbarProps {
   currentTab: string;
   setCurrentTab: (tab: string) => void;
   currentUser: User | null;
-  allUsers: User[];
-  onSwitchUser: (userId: string) => void;
+  onLogout: () => void;
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
 }
@@ -16,8 +15,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
   setCurrentTab,
   currentUser,
-  allUsers,
-  onSwitchUser,
+  onLogout,
   theme,
   onToggleTheme
 }) => {
@@ -35,18 +33,23 @@ export const Navbar: React.FC<NavbarProps> = ({
     return () => window.removeEventListener('resize', updateNavHeight);
   }, []);
 
-  const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
-    { id: 'new-lead', label: 'New Lead (Mode A)', icon: Calculator },
-    { id: 'after-survey', label: 'After Survey (Mode B)', icon: ClipboardCheck },
-    { id: 'leads', label: 'Leads', icon: Users },
-    { id: 'quotes', label: 'Quotes & Snapshots', icon: FileText },
-    { id: 'products', label: 'Products', icon: Package },
-    { id: 'pricing', label: 'Pricing & Sources', icon: Tag },
-    { id: 'rules', label: 'Rules & BUS', icon: BookOpen },
-    { id: 'reports', label: 'Reports', icon: BarChart3 },
-    { id: 'admin', label: 'Admin & Audit', icon: Settings }
+  const role = currentUser?.role_name || currentUser?.role || 'READ_ONLY';
+
+  // Filter tabs per role permission
+  const allNavItems = [
+    { id: 'dashboard', label: 'Dashboard', icon: BarChart3, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
+    { id: 'new-lead', label: 'New Lead (Mode A)', icon: Calculator, roles: ['ADMIN', 'ESTIMATOR', 'SALES'] },
+    { id: 'after-survey', label: 'After Survey (Mode B)', icon: ClipboardCheck, roles: ['ADMIN', 'ESTIMATOR', 'SURVEYOR'] },
+    { id: 'leads', label: 'Leads', icon: Users, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
+    { id: 'quotes', label: 'Quotes & Snapshots', icon: FileText, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
+    { id: 'products', label: 'Products', icon: Package, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
+    { id: 'pricing', label: 'Pricing & Sources', icon: Tag, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
+    { id: 'rules', label: 'Rules & BUS', icon: BookOpen, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
+    { id: 'reports', label: 'Reports', icon: BarChart3, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
+    { id: 'admin', label: 'Admin & Audit', icon: Settings, roles: ['ADMIN', 'ESTIMATOR'] }
   ];
+
+  const allowedItems = allNavItems.filter(item => item.roles.includes(role));
 
   return (
     <header className="navbar" ref={navRef}>
@@ -70,26 +73,41 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
           </button>
 
-          <div className="role-pill">
-            <Shield size={15} color="#34d399" />
-            <span>Role:</span>
-            <select
-              className="role-select"
-              value={currentUser?.id || ''}
-              onChange={(e) => onSwitchUser(e.target.value)}
-            >
-              {allUsers.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} ({u.role_name})
-                </option>
-              ))}
-            </select>
-          </div>
+          {currentUser && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div className="role-pill" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '8px', background: 'rgba(5, 150, 105, 0.15)', border: '1px solid rgba(52, 211, 153, 0.3)', color: '#34d399', fontSize: '13px', fontWeight: 600 }}>
+                <Shield size={14} color="#34d399" />
+                <span>{currentUser.name} ({role})</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={onLogout}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  color: '#f87171',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+                title="Log out of system"
+              >
+                <LogOut size={14} />
+                <span>Log Out</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       <nav className="navbar-nav">
-        {navItems.map((item) => {
+        {allowedItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentTab === item.id;
           return (

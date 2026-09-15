@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from './components/Navbar.js';
+import { LoginView } from './views/LoginView.js';
 import { DashboardView } from './views/DashboardView.js';
 import { NewLeadView } from './views/NewLeadView.js';
 import { AfterSurveyView } from './views/AfterSurveyView.js';
@@ -15,8 +16,8 @@ import { User, Lead } from './types.js';
 
 export function App() {
   const [currentTab, setCurrentTab] = useState('dashboard');
-  const [users, setUsers] = useState<User[]>([]);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authChecking, setAuthChecking] = useState(true);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
       if (typeof window !== 'undefined' && typeof localStorage !== 'undefined') {
@@ -32,7 +33,7 @@ export function App() {
     localStorage.setItem('prime_energy_theme', theme);
   }, [theme]);
 
-  // Ensure page always opens from the very top
+  // Ensure page always opens from the very top on tab change
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [currentTab]);
@@ -41,28 +42,38 @@ export function App() {
     setTheme(prev => (prev === 'dark' ? 'light' : 'dark'));
   };
 
+  // Restore Authentication Session on Mount
   useEffect(() => {
-    async function loadUsers() {
-      try {
-        const res = await api.getUsers();
-        if (res.users && res.users.length > 0) {
-          setUsers(res.users);
-          // Default to Admin or Sales user
-          const defaultUser = res.users.find((u: User) => u.role_name === 'ADMIN') || res.users[0];
-          setCurrentUser(defaultUser);
+    async function restoreSession() {
+      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('prime_energy_token') : null;
+      if (token) {
+        try {
+          const res = await api.me();
+          if (res && res.user) {
+            setCurrentUser(res.user);
+          } else {
+            if (typeof localStorage !== 'undefined') localStorage.removeItem('prime_energy_token');
+            setCurrentUser(null);
+          }
+        } catch (err) {
+          if (typeof localStorage !== 'undefined') localStorage.removeItem('prime_energy_token');
+          setCurrentUser(null);
         }
-      } catch (err) {
-        console.error('Failed to load users', err);
       }
+      setAuthChecking(false);
     }
-    loadUsers();
+    restoreSession();
   }, []);
 
-  const handleSwitchUser = (userId: string) => {
-    const found = users.find((u) => u.id === userId);
-    if (found) {
-      setCurrentUser(found);
-    }
+  const handleLoginSuccess = (user: User) => {
+    setCurrentUser(user);
+    setCurrentTab('dashboard');
+  };
+
+  const handleLogout = async () => {
+    await api.logout();
+    setCurrentUser(null);
+    setCurrentTab('dashboard');
   };
 
   const handleSelectLeadForCalc = (lead: Lead) => {
@@ -70,17 +81,56 @@ export function App() {
   };
 
   const handleQuoteSaved = (quoteId: string) => {
-    // Optionally switch to quotes tab or stay
+    // Optionally switch tab
   };
 
+  // Loading spinner during initial auth restoration check
+  if (authChecking) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: theme === 'dark' ? '#030712' : '#f8fafc',
+        color: theme === 'dark' ? '#f3f4f6' : '#1f2937'
+      }}>
+        <div style={{
+          width: '40px',
+          height: '40px',
+          border: '3px solid rgba(5, 150, 105, 0.2)',
+          borderTop: '3px solid #10b981',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite'
+        }} />
+        <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
+        <p style={{ marginTop: '16px', fontSize: '14px', fontWeight: 500, color: '#10b981' }}>
+          Verifying Prime Energy Session...
+        </p>
+      </div>
+    );
+  }
+
+  // Unauthenticated User -> Render Login Page
+  if (!currentUser) {
+    return (
+      <LoginView
+        onLoginSuccess={handleLoginSuccess}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
+      />
+    );
+  }
+
+  // Authenticated User -> Render Main Application
   return (
     <div className="app-container">
       <Navbar
         currentTab={currentTab}
         setCurrentTab={setCurrentTab}
         currentUser={currentUser}
-        allUsers={users}
-        onSwitchUser={handleSwitchUser}
+        onLogout={handleLogout}
         theme={theme}
         onToggleTheme={handleToggleTheme}
       />
@@ -89,13 +139,13 @@ export function App() {
         {currentTab === 'dashboard' && <DashboardView onNavigate={setCurrentTab} />}
         {currentTab === 'new-lead' && (
           <NewLeadView
-            currentUserId={currentUser?.id || 'user_sales'}
+            currentUserId={currentUser.id}
             onQuoteSaved={handleQuoteSaved}
           />
         )}
         {currentTab === 'after-survey' && (
           <AfterSurveyView
-            currentUserId={currentUser?.id || 'user_surveyor'}
+            currentUserId={currentUser.id}
             onQuoteSaved={handleQuoteSaved}
           />
         )}
