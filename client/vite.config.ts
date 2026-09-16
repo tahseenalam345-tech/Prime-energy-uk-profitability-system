@@ -9,7 +9,16 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://127.0.0.1:4000',
-        changeOrigin: true
+        changeOrigin: true,
+        secure: false,
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, res) => {
+            if (!res.headersSent) {
+              res.writeHead(503, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ error: 'Backend API starting or unavailable', details: err.message }));
+            }
+          });
+        }
       }
     }
   },
@@ -18,3 +27,4 @@ export default defineConfig({
     emptyOutDir: true
   }
 });
+

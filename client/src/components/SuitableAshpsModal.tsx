@@ -72,8 +72,25 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
     ? categorizedAshps.bestMatch
     : [];
 
+  const deduplicateAshps = (list: SuitableAshpItem[]) => {
+    const seen = new Set<string>();
+    const res: SuitableAshpItem[] = [];
+    for (const item of list) {
+      const brand = (item.brand || item.manufacturer || '').toLowerCase().trim();
+      const model = (item.model || '').toLowerCase().trim();
+      const rated = Number(item.ratedOutputAtDesign ?? item.ratedOutputKw ?? 0);
+      const key = item.sku ? item.sku.toLowerCase().trim() : `${brand}_${model}_${rated}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        res.push(item);
+      }
+    }
+    return res;
+  };
+
   const filterQualifying = (list: SuitableAshpItem[]) => {
-    return list.filter(p => {
+    const deduped = deduplicateAshps(list);
+    return deduped.filter(p => {
       const rated = Number(p.ratedOutputAtDesign ?? p.ratedOutputKw ?? p.nominalCapacity ?? 0);
       const isVerified = (p.mcsStatus || '').toUpperCase() !== 'UNVERIFIED';
       return (reqDemand === 0 || rated >= reqDemand) && isVerified;
@@ -81,7 +98,7 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
   };
 
   const rawQualifying = filterQualifying(safeQualifyingList);
-  const fallbackList = safeQualifyingList.length > 0 ? safeQualifyingList : [];
+  const fallbackList = deduplicateAshps(safeQualifyingList.length > 0 ? safeQualifyingList : []);
 
   const effectiveQualifying = rawQualifying.length > 0 ? rawQualifying : fallbackList;
 

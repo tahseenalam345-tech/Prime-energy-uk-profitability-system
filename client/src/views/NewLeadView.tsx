@@ -1527,7 +1527,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
           }}
           top3Recommended={result?.ashp?.top3Recommended}
           categorizedAshps={result?.ashp?.categorizedSuitableAshps}
-          allAshps={result?.ashp?.allAshpProducts || (ashpProducts as any)}
+          allAshps={result?.ashp?.allAshpProducts || ashpCatalog}
         />
       )}
 
@@ -1753,7 +1753,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
             setShowCylinderModal(false);
           }}
           top3Recommended={result?.cylinder?.top3Recommended}
-          allCylinders={result?.cylinder?.allCylinders || (cylinderProducts as any)}
+          allCylinders={result?.cylinder?.allCylinders || cylinderCatalog}
         />
       )}
 
