@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Calculator, AlertTriangle, ShieldCheck, CheckCircle2,
   Info, Save, ArrowRight, HelpCircle, FileCheck, Search,
-  ExternalLink, RotateCcw, Plus, Trash2, Edit3, X, SlidersHorizontal, Lock
+  ExternalLink, RotateCcw, Plus, Trash2, Edit3, X, SlidersHorizontal, Lock,
+  RefreshCw, History
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { Badge } from '../components/Badge.js';
