@@ -456,8 +456,8 @@ code, pre, .font-mono {
 .navbar-nav {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 24px;
+  gap: 5px;
+  padding: 6px 16px;
   background: radial-gradient(ellipse at 50% 0%, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02)), rgba(11, 17, 32, 0.7);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -486,12 +486,12 @@ code, pre, .font-mono {
 :root:not([data-theme='dark']) .nav-link {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 16px;
+  gap: 5px;
+  padding: 5px 12px;
   border-radius: 9999px;
   color: #1e293b;
   text-decoration: none;
-  font-size: 0.8125rem;
+  font-size: 0.775rem;
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;

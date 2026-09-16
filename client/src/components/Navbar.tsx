@@ -38,11 +38,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   // Navigation Items with explicit role permissions
   const allNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
-    { id: 'submissions', label: 'Submissions', icon: ShieldCheck, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
-    { id: 'submission-guide', label: 'Submission Book', icon: BookOpen, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
     { id: 'new-lead', label: 'New Lead (Mode A)', icon: Calculator, roles: ['ADMIN', 'ESTIMATOR', 'SALES'] },
     { id: 'after-survey', label: 'After Survey (Mode B)', icon: ClipboardCheck, roles: ['ADMIN', 'ESTIMATOR', 'SURVEYOR'] },
     { id: 'leads', label: 'Leads / Jobs', icon: Users, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
+    { id: 'submissions', label: 'Submissions', icon: ShieldCheck, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
+    { id: 'submission-guide', label: 'Submission Book', icon: BookOpen, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
     { id: 'quotes', label: 'Quotes & Snapshots', icon: FileText, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
     { id: 'products', label: 'Products', icon: Package, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
     { id: 'pricing', label: 'Pricing & Sources', icon: Tag, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
@@ -154,7 +154,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               onClick={() => setCurrentTab(item.id)}
               className={`nav-link nav-tab-${item.id} ${isActive ? 'active' : ''}`}
             >
-              <Icon size={16} className="nav-tab-icon" />
+              <Icon size={14} className="nav-tab-icon" />
               <span>{item.label}</span>
             </button>
           );
