@@ -310,6 +310,107 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({ currentUser })
     }
   };
 
+  // Date & Time formatting helper
+  const formatDateTime = (dateStr?: string) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) + ', ' +
+           d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  // Status Change Handler for Requirement Items
+  const handleItemStatusChange = async (itemId: string, newStatus: string) => {
+    if (!workspace) return;
+    try {
+      await api.updateSubmissionItem(workspace.id, itemId, {
+        status: newStatus,
+        user_id: currentUser?.id || 'system',
+        user_name: currentUser?.name || currentUser?.username || 'System User'
+      });
+      const updatedWs = await api.getSubmissionDetail(workspace.id);
+      setWorkspace(updatedWs);
+      if (selectedItem && selectedItem.id === itemId) {
+        setSelectedItem(prev => prev ? { ...prev, status: newStatus } : null);
+      }
+    } catch (err: any) {
+      console.error('Failed to update item status:', err);
+      alert('Failed to update status: ' + (err.message || 'Error'));
+    }
+  };
+
+  // Interactive Status Dropdown Select Component
+  const renderItemStatusDropdown = (item: SubmissionItem) => {
+    let selectBg = '#f1f5f9';
+    let selectColor = '#475569';
+    let selectBorder = '#cbd5e1';
+
+    if (item.status === 'Completed') {
+      selectBg = '#ecfdf5';
+      selectColor = '#047857';
+      selectBorder = '#a7f3d0';
+    } else if (item.status === 'Pending') {
+      selectBg = '#fef3c7';
+      selectColor = '#b45309';
+      selectBorder = '#fcd34d';
+    } else if (item.status === 'Not Required') {
+      selectBg = '#f1f5f9';
+      selectColor = '#64748b';
+      selectBorder = '#cbd5e1';
+    } else if (item.status === 'In Progress') {
+      selectBg = '#dbeafe';
+      selectColor = '#1d4ed8';
+      selectBorder = '#93c5fd';
+    } else if (item.status?.startsWith('Awaiting')) {
+      selectBg = '#f3e8ff';
+      selectColor = '#6b21a8';
+      selectBorder = '#d8b4fe';
+    } else if (item.status === 'Rejected' || item.status === 'Blocked') {
+      selectBg = '#fee2e2';
+      selectColor = '#991b1b';
+      selectBorder = '#f87171';
+    }
+
+    const mainOptions = ['Pending', 'Completed', 'Not Required'];
+    const allOptions = mainOptions.includes(item.status) ? mainOptions : [item.status, ...mainOptions];
+
+    return (
+      <div style={{ display: 'inline-flex', alignItems: 'center', position: 'relative' }}>
+        <select
+          value={item.status}
+          onChange={(e) => handleItemStatusChange(item.id, e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            appearance: 'none',
+            WebkitAppearance: 'none',
+            MozAppearance: 'none',
+            background: selectBg,
+            color: selectColor,
+            border: `1.5px solid ${selectBorder}`,
+            borderRadius: '20px',
+            padding: '5px 28px 5px 12px',
+            fontSize: '0.78rem',
+            fontWeight: 800,
+            cursor: 'pointer',
+            outline: 'none',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+            transition: 'all 0.15s ease'
+          }}
+          title="Click to update status"
+        >
+          {allOptions.map(opt => (
+            <option key={opt} value={opt} style={{ background: '#ffffff', color: '#1e293b', fontWeight: 600 }}>
+              {opt.toUpperCase()}
+            </option>
+          ))}
+        </select>
+        <span style={{ position: 'absolute', right: '10px', pointerEvents: 'none', color: selectColor, fontSize: '0.65rem' }}>
+          ▼
+        </span>
+      </div>
+    );
+  };
+
   // Classification Badge Helper
   const getClassificationBadge = (cls: string) => {
     switch (cls) {
@@ -792,70 +893,94 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({ currentUser })
           </div>
 
           {/* Requirement Items Cards List */}
-          <div className="space-y-3">
+          <div className="space-y-4">
             {currentStageObj.items.map((item) => (
               <div
                 key={item.id}
                 className="card"
                 style={{
-                  padding: '16px',
+                  padding: '18px 20px',
                   background: item.status === 'Not Required' ? 'var(--bg-canvas)' : 'var(--bg-card)',
-                  opacity: item.status === 'Not Required' ? 0.65 : 1,
-                  border: '1px solid var(--border)',
+                  opacity: item.status === 'Not Required' ? 0.75 : 1,
+                  border: '1.5px solid var(--border)',
+                  borderLeft: item.status === 'Completed' ? '6px solid #059669' : item.status === 'Pending' ? '6px solid #d97706' : item.status === 'Not Required' ? '6px solid #94a3b8' : '6px solid #2563eb',
+                  borderRadius: '10px',
+                  boxShadow: '0 3px 10px rgba(0, 0, 0, 0.05)',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '12px'
+                  flexDirection: 'column',
+                  gap: '12px',
+                  position: 'relative'
                 }}
               >
-                <div style={{ flex: 1, minWidth: '280px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '0.7rem', fontWeight: 700, padding: '2px 6px', background: 'var(--bg-panel)', borderRadius: '4px', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                {/* Header Row: Title + Tags + Top-Right Date/Time Stamp */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', flex: 1 }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', background: 'var(--bg-panel)', borderRadius: '4px', border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                       {item.section_name}
                     </span>
                     {getClassificationBadge(item.classification)}
-                    <h4 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
+                    <h4 style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-main)', margin: 0 }}>
                       {item.title}
                     </h4>
                   </div>
 
-                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: '4px 0 6px 0' }}>
-                    {item.short_description || item.what_is_this}
-                  </p>
-
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    <span>Completes: <strong>{item.who_completes || 'Staff'}</strong></span>
-                    <span>Submits: <strong>{item.who_submits || 'Internal'}</strong></span>
-                    <span>Signature: <strong style={{ color: '#2563eb' }}>{item.customer_signature_type}</strong></span>
-                    {item.due_date && <span>Due: <strong>{item.due_date}</strong></span>}
+                  {/* Corner Date & Time Badge */}
+                  <div style={{
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    color: 'var(--text-muted)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    background: 'var(--bg-panel)',
+                    padding: '3px 10px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)'
+                  }} title="Last updated date and time">
+                    <Clock size={12} color="var(--text-muted)" />
+                    <span>Updated: {formatDateTime(item.updated_at || item.created_at)}</span>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                  {/* Evidence Count Badge */}
-                  <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>
-                    {item.evidenceCount && item.evidenceCount > 0 ? (
-                      <span className="badge badge-success" style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}>
-                        📎 {item.evidenceCount} Files
-                      </span>
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)' }}>No Files Uploaded</span>
-                    )}
+                {/* Short Description */}
+                <p style={{ fontSize: '0.875rem', color: 'var(--text-main)', margin: 0, opacity: 0.9, lineHeight: 1.4 }}>
+                  {item.short_description || item.what_is_this}
+                </p>
+
+                {/* Bottom Row: Specs Meta + Evidence Count + Status Dropdown + Detail Button */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    <span>Completes: <strong style={{ color: 'var(--text-main)' }}>{item.who_completes || 'Staff'}</strong></span>
+                    <span>Submits: <strong style={{ color: 'var(--text-main)' }}>{item.who_submits || 'Internal'}</strong></span>
+                    <span>Signature: <strong style={{ color: '#2563eb' }}>{item.customer_signature_type}</strong></span>
+                    {item.due_date && <span>Due: <strong style={{ color: '#dc2626' }}>{item.due_date}</strong></span>}
                   </div>
 
-                  {/* Status Chip */}
-                  {getStatusBadge(item.status)}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                    {/* Evidence Count Badge */}
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>
+                      {item.evidenceCount && item.evidenceCount > 0 ? (
+                        <span className="badge badge-success" style={{ background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '4px 8px' }}>
+                          📎 {item.evidenceCount} Files
+                        </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>No Files Uploaded</span>
+                      )}
+                    </div>
 
-                  {/* Open Detail Button */}
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-sm"
-                    onClick={() => handleOpenItemDetail(item)}
-                    style={{ fontWeight: 700, padding: '6px 14px' }}
-                  >
-                    Open Detail & Evidence
-                  </button>
+                    {/* Interactive Status Dropdown Select */}
+                    {renderItemStatusDropdown(item)}
+
+                    {/* Open Detail Button */}
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={() => handleOpenItemDetail(item)}
+                      style={{ fontWeight: 700, padding: '6px 14px' }}
+                    >
+                      Open Detail & Evidence
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
