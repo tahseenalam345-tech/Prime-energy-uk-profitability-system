@@ -123,7 +123,7 @@ async function startServer() {
     console.log('[Server Boot]: Automatic startup seeding is DISABLED.');
   }
 
-  app.listen(PORT, () => {
+  app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`Prime Energy UK Backend running on port ${PORT}`);
   });
 }

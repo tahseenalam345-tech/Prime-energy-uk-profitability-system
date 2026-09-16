@@ -169,6 +169,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
   };
 
   const canEditSettings = currentUser?.role_name === 'ADMIN' || currentUser?.role_name === 'ESTIMATOR' || currentUser?.role_name === 'SALES';
+  const isAdmin = currentUser?.role_name === 'ADMIN';
 
   return (
     <div>

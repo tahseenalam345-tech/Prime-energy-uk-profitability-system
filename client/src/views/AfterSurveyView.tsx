@@ -258,11 +258,18 @@ export const AfterSurveyView: React.FC<AfterSurveyViewProps> = ({ onQuoteSaved, 
             Enter verified MCS room-by-room design parameters. Heat loss is NOT estimated here; commercial viability is locked from confirmed specs.
           </p>
         </div>
-        {savedQuoteRef && (
-          <div className="badge badge-success" style={{ fontSize: '0.875rem', padding: '6px 12px' }}>
-            <CheckCircle2 size={16} /> Locked Survey Snapshot: {savedQuoteRef}
-          </div>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {!currentUser && (
+            <span className="badge badge-info" style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '4px 10px' }}>
+              <Lock size={12} /> Read-only preview — in-memory calculations
+            </span>
+          )}
+          {savedQuoteRef && (
+            <div className="badge badge-success" style={{ fontSize: '0.875rem', padding: '6px 12px' }}>
+              <CheckCircle2 size={16} /> Locked Survey Snapshot: {savedQuoteRef}
+            </div>
+          )}
+        </div>
       </div>
 
       {error && (

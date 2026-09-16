@@ -1,4 +1,5 @@
 import { Router, Response } from 'express';
+import bcrypt from 'bcryptjs';
 import { db } from '../db/connection.js';
 import { authenticateToken, optionalAuthenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
 
@@ -768,3 +769,190 @@ adminRouter.get('/radiators', async (req: Request, res: Response) => {
     res.status(500).json({ error: err.message || 'Failed to fetch radiators' });
   }
 });
+
+// GET All Users (Admin ONLY) — Excludes password_hash
+adminRouter.get('/users', authenticateToken, requireRole('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const users = await db.all(`
+      SELECT 
+        u.id, u.name, u.email, u.active, u.created_at, u.role_id,
+        COALESCE(r.name, u.role_id) as role_name,
+        r.description as role_description
+      FROM users u
+      LEFT JOIN roles r ON u.role_id = r.id OR u.role_id = r.name
+      ORDER BY u.created_at DESC
+    `);
+    res.json({ users });
+  } catch (err: any) {
+    safeErrorResponse(res, err, 'Failed to fetch users');
+  }
+});
+
+// CREATE New User (Admin ONLY)
+adminRouter.post('/users', authenticateToken, requireRole('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { name, email, role_name = 'READ_ONLY', password } = req.body;
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: 'Name, email, and password are required' });
+    }
+
+    const existing = await db.get('SELECT id FROM users WHERE LOWER(email) = LOWER(?)', [email.trim()]);
+    if (existing) {
+      return res.status(400).json({ error: `User with email '${email.trim()}' already exists.` });
+    }
+
+    const passwordHash = bcrypt.hashSync(password, 10);
+    const userId = `user_${Date.now()}`;
+
+    const roleRow = await db.get('SELECT id FROM roles WHERE name = ? OR id = ?', [role_name, role_name]) as { id: string } | undefined;
+    const roleId = roleRow?.id || role_name;
+
+    await db.batch([
+      {
+        sql: `INSERT INTO users (id, name, email, role_id, password_hash, active) VALUES (?, ?, ?, ?, ?, 1)`,
+        args: [userId, name.trim(), email.trim().toLowerCase(), roleId, passwordHash]
+      },
+      {
+        sql: `INSERT INTO audit_logs (id, user_id, entity_type, entity_id, action, old_values, new_values, reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          `audit_${Date.now()}`,
+          req.user?.id || 'user_admin',
+          'USER',
+          userId,
+          'CREATE',
+          null,
+          JSON.stringify({ name, email, role_name }),
+          `Provisioned new user '${email}'`
+        ]
+      }
+    ], 'write');
+
+    res.json({
+      success: true,
+      user: { id: userId, name: name.trim(), email: email.trim().toLowerCase(), role_name, active: 1 }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to create user' });
+  }
+});
+
+// UPDATE User Role (Admin ONLY)
+adminRouter.patch('/users/:id/role', authenticateToken, requireRole('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { role_name } = req.body;
+    if (!role_name) {
+      return res.status(400).json({ error: 'role_name is required' });
+    }
+
+    const current = await db.get('SELECT id, name, email, role_id FROM users WHERE id = ?', [req.params.id]) as any;
+    if (!current) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const roleRow = await db.get('SELECT id FROM roles WHERE name = ? OR id = ?', [role_name, role_name]) as { id: string } | undefined;
+    const roleId = roleRow?.id || role_name;
+
+    await db.batch([
+      {
+        sql: `UPDATE users SET role_id = ? WHERE id = ?`,
+        args: [roleId, req.params.id]
+      },
+      {
+        sql: `INSERT INTO audit_logs (id, user_id, entity_type, entity_id, action, old_values, new_values, reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          `audit_${Date.now()}`,
+          req.user?.id || 'user_admin',
+          'USER',
+          req.params.id,
+          'UPDATE_ROLE',
+          JSON.stringify({ old_role: current.role_id }),
+          JSON.stringify({ new_role: role_name }),
+          `Updated user role for '${current.email}'`
+        ]
+      }
+    ], 'write');
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to update user role' });
+  }
+});
+
+// UPDATE User Active Status (Admin ONLY)
+adminRouter.patch('/users/:id/status', authenticateToken, requireRole('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { active } = req.body;
+    const activeVal = active === true || active === 1 || active === '1' ? 1 : 0;
+
+    const current = await db.get('SELECT id, name, email, active FROM users WHERE id = ?', [req.params.id]) as any;
+    if (!current) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await db.batch([
+      {
+        sql: `UPDATE users SET active = ? WHERE id = ?`,
+        args: [activeVal, req.params.id]
+      },
+      {
+        sql: `INSERT INTO audit_logs (id, user_id, entity_type, entity_id, action, old_values, new_values, reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          `audit_${Date.now()}`,
+          req.user?.id || 'user_admin',
+          'USER',
+          req.params.id,
+          'UPDATE_STATUS',
+          JSON.stringify({ old_active: current.active }),
+          JSON.stringify({ new_active: activeVal }),
+          `Updated user active status for '${current.email}' to ${activeVal}`
+        ]
+      }
+    ], 'write');
+
+    res.json({ success: true, active: activeVal });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to update user status' });
+  }
+});
+
+// RESET User Password (Admin ONLY)
+adminRouter.post('/users/:id/reset-password', authenticateToken, requireRole('ADMIN'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { password } = req.body;
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const current = await db.get('SELECT id, name, email FROM users WHERE id = ?', [req.params.id]) as any;
+    if (!current) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const passwordHash = bcrypt.hashSync(password, 10);
+
+    await db.batch([
+      {
+        sql: `UPDATE users SET password_hash = ? WHERE id = ?`,
+        args: [passwordHash, req.params.id]
+      },
+      {
+        sql: `INSERT INTO audit_logs (id, user_id, entity_type, entity_id, action, old_values, new_values, reason) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        args: [
+          `audit_${Date.now()}`,
+          req.user?.id || 'user_admin',
+          'USER',
+          req.params.id,
+          'RESET_PASSWORD',
+          null,
+          null,
+          `Reset password for '${current.email}'`
+        ]
+      }
+    ], 'write');
+
+    res.json({ success: true, message: `Password reset successfully for ${current.email}` });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || 'Failed to reset password' });
+  }
+});
+

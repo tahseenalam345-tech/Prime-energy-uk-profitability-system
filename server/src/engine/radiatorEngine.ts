@@ -389,7 +389,7 @@ export function evaluateExistingEmitterCapacity(inputs: EmitterCapacityInputs): 
     estimatedOutputKwAt30 = Math.round((totalCount * perRad30W / 1000) * 10) / 10;
 
     estimatedOutputKwAt50Display = `~${estimatedOutputKwAt50.toFixed(1)} kW @ Δt50 (indicative based on standard 600x1000 panel reference)`;
-    estimatedOutputKwAt30Display = `~${estimatedOutputKwAt30.toFixed(1)} kW @ Δt30 (indicative low-temp capacity)`;
+    estimatedOutputKwAt30Display = `~${estimatedOutputKwAt30.toFixed(1)} kW @ Δt30 (55/45/20°C)`;
 
     if (estimatedHeatDemandKw > 0 && estimatedOutputKwAt30 < estimatedHeatDemandKw * 0.9) {
       comparisonResult = 'Low emitter capacity';

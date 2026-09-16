@@ -623,6 +623,11 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {!currentUser && (
+              <span className="badge badge-info" style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe', padding: '4px 10px' }}>
+                <Lock size={12} /> Read-only preview — in-memory calculations
+              </span>
+            )}
             {draftStatus === 'SAVED' && (
               <span className="badge badge-success" style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                 <CheckCircle2 size={13} /> Draft saved
@@ -1239,6 +1244,9 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                         <div style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>2. Estimated Existing Emitter Capacity</div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                           {result.emitterCapacity?.disclaimer || "Estimated existing radiator emitter capacity — pre-survey indicator only. Not an MCS heat-loss calculation, not BS EN 12831 design heat loss and not final heat-pump sizing."}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: 600, marginTop: '4px' }}>
+                          Δt30 = 55°C flow / 45°C return / 20°C room.
                         </div>
                       </div>
                       <strong style={{ color: 'var(--text-main)', fontSize: '1.05rem' }}>

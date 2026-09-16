@@ -410,5 +410,48 @@ export const api = {
       body: JSON.stringify(data)
     });
     return res.json();
+  },
+
+  async getUsers() {
+    const res = await fetch(`${BASE_URL}/admin/users`, {
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
+  async createUser(data: { name: string; email: string; role_name: string; password: string }) {
+    const res = await fetch(`${BASE_URL}/admin/users`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async updateUserRole(userId: string, role_name: string) {
+    const res = await fetch(`${BASE_URL}/admin/users/${userId}/role`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ role_name })
+    });
+    return res.json();
+  },
+
+  async toggleUserStatus(userId: string, active: boolean) {
+    const res = await fetch(`${BASE_URL}/admin/users/${userId}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify({ active })
+    });
+    return res.json();
+  },
+
+  async resetUserPassword(userId: string, password: string) {
+    const res = await fetch(`${BASE_URL}/admin/users/${userId}/reset-password`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ password })
+    });
+    return res.json();
   }
 };
