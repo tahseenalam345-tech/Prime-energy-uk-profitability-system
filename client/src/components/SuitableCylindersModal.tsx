@@ -51,13 +51,30 @@ export const SuitableCylindersModal: React.FC<SuitableCylindersModalProps> = ({
 
   const targetVol = Number(requiredVolumeLitres || 200);
 
+  const getCylVolume = (item: any) =>
+    Number(item.volumeLitres ?? item.nominal_litres ?? item.capacityLitres ?? item.capacity_litres ?? 200);
+
+  const getCylPriceEx = (item: any) =>
+    Number(item.priceExVat ?? item.price_ex_vat ?? 0);
+
+  const getCylBrand = (item: any) =>
+    (item.brand || item.manufacturer || 'Generic').toString();
+
+  const getCylModel = (item: any) =>
+    (item.model || '').toString();
+
+  const getCylSupplier = (item: any) =>
+    (item.supplier || 'City Plumbing').toString();
+
   // Deduplicate cylinders list
   const seenKeys = new Set<string>();
   const deduplicatedCylinders: SuitableCylinderItem[] = [];
 
   for (const item of allCylinders) {
-    const vol = Number(item.volumeLitres ?? item.nominal_litres ?? item.capacityLitres ?? 0);
-    const key = (item.sku || `${item.brand}_${item.model}_${vol}`).toLowerCase().trim();
+    const vol = getCylVolume(item);
+    const brand = getCylBrand(item);
+    const model = getCylModel(item);
+    const key = (item.sku || `${brand}_${model}_${vol}`).toLowerCase().trim();
     if (!seenKeys.has(key)) {
       seenKeys.add(key);
       deduplicatedCylinders.push(item);
@@ -68,9 +85,9 @@ export const SuitableCylindersModal: React.FC<SuitableCylindersModalProps> = ({
   const filteredItems = deduplicatedCylinders.filter(item => {
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    const brand = (item.brand || item.manufacturer || '').toLowerCase();
-    const model = (item.model || '').toLowerCase();
-    const vol = String(item.volumeLitres || item.nominal_litres || '');
+    const brand = getCylBrand(item).toLowerCase();
+    const model = getCylModel(item).toLowerCase();
+    const vol = String(getCylVolume(item));
     return brand.includes(q) || model.includes(q) || vol.includes(q);
   });
 
@@ -88,20 +105,20 @@ export const SuitableCylindersModal: React.FC<SuitableCylindersModalProps> = ({
   const sortedItems = [...filteredItems].sort((a, b) => {
     let result = 0;
     if (sortField === 'capacity') {
-      const volA = Number(a.volumeLitres ?? a.nominal_litres ?? a.capacityLitres ?? 0);
-      const volB = Number(b.volumeLitres ?? b.nominal_litres ?? b.capacityLitres ?? 0);
+      const volA = getCylVolume(a);
+      const volB = getCylVolume(b);
       result = volA - volB;
     } else if (sortField === 'brand') {
-      const brandA = (a.brand || a.manufacturer || '').toLowerCase();
-      const brandB = (b.brand || b.manufacturer || '').toLowerCase();
+      const brandA = getCylBrand(a).toLowerCase();
+      const brandB = getCylBrand(b).toLowerCase();
       result = brandA.localeCompare(brandB);
     } else if (sortField === 'price') {
-      const priceA = Number(a.priceExVat ?? 0);
-      const priceB = Number(b.priceExVat ?? 0);
+      const priceA = getCylPriceEx(a);
+      const priceB = getCylPriceEx(b);
       result = priceA - priceB;
     } else if (sortField === 'supplier') {
-      const suppA = (a.supplier || '').toLowerCase();
-      const suppB = (b.supplier || '').toLowerCase();
+      const suppA = getCylSupplier(a).toLowerCase();
+      const suppB = getCylSupplier(b).toLowerCase();
       result = suppA.localeCompare(suppB);
     }
     return sortOrder === 'asc' ? result : -result;
@@ -218,8 +235,8 @@ export const SuitableCylindersModal: React.FC<SuitableCylindersModalProps> = ({
           ) : (
             sortedItems.map((item) => {
               const isSelected = selectedCylinderId === item.id;
-              const vol = Number(item.volumeLitres ?? item.nominal_litres ?? item.capacityLitres ?? 0);
-              const priceEx = Number(item.priceExVat ?? 0);
+              const vol = getCylVolume(item);
+              const priceEx = getCylPriceEx(item);
               const isBelowRequirement = vol < targetVol;
 
               return (

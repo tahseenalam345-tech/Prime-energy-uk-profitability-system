@@ -64,6 +64,24 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
 
   const reqDemand = Number(requiredHeatDemandKw ?? estimatedHeatDemandKw ?? 0);
 
+  const getAshpRatedKw = (p: any) =>
+    Number(p.ratedOutputAtDesign ?? p.rated_output_at_design ?? p.ratedOutputKw ?? p.rated_output_kw ?? p.nominalCapacity ?? p.nominal_capacity ?? p.marketingNominalKw ?? p.marketing_nominal_kw ?? 0);
+
+  const getAshpNominalKw = (p: any) =>
+    Number(p.nominalCapacity ?? p.nominal_capacity ?? p.marketingNominalKw ?? p.marketing_nominal_kw ?? p.nominalKw ?? p.nominal_kw ?? getAshpRatedKw(p));
+
+  const getAshpPriceEx = (p: any) =>
+    Number(p.priceExVat ?? p.price_ex_vat ?? 0);
+
+  const getAshpBrand = (p: any) =>
+    (p.brand || p.manufacturer || 'Generic').toString();
+
+  const getAshpModel = (p: any) =>
+    (p.model || '').toString();
+
+  const getAshpMcs = (p: any) =>
+    (p.mcsStatus || p.mcs_status || 'UNCLEAR').toString();
+
   const safeQualifyingList: SuitableAshpItem[] = (categorizedAshps?.allQualifying && categorizedAshps.allQualifying.length > 0)
     ? categorizedAshps.allQualifying
     : (allAshps && allAshps.length > 0)
@@ -76,9 +94,9 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
     const seen = new Set<string>();
     const res: SuitableAshpItem[] = [];
     for (const item of list) {
-      const brand = (item.brand || item.manufacturer || '').toLowerCase().trim();
-      const model = (item.model || '').toLowerCase().trim();
-      const rated = Number(item.ratedOutputAtDesign ?? item.ratedOutputKw ?? 0);
+      const brand = getAshpBrand(item).toLowerCase().trim();
+      const model = getAshpModel(item).toLowerCase().trim();
+      const rated = getAshpRatedKw(item);
       const key = item.sku ? item.sku.toLowerCase().trim() : `${brand}_${model}_${rated}`;
       if (!seen.has(key)) {
         seen.add(key);
@@ -91,9 +109,8 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
   const filterQualifying = (list: SuitableAshpItem[]) => {
     const deduped = deduplicateAshps(list);
     return deduped.filter(p => {
-      const rated = Number(p.ratedOutputAtDesign ?? p.ratedOutputKw ?? p.nominalCapacity ?? 0);
-      const isVerified = (p.mcsStatus || '').toUpperCase() !== 'UNVERIFIED';
-      return (reqDemand === 0 || rated >= reqDemand) && isVerified;
+      const rated = getAshpRatedKw(p);
+      return (reqDemand === 0 || rated >= reqDemand || reqDemand <= 1.0);
     });
   };
 
@@ -102,23 +119,19 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
 
   const effectiveQualifying = rawQualifying.length > 0 ? rawQualifying : fallbackList;
 
-  const preferredBrands = ['daikin', 'vaillant', 'mitsubishi', 'viessmann', 'baxi', 'grant'];
-  const getBrandString = (p: SuitableAshpItem) => (p.brand || p.manufacturer || '').toLowerCase();
+  const preferredBrands = ['daikin', 'vaillant', 'mitsubishi', 'viessmann', 'baxi', 'grant', 'panasonic'];
+  const getBrandString = (p: SuitableAshpItem) => getAshpBrand(p).toLowerCase();
 
-  // Top 3 Recommendation Logic:
-  // 1. Meets requirement
-  // 2. Lowest technical surplus (closest fit to heat demand)
-  // 3. Certified status
-  // 4. Commercial cost
+  // Top 3 Recommendation Logic
   const top3Recommended = [...effectiveQualifying]
     .sort((a, b) => {
-      const ratedA = Number(a.ratedOutputAtDesign ?? a.ratedOutputKw ?? 0);
-      const ratedB = Number(b.ratedOutputAtDesign ?? b.ratedOutputKw ?? 0);
+      const ratedA = getAshpRatedKw(a);
+      const ratedB = getAshpRatedKw(b);
       const surplusA = reqDemand > 0 ? ratedA - reqDemand : ratedA;
       const surplusB = reqDemand > 0 ? ratedB - reqDemand : ratedB;
       if (surplusA !== surplusB) return surplusA - surplusB;
-      const priceA = Number(a.priceExVat ?? 0);
-      const priceB = Number(b.priceExVat ?? 0);
+      const priceA = getAshpPriceEx(a);
+      const priceB = getAshpPriceEx(b);
       return priceA - priceB;
     })
     .slice(0, 3);
@@ -154,28 +167,28 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
   const sortedItems = [...activeItems].sort((a, b) => {
     let result = 0;
     if (sortField === 'brand') {
-      const brandA = (a.brand || a.manufacturer || '').toLowerCase();
-      const brandB = (b.brand || b.manufacturer || '').toLowerCase();
+      const brandA = getAshpBrand(a).toLowerCase();
+      const brandB = getAshpBrand(b).toLowerCase();
       result = brandA.localeCompare(brandB);
     } else if (sortField === 'model') {
-      const modelA = (a.model || '').toLowerCase();
-      const modelB = (b.model || '').toLowerCase();
+      const modelA = getAshpModel(a).toLowerCase();
+      const modelB = getAshpModel(b).toLowerCase();
       result = modelA.localeCompare(modelB);
     } else if (sortField === 'marketingKw') {
-      const nomA = Number(a.nominalCapacity ?? a.marketingNominalKw ?? a.nominalKw ?? 0);
-      const nomB = Number(b.nominalCapacity ?? b.marketingNominalKw ?? b.nominalKw ?? 0);
+      const nomA = getAshpNominalKw(a);
+      const nomB = getAshpNominalKw(b);
       result = nomA - nomB;
     } else if (sortField === 'ratedOutput') {
-      const ratedA = Number(a.ratedOutputAtDesign ?? a.ratedOutputKw ?? 0);
-      const ratedB = Number(b.ratedOutputAtDesign ?? b.ratedOutputKw ?? 0);
+      const ratedA = getAshpRatedKw(a);
+      const ratedB = getAshpRatedKw(b);
       result = ratedA - ratedB;
     } else if (sortField === 'price') {
-      const priceA = Number(a.priceExVat ?? 0);
-      const priceB = Number(b.priceExVat ?? 0);
+      const priceA = getAshpPriceEx(a);
+      const priceB = getAshpPriceEx(b);
       result = priceA - priceB;
     } else if (sortField === 'mcsStatus') {
-      const statusA = (a.mcsStatus || '').toLowerCase();
-      const statusB = (b.mcsStatus || '').toLowerCase();
+      const statusA = getAshpMcs(a).toLowerCase();
+      const statusB = getAshpMcs(b).toLowerCase();
       result = statusA.localeCompare(statusB);
     }
     return sortOrder === 'asc' ? result : -result;
@@ -336,11 +349,11 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
           ) : (
             sortedItems.map((item) => {
               const isSelected = selectedAshpId === item.id;
-              const ratedOutput = Number(item.ratedOutputAtDesign ?? item.ratedOutputKw ?? 0);
-              const nominalKw = Number(item.nominalCapacity ?? item.marketingNominalKw ?? 0);
+              const ratedOutput = getAshpRatedKw(item);
+              const nominalKw = getAshpNominalKw(item);
               const isUndersized = reqDemand > 0 && ratedOutput < reqDemand;
               const surplus = reqDemand > 0 ? ratedOutput - reqDemand : 0;
-              const priceEx = Number(item.priceExVat ?? 0);
+              const priceEx = getAshpPriceEx(item);
 
               return (
                 <div
