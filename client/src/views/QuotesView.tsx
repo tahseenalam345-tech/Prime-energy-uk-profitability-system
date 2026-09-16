@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Shield, AlertTriangle, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { FileText, Shield, AlertTriangle, RefreshCw, CheckCircle2, Download } from 'lucide-react';
 import { api } from '../services/api.js';
 import { Badge } from '../components/Badge.js';
 import { SnapshotModal } from '../components/SnapshotModal.js';
@@ -113,6 +113,16 @@ export const QuotesView: React.FC<QuotesViewProps> = ({ currentUser }) => {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '6px' }}>
+                      <a
+                        href={`/api/quotes/${q.id}/pdf`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '5px 8px', fontSize: '0.75rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        title="View / Download PDF Quotation"
+                      >
+                        <Download size={13} /> PDF
+                      </a>
                       <button
                         onClick={() => setSelectedSnapshotId(q.id)}
                         className="btn btn-secondary btn-sm"
