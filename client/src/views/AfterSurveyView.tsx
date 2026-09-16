@@ -5,7 +5,8 @@ import { Badge } from '../components/Badge.js';
 import { CalculationResult, User } from '../types.js';
 import { SearchableSelect, SelectOption } from '../components/SearchableSelect.js';
 import { CompactRadiatorSelector } from '../components/CompactRadiatorSelector.js';
-import { CostCompositionTable, CustomLineItemInput } from '../components/CostCompositionTable.js';
+import { SuitableAshpsModal } from '../components/SuitableAshpsModal.js';
+import { SuitableCylindersModal } from '../components/SuitableCylindersModal.js';
 
 interface AfterSurveyViewProps {
   onQuoteSaved?: (quoteId: string) => void;
@@ -50,6 +51,10 @@ export const AfterSurveyView: React.FC<AfterSurveyViewProps> = ({ onQuoteSaved, 
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedQuoteRef, setSavedQuoteRef] = useState('');
+
+  // Selector modal states
+  const [showSuitableAshpsModal, setShowSuitableAshpsModal] = useState(false);
+  const [showCylinderModal, setShowCylinderModal] = useState(false);
 
   // Initial data loading
   useEffect(() => {
@@ -363,6 +368,14 @@ export const AfterSurveyView: React.FC<AfterSurveyViewProps> = ({ onQuoteSaved, 
                   searchPlaceholder="Type manufacturer, model, capacity..."
                   clearable={true}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowSuitableAshpsModal(true)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ marginTop: '6px', fontSize: '0.75rem' }}
+                >
+                  VIEW ALL SUITABLE MODELS
+                </button>
               </div>
               <div className="form-group">
                 <label className="form-label">Confirmed Hot Water Cylinder</label>
@@ -382,6 +395,14 @@ export const AfterSurveyView: React.FC<AfterSurveyViewProps> = ({ onQuoteSaved, 
                   searchPlaceholder="Type capacity, manufacturer, model..."
                   clearable={true}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowCylinderModal(true)}
+                  className="btn btn-secondary btn-sm"
+                  style={{ marginTop: '6px', fontSize: '0.75rem' }}
+                >
+                  Choose Different Cylinder
+                </button>
               </div>
             </div>
           </div>
@@ -650,6 +671,38 @@ export const AfterSurveyView: React.FC<AfterSurveyViewProps> = ({ onQuoteSaved, 
           )}
         </div>
       </div>
+
+      {showSuitableAshpsModal && (
+        <SuitableAshpsModal
+          isOpen={showSuitableAshpsModal}
+          onClose={() => setShowSuitableAshpsModal(false)}
+          requiredHeatDemandKw={Number(confirmedHeatLoss || result?.summary?.designHeatLossKw || 6.0)}
+          estimatedHeatDemandKw={Number(confirmedHeatLoss || 6.0)}
+          selectedAshpId={selectedAshpId || result?.ashp?.selectedProduct?.id || result?.ashp?.recommendedProduct?.id}
+          onSelectAshp={(ashpId) => {
+            setSelectedAshpId(ashpId);
+            setShowSuitableAshpsModal(false);
+          }}
+          top3Recommended={result?.ashp?.top3Recommended}
+          categorizedAshps={result?.ashp?.categorizedSuitableAshps}
+          allAshps={result?.ashp?.allAshpProducts || (ashpCatalog as any)}
+        />
+      )}
+
+      {showCylinderModal && (
+        <SuitableCylindersModal
+          isOpen={showCylinderModal}
+          onClose={() => setShowCylinderModal(false)}
+          requiredVolumeLitres={result?.cylinder?.recommendedVolumeLitres || 200}
+          selectedCylinderId={selectedCylinderId || result?.cylinder?.selectedProduct?.id || result?.cylinder?.recommendedProduct?.id}
+          onSelectCylinder={(cylId) => {
+            setSelectedCylinderId(cylId);
+            setShowCylinderModal(false);
+          }}
+          top3Recommended={result?.cylinder?.top3Recommended}
+          allCylinders={result?.cylinder?.allCylinders || (cylinderCatalog as any)}
+        />
+      )}
     </div>
   );
 };

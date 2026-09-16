@@ -28,6 +28,12 @@ export interface SuitableAshpsModalProps {
   estimatedHeatDemandKw?: number;
   selectedAshpId?: string | null;
   onSelectAshp: (productId: string) => void;
+  top3Recommended?: Array<{
+    product: SuitableAshpItem;
+    rank: number;
+    label: string;
+    reason: string;
+  }>;
   categorizedAshps?: {
     preferred: SuitableAshpItem[];
     bestMatch: SuitableAshpItem[];
@@ -38,7 +44,7 @@ export interface SuitableAshpsModalProps {
   allAshps?: SuitableAshpItem[];
 }
 
-type SortField = 'brand' | 'model' | 'ratedOutput' | 'price' | 'mcsStatus';
+type SortField = 'brand' | 'model' | 'marketingKw' | 'ratedOutput' | 'price' | 'mcsStatus';
 
 export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
   isOpen,
@@ -138,6 +144,10 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
       const modelA = (a.model || '').toLowerCase();
       const modelB = (b.model || '').toLowerCase();
       result = modelA.localeCompare(modelB);
+    } else if (sortField === 'marketingKw') {
+      const nomA = Number(a.nominalCapacity ?? a.marketingNominalKw ?? a.nominalKw ?? 0);
+      const nomB = Number(b.nominalCapacity ?? b.marketingNominalKw ?? b.nominalKw ?? 0);
+      result = nomA - nomB;
     } else if (sortField === 'ratedOutput') {
       const ratedA = Number(a.ratedOutputAtDesign ?? a.ratedOutputKw ?? 0);
       const ratedB = Number(b.ratedOutputAtDesign ?? b.ratedOutputKw ?? 0);
@@ -189,7 +199,10 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
               <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300">Top 3 Recommended for Current Job</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {top3Recommended.map((rec, idx) => {
+              {top3Recommended.map((recObj, idx) => {
+                const rec = (recObj as any).product || recObj;
+                const label = (recObj as any).label || `#${idx + 1} Best Fit`;
+                const reason = (recObj as any).reason || '';
                 const rated = Number(rec.ratedOutputAtDesign ?? rec.ratedOutputKw ?? 0);
                 const price = Number(rec.priceExVat ?? 0);
                 const isSelected = selectedAshpId === rec.id;
@@ -207,10 +220,11 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
                     }`}
                   >
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-bold text-amber-400">#{idx + 1} Best Fit</span>
+                      <span className="font-bold text-amber-400">#{idx + 1} {label}</span>
                       {isSelected && <span className="text-emerald-400 font-bold">Selected</span>}
                     </div>
                     <div className="font-semibold text-white text-sm truncate">{rec.brand || rec.manufacturer} {rec.model}</div>
+                    {reason && <div className="text-xs text-slate-400 mt-0.5 truncate">{reason}</div>}
                     <div className="flex justify-between items-center text-xs mt-1 text-slate-400">
                       <span>Rated: <strong className="text-emerald-400">{rated > 0 ? `${rated.toFixed(1)} kW` : 'N/A'}</strong></span>
                       <span className="font-bold text-slate-200">£{price > 0 ? price.toLocaleString() : 'N/A'} ex VAT</span>
@@ -278,6 +292,9 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
             </button>
             <button onClick={() => handleSortToggle('model')} className="hover:text-white font-medium flex items-center">
               Model {renderSortIndicator('model')}
+            </button>
+            <button onClick={() => handleSortToggle('marketingKw')} className="hover:text-white font-medium flex items-center">
+              Marketing kW {renderSortIndicator('marketingKw')}
             </button>
             <button onClick={() => handleSortToggle('ratedOutput')} className="hover:text-white font-medium flex items-center">
               Rated kW {renderSortIndicator('ratedOutput')}

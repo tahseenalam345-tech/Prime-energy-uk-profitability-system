@@ -14,6 +14,8 @@ export interface CylinderProductItem {
   manufacturer: string;
   model: string;
   volumeLitres: number;
+  nominal_litres: number;
+  capacityLitres: number;
   priceExVat: number;
   priceIncVat: number;
   vatStatus: 'EX_VAT' | 'INC_VAT';
@@ -23,6 +25,13 @@ export interface CylinderProductItem {
   dimensions: string;
 }
 
+export interface CylinderRecommendationOption {
+  product: CylinderProductItem;
+  rank: number;
+  label: string;
+  reason: string;
+}
+
 export interface CylinderOutputs {
   recommendedVolumeLitres: number | null;
   displayCapacity: string;
@@ -30,6 +39,7 @@ export interface CylinderOutputs {
   selectedProduct: CylinderProductItem | null;
   isManualOverride: boolean;
   overrideNote?: string;
+  top3Recommended: CylinderRecommendationOption[];
   allCylinders?: CylinderProductItem[];
   viabilityBlocker: boolean;
   notes: string[];
@@ -74,19 +84,19 @@ export async function selectRecommendedCylinder(inputs: CylinderInputs): Promise
     source_url: string | null;
   }>;
 
-  const allCylinders: CylinderProductItem[] = rawCylinders.map(c => {
-    let vol = c.nominal_litres;
+  const rawCylinderList: CylinderProductItem[] = rawCylinders.map(c => {
+    let vol = Number(c.nominal_litres || 200);
     let dims = 'Standard unvented';
     try {
       const parsed = JSON.parse(c.specifications || '{}');
-      if (parsed.volumeLitres) vol = parsed.volumeLitres;
+      if (parsed.volumeLitres) vol = Number(parsed.volumeLitres);
       if (parsed.dimensions) dims = parsed.dimensions;
     } catch {
       // ignore
     }
 
-    const priceEx = c.price_ex_vat ?? 950.00;
-    const priceInc = c.price_inc_vat ?? Math.round(priceEx * 1.20 * 100) / 100;
+    const priceEx = Number(c.price_ex_vat ?? 950.00);
+    const priceInc = Number(c.price_inc_vat ?? Math.round(priceEx * 1.20 * 100) / 100);
 
     return {
       id: c.id,
@@ -94,6 +104,8 @@ export async function selectRecommendedCylinder(inputs: CylinderInputs): Promise
       manufacturer: c.manufacturer,
       model: c.model,
       volumeLitres: vol,
+      nominal_litres: vol,
+      capacityLitres: vol,
       priceExVat: priceEx,
       priceIncVat: priceInc,
       vatStatus: (c.price_basis === 'INC_VAT' ? 'INC_VAT' : 'EX_VAT') as 'EX_VAT' | 'INC_VAT',
@@ -104,6 +116,17 @@ export async function selectRecommendedCylinder(inputs: CylinderInputs): Promise
     };
   });
 
+  // Deduplicate by brand + model + volumeLitres
+  const seenCylKeys = new Set<string>();
+  const allCylinders: CylinderProductItem[] = [];
+  for (const item of rawCylinderList) {
+    const key = `${item.brand}_${item.model}_${item.volumeLitres}`.toLowerCase().trim();
+    if (!seenCylKeys.has(key)) {
+      seenCylKeys.add(key);
+      allCylinders.push(item);
+    }
+  }
+
   if (inputs.bedrooms === undefined || inputs.bedrooms === null) {
     return {
       recommendedVolumeLitres: null,
@@ -111,6 +134,7 @@ export async function selectRecommendedCylinder(inputs: CylinderInputs): Promise
       recommendedProduct: null,
       selectedProduct: null,
       isManualOverride: false,
+      top3Recommended: [],
       allCylinders,
       viabilityBlocker: false,
       notes: ['Cylinder sizing requires bedroom information.'],
@@ -183,6 +207,50 @@ export async function selectRecommendedCylinder(inputs: CylinderInputs): Promise
     }
   }
 
+  // Build Top 3 Cylinder Recommendations
+  const top3Recommended: CylinderRecommendationOption[] = [];
+  const suitableCylinders = allCylinders.filter(c => c.volumeLitres >= targetLitres);
+
+  if (suitableCylinders.length > 0) {
+    // 1. Primary Recommendation (Closest match for targetLitres)
+    const primary = [...suitableCylinders].sort((a, b) => {
+      if (a.volumeLitres !== b.volumeLitres) return a.volumeLitres - b.volumeLitres;
+      return a.priceExVat - b.priceExVat;
+    })[0];
+
+    top3Recommended.push({
+      product: primary,
+      rank: 1,
+      label: 'Primary Recommendation',
+      reason: `Primary CIBSE recommendation for ${beds} bed / ${baths} bath property (${primary.volumeLitres}L)`
+    });
+
+    // 2. Next suitable capacity tier / alternative brand option
+    const remainingAfterPrimary = suitableCylinders.filter(c => c.id !== primary.id);
+    if (remainingAfterPrimary.length > 0) {
+      const nextOpt = remainingAfterPrimary.find(c => c.volumeLitres > primary.volumeLitres) || remainingAfterPrimary[0];
+      top3Recommended.push({
+        product: nextOpt,
+        rank: 2,
+        label: 'Alternative Option',
+        reason: `${nextOpt.volumeLitres}L ${nextOpt.brand} ${nextOpt.model} option`
+      });
+    }
+
+    // 3. Value / lowest cost suitable option
+    const usedIds = new Set(top3Recommended.map(r => r.product.id));
+    const remainingForThird = suitableCylinders.filter(c => !usedIds.has(c.id));
+    if (remainingForThird.length > 0) {
+      const cheapest = [...remainingForThird].sort((a, b) => a.priceExVat - b.priceExVat)[0];
+      top3Recommended.push({
+        product: cheapest,
+        rank: 3,
+        label: 'Value Option',
+        reason: `Value option £${cheapest.priceExVat.toLocaleString()} ex-VAT (${cheapest.volumeLitres}L)`
+      });
+    }
+  }
+
   const displayCapacity = selectedProduct ? `${selectedProduct.volumeLitres} Litres` : `${targetLitres} Litres`;
 
   return {
@@ -192,6 +260,7 @@ export async function selectRecommendedCylinder(inputs: CylinderInputs): Promise
     selectedProduct,
     isManualOverride,
     overrideNote,
+    top3Recommended,
     allCylinders,
     viabilityBlocker,
     notes,

@@ -12,6 +12,7 @@ import { RuleEvidenceModal } from '../components/RuleEvidenceModal.js';
 import { SearchableSelect, SelectOption } from '../components/SearchableSelect.js';
 import { CostCompositionTable, CustomLineItemInput } from '../components/CostCompositionTable.js';
 import { SuitableAshpsModal } from '../components/SuitableAshpsModal.js';
+import { SuitableCylindersModal } from '../components/SuitableCylindersModal.js';
 
 const countryOptions: SelectOption[] = [
   { value: 'England', label: 'England', sublabel: 'BUS Scope (£7,500 / £9,000)', badge: 'BUS Scope' },
@@ -1312,22 +1313,34 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                     </div>
 
                     <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)', marginBottom: '4px' }}>
-                      {result.ashp?.selectedProduct || result.ashp?.recommendedProduct ? (
-                        `${result.ashp?.selectedProduct?.brand || result.ashp?.recommendedProduct?.brand} ${result.ashp?.selectedProduct?.model || result.ashp?.recommendedProduct?.model} — ${(result.ashp?.selectedProduct?.ratedOutputKw || result.ashp?.recommendedProduct?.ratedOutputKw || result.ashp?.selectedProduct?.nominalKw || 0)} kW`
-                      ) : (
-                        'No ASHP Model Selected'
-                      )}
+                      {(() => {
+                        const activeAshp = result.ashp?.selectedProduct || result.ashp?.recommendedProduct;
+                        if (!activeAshp) return 'No ASHP Model Selected';
+                        const ratedKw = Number(activeAshp.ratedOutputAtDesign ?? activeAshp.ratedOutputKw ?? 0);
+                        return `${activeAshp.brand || activeAshp.manufacturer} ${activeAshp.model} — ${ratedKw > 0 ? ratedKw.toFixed(1) : 'N/A'} kW`;
+                      })()}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                      <span>Marketing: <strong>{result.ashp?.selectedProduct?.nominalKw || result.ashp?.recommendedProduct?.nominalKw || 0} kW</strong></span>
-                      <span>Rated Design: <strong style={{ color: '#059669' }}>{result.ashp?.selectedProduct?.ratedOutputKw || result.ashp?.recommendedProduct?.ratedOutputKw || 0} kW</strong> (@ {result.ashp?.selectedProduct?.ratedOutputCondition || result.ashp?.recommendedProduct?.ratedOutputCondition || 'A-2/W45'})</span>
-                      <span>Price: <strong>£{(result.ashp?.selectedProduct?.priceExVat || result.ashp?.recommendedProduct?.priceExVat || 0).toLocaleString()} ex VAT</strong></span>
+                    <div style={{ display: 'flex', gap: '12px', fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '8px', flexWrap: 'wrap' }}>
+                      {(() => {
+                        const activeAshp = result.ashp?.selectedProduct || result.ashp?.recommendedProduct;
+                        const nomKw = Number(activeAshp?.nominalCapacity ?? activeAshp?.marketingNominalKw ?? activeAshp?.nominalKw ?? 0);
+                        const ratedKw = Number(activeAshp?.ratedOutputAtDesign ?? activeAshp?.ratedOutputKw ?? 0);
+                        const condStr = activeAshp?.designCondition || activeAshp?.ratedOutputCondition || 'A-2/W45';
+                        const priceEx = Number(activeAshp?.priceExVat ?? 0);
+                        return (
+                          <>
+                            <span>Marketing: <strong>{nomKw > 0 ? `${nomKw.toFixed(1)} kW` : 'N/A'}</strong></span>
+                            <span>Rated Design Output: <strong style={{ color: '#059669' }}>{ratedKw > 0 ? `${ratedKw.toFixed(1)} kW` : 'N/A'}</strong> (@ {condStr})</span>
+                            <span>Price: <strong>£{priceEx > 0 ? priceEx.toLocaleString() : 'N/A'} ex VAT</strong></span>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {result.ashp?.isManualOverride && result.ashp?.recommendedProduct && (
                       <div style={{ fontSize: '0.75rem', color: '#854d0e', marginBottom: '8px', padding: '4px 8px', background: '#fef9c3', borderRadius: '4px' }}>
-                        <strong>Auto-Recommended:</strong> {result.ashp.recommendedProduct.brand} {result.ashp.recommendedProduct.model} ({result.ashp.recommendedProduct.ratedOutputKw} kW @ {result.ashp.recommendedProduct.ratedOutputCondition})
+                        <strong>Auto-Recommended:</strong> {result.ashp.recommendedProduct.brand} {result.ashp.recommendedProduct.model} ({(result.ashp.recommendedProduct.ratedOutputAtDesign || result.ashp.recommendedProduct.ratedOutputKw || 0).toFixed(1)} kW @ {result.ashp.recommendedProduct.designCondition || 'A-2/W45'})
                       </div>
                     )}
 
@@ -1390,23 +1403,33 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                     </div>
 
                     <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-main)', marginBottom: '4px' }}>
-                      {result.cylinder?.selectedProduct ? (
-                        `${result.cylinder.selectedProduct.brand} ${result.cylinder.selectedProduct.model} — ${result.cylinder.selectedProduct.volumeLitres}L`
-                      ) : result.cylinder?.recommendedProduct ? (
-                        `${result.cylinder.recommendedProduct.brand} ${result.cylinder.recommendedProduct.model} — ${result.cylinder.recommendedProduct.volumeLitres}L`
-                      ) : (
-                        `${result.cylinder?.recommendedVolumeLitres || 200}L Unvented Cylinder (based on DHW rules)`
-                      )}
+                      {(() => {
+                        const activeCyl = result.cylinder?.selectedProduct || result.cylinder?.recommendedProduct;
+                        const vol = Number(activeCyl?.volumeLitres ?? activeCyl?.nominal_litres ?? activeCyl?.capacityLitres ?? result.cylinder?.recommendedVolumeLitres ?? 200);
+                        if (activeCyl) {
+                          return `${activeCyl.brand} ${activeCyl.model} — ${vol} L`;
+                        }
+                        return `${vol} L Unvented Cylinder (based on DHW rules)`;
+                      })()}
                     </div>
 
                     <div style={{ display: 'flex', gap: '14px', fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '8px', alignItems: 'center' }}>
-                      <span>Capacity: <strong style={{ color: '#0369a1', fontSize: '1rem', fontWeight: 800 }}>{result.cylinder?.selectedProduct?.volumeLitres || 200} L</strong></span>
-                      <span>Price: <strong>£{(result.costBreakdown.cylinderCost || 0).toLocaleString()} ex VAT</strong></span>
+                      {(() => {
+                        const activeCyl = result.cylinder?.selectedProduct || result.cylinder?.recommendedProduct;
+                        const vol = Number(activeCyl?.volumeLitres ?? activeCyl?.nominal_litres ?? activeCyl?.capacityLitres ?? result.cylinder?.recommendedVolumeLitres ?? 200);
+                        const price = Number(result.costBreakdown?.cylinderCost ?? activeCyl?.priceExVat ?? 0);
+                        return (
+                          <>
+                            <span>Capacity: <strong style={{ color: '#0369a1', fontSize: '1rem', fontWeight: 800 }}>{vol} L</strong></span>
+                            <span>Price: <strong>£{price.toLocaleString()} ex VAT</strong></span>
+                          </>
+                        );
+                      })()}
                     </div>
 
                     {result.cylinder?.isManualOverride && result.cylinder?.recommendedProduct && (
                       <div style={{ fontSize: '0.75rem', color: '#854d0e', marginBottom: '8px', padding: '6px 10px', background: '#fef9c3', borderRadius: '6px', border: '1px solid #fef08a' }}>
-                        <div>Recommended: <strong>{result.cylinder.recommendedProduct.volumeLitres} L</strong> ({result.cylinder.recommendedProduct.brand} {result.cylinder.recommendedProduct.model})</div>
+                        <div>Recommended: <strong>{result.cylinder.recommendedProduct.volumeLitres || 200} L</strong> ({result.cylinder.recommendedProduct.brand} {result.cylinder.recommendedProduct.model})</div>
                         <div>Selected: <strong>{result.cylinder.selectedProduct?.volumeLitres || 200} L</strong> ({result.cylinder.selectedProduct?.brand} {result.cylinder.selectedProduct?.model})</div>
                       </div>
                     )}
@@ -1491,23 +1514,20 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
       </div>
 
       {/* Requirement 4: Categorized Suitable ASHPs Modal */}
-      {showSuitableAshpsModal && result && (
+      {showSuitableAshpsModal && (
         <SuitableAshpsModal
           isOpen={showSuitableAshpsModal}
           onClose={() => setShowSuitableAshpsModal(false)}
-          categorizedAshps={result.ashp?.categorizedSuitableAshps || {
-            preferred: [],
-            bestMatch: [],
-            valueCost: [],
-            alternatives: [],
-            allQualifying: []
-          }}
-          selectedAshpId={overrideAshpId || result.ashp?.selectedProduct?.id || result.ashp?.recommendedProduct?.id}
-          estimatedHeatDemandKw={result.heatDemand?.estimatedDesignHeatLossKw || 6.0}
+          requiredHeatDemandKw={result?.heatDemand?.maxDemandKw || result?.summary?.designHeatLossKw || 6.0}
+          estimatedHeatDemandKw={result?.heatDemand?.maxDemandKw || 6.0}
+          selectedAshpId={overrideAshpId || result?.ashp?.selectedProduct?.id || result?.ashp?.recommendedProduct?.id}
           onSelectAshp={(ashpId) => {
             setOverrideAshpId(ashpId);
             setShowSuitableAshpsModal(false);
           }}
+          top3Recommended={result?.ashp?.top3Recommended}
+          categorizedAshps={result?.ashp?.categorizedSuitableAshps}
+          allAshps={result?.ashp?.allAshpProducts || (ashpProducts as any)}
         />
       )}
 
@@ -1723,143 +1743,18 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
       {/* Standard Cylinder Selection Modal */}
       {showCylinderModal && (
-        <div style={{
-          position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.65)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050, padding: '16px'
-        }}>
-          <div style={{
-            background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border)', borderRadius: '12px', maxWidth: '800px', width: '100%',
-            boxShadow: 'var(--shadow-lg)', overflow: 'hidden'
-          }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-panel)' }}>
-              <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>Select Hot Water Cylinder</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Required Volume: <strong>{reqCylinderLitres} L</strong> (based on beds/baths rules)</span>
-              </div>
-              <button onClick={() => setShowCylinderModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                <X size={20} />
-              </button>
-            </div>
-
-            {/* Top 3 Recommended Cylinders Banner */}
-            {top3Cylinders.length > 0 && (
-              <div style={{ padding: '12px 16px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#b45309', marginBottom: '8px' }}>
-                  ★ Top 3 Recommended Cylinders for Current Job
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
-                  {top3Cylinders.map((rec, idx) => {
-                    const isSelected = overrideCylinderId === rec.id || (!overrideCylinderId && result?.cylinder?.recommendedProduct?.id === rec.id);
-                    return (
-                      <div
-                        key={rec.id}
-                        onClick={() => {
-                          setOverrideCylinderId(rec.id);
-                          setShowCylinderModal(false);
-                        }}
-                        style={{
-                          padding: '8px 12px', borderRadius: '6px', border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
-                          background: isSelected ? 'var(--primary-light)' : 'var(--bg-card)', cursor: 'pointer'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#b45309', fontWeight: 700 }}>
-                          <span>#{idx + 1} Best Fit</span>
-                          {isSelected && <span style={{ color: 'var(--primary)' }}>Selected</span>}
-                        </div>
-                        <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>{rec.nominal_litres}L — {rec.brand} {rec.model}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>£{(rec.price_ex_vat || 0).toLocaleString()} ex VAT</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
-              <input
-                type="text"
-                placeholder="Search by litres, model, or brand..."
-                className="form-control"
-                value={cylinderSearchQuery}
-                onChange={(e) => setCylinderSearchQuery(e.target.value)}
-              />
-            </div>
-
-            <div style={{ maxHeight: '50vh', overflowY: 'auto', padding: '12px' }}>
-              <table className="data-table" style={{ fontSize: '0.8125rem' }}>
-                <thead>
-                  <tr>
-                    <th
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        if (cylinderSortField === 'capacity') setCylinderSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
-                        else { setCylinderSortField('capacity'); setCylinderSortOrder('asc'); }
-                      }}
-                    >
-                      Capacity {cylinderSortField === 'capacity' ? (cylinderSortOrder === 'asc' ? '↑' : '↓') : '↕'}
-                    </th>
-                    <th
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        if (cylinderSortField === 'brand') setCylinderSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
-                        else { setCylinderSortField('brand'); setCylinderSortOrder('asc'); }
-                      }}
-                    >
-                      Brand & Model {cylinderSortField === 'brand' ? (cylinderSortOrder === 'asc' ? '↑' : '↓') : '↕'}
-                    </th>
-                    <th>Supplier</th>
-                    <th
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        if (cylinderSortField === 'price') setCylinderSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
-                        else { setCylinderSortField('price'); setCylinderSortOrder('asc'); }
-                      }}
-                    >
-                      Price (ex VAT) {cylinderSortField === 'price' ? (cylinderSortOrder === 'asc' ? '↑' : '↓') : '↕'}
-                    </th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredCylinders.map(c => {
-                    const isSelected = overrideCylinderId === c.id || (!overrideCylinderId && result?.cylinder?.recommendedProduct?.id === c.id);
-                    return (
-                      <tr key={c.id} style={{ backgroundColor: isSelected ? 'var(--primary-light)' : undefined }}>
-                        <td>
-                          <strong style={{ color: 'var(--primary)', fontSize: '1rem' }}>{c.nominal_litres}L</strong>
-                        </td>
-                        <td>
-                          <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{c.brand} {c.model}</div>
-                          {c.sku && <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>SKU: {c.sku}</div>}
-                        </td>
-                        <td>{c.supplier || 'City Plumbing'}</td>
-                        <td style={{ fontWeight: 700 }}>
-                          £{(c.price_ex_vat || 0).toLocaleString()}
-                        </td>
-                        <td>
-                          <button
-                            onClick={() => {
-                              setOverrideCylinderId(c.id);
-                              setShowCylinderModal(false);
-                            }}
-                            className="btn btn-primary btn-sm"
-                            style={{ padding: '4px 10px', fontSize: '0.75rem' }}
-                          >
-                            {isSelected ? 'Selected' : 'Select'}
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-
-            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', background: 'var(--bg-panel)' }}>
-              <button onClick={() => setShowCylinderModal(false)} className="btn btn-secondary btn-sm">Close</button>
-            </div>
-          </div>
-        </div>
+        <SuitableCylindersModal
+          isOpen={showCylinderModal}
+          onClose={() => setShowCylinderModal(false)}
+          requiredVolumeLitres={result?.cylinder?.recommendedVolumeLitres || reqCylinderLitres || 200}
+          selectedCylinderId={overrideCylinderId || result?.cylinder?.selectedProduct?.id || result?.cylinder?.recommendedProduct?.id}
+          onSelectCylinder={(cylId) => {
+            setOverrideCylinderId(cylId);
+            setShowCylinderModal(false);
+          }}
+          top3Recommended={result?.cylinder?.top3Recommended}
+          allCylinders={result?.cylinder?.allCylinders || (cylinderProducts as any)}
+        />
       )}
 
       {/* Authoritative Rule Evidence Modal */}

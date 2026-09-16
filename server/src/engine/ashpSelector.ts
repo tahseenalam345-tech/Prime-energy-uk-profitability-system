@@ -8,8 +8,12 @@ export interface ASHPProductItem {
   model: string;
   sku: string | null;
   nominalCapacity: number;
+  nominalKw: number;
+  marketingNominalKw: number;
   ratedOutputAtDesign: number;
+  ratedOutputKw: number;
   designCondition: string;
+  ratedOutputCondition: string;
   flowTemperature: number;
   refrigerant: string;
   phase: number;
@@ -30,11 +34,19 @@ export interface ASHPProductItem {
   confidence: string;
 }
 
+export interface ASHPRecommendationOption {
+  product: ASHPProductItem;
+  rank: number;
+  label: string;
+  reason: string;
+}
+
 export interface ASHPSelectionResult {
   recommendedProduct: ASHPProductItem | null;
   selectedProduct: ASHPProductItem | null;
   isManualOverride: boolean;
   overrideNote?: string;
+  top3Recommended: ASHPRecommendationOption[];
   alternatives: Array<{
     id: string;
     brand: string;
@@ -125,25 +137,25 @@ export async function selectRecommendedASHP(
     productCache = { data: rawProducts, timestamp: now };
   }
 
-  const allAshpProducts: ASHPProductItem[] = rawProducts.map(p => {
+  const rawAshpProducts: ASHPProductItem[] = rawProducts.map(p => {
     // Dynamic rated output selection based on design flow and outdoor temperatures
-    let rated = p.rated_output_kw || p.nominal_capacity || 0;
+    let rated = Number(p.rated_output_kw || p.nominal_capacity || 0);
     let condStr = p.design_condition || `${designOutdoor}°C / ${designFlow}°C flow`;
 
     if (designFlow >= 55 && p.output_w55 && p.output_w55 > 0) {
-      rated = p.output_w55;
+      rated = Number(p.output_w55);
       condStr = `A${designOutdoor}°C / W55°C flow`;
     } else if (designOutdoor <= -7 && designFlow <= 35 && p.output_a_minus_7_w35 && p.output_a_minus_7_w35 > 0) {
-      rated = p.output_a_minus_7_w35;
+      rated = Number(p.output_a_minus_7_w35);
       condStr = `A-7°C / W35°C flow`;
     } else if (p.output_a7_w45 && p.output_a7_w45 > 0 && designOutdoor >= 7) {
-      rated = p.output_a7_w45;
+      rated = Number(p.output_a7_w45);
       condStr = `A7°C / W45°C flow`;
     }
 
-    const nominal = p.nominal_capacity || rated;
-    const priceEx = p.price_ex_vat ?? 3500.00;
-    const priceInc = p.price_inc_vat ?? Math.round(priceEx * 1.20 * 100) / 100;
+    const nominal = Number(p.nominal_capacity || rated || 0);
+    const priceEx = Number(p.price_ex_vat ?? 3500.00);
+    const priceInc = Number(p.price_inc_vat ?? Math.round(priceEx * 1.20 * 100) / 100);
 
     return {
       id: p.id,
@@ -151,10 +163,14 @@ export async function selectRecommendedASHP(
       manufacturer: p.manufacturer,
       productFamily: p.product_family || 'Monobloc ASHP',
       model: p.model,
-      sku: p.sku,
+      sku: p.sku || null,
       nominalCapacity: nominal,
+      nominalKw: nominal,
+      marketingNominalKw: nominal,
       ratedOutputAtDesign: rated,
+      ratedOutputKw: rated,
       designCondition: condStr,
+      ratedOutputCondition: condStr,
       flowTemperature: designFlow,
       refrigerant: p.refrigerant || 'R290',
       phase: p.phase || 1,
@@ -175,6 +191,17 @@ export async function selectRecommendedASHP(
       confidence: p.confidence || 'MARKET_AVERAGE'
     };
   });
+
+  // Deduplicate products by SKU or Brand + Model
+  const seenKeys = new Set<string>();
+  const allAshpProducts: ASHPProductItem[] = [];
+  for (const item of rawAshpProducts) {
+    const key = (item.sku || `${item.brand}_${item.model}_${item.ratedOutputAtDesign}`).toLowerCase().trim();
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      allAshpProducts.push(item);
+    }
+  }
 
   // Filter qualifying candidates where rated output >= required heat demand (upperBoundKw)
   let candidates = allAshpProducts.filter(p => p.ratedOutputAtDesign >= upperBoundKw);
@@ -204,8 +231,12 @@ export async function selectRecommendedASHP(
   let status: ASHPSelectionResult['status'] = 'OPTIMAL_MATCH';
 
   if (candidates.length > 0) {
-    // Sort by smallest surplus capacity above requirement, then lowest price
+    // Sort by smallest surplus capacity above requirement, MCS status, then lowest price
     candidates.sort((a, b) => {
+      const isMcsA = a.mcsStatus === 'MCS_CERTIFIED' ? 1 : 0;
+      const isMcsB = b.mcsStatus === 'MCS_CERTIFIED' ? 1 : 0;
+      if (isMcsA !== isMcsB) return isMcsB - isMcsA;
+
       const diffA = a.ratedOutputAtDesign - upperBoundKw;
       const diffB = b.ratedOutputAtDesign - upperBoundKw;
       if (Math.abs(diffA - diffB) > 0.1) {
@@ -253,8 +284,52 @@ export async function selectRecommendedASHP(
     }
   }
 
-  // Categorize all technically suitable verified models (ratedOutputAtDesign >= upperBoundKw)
+  // Build Top 3 ASHP Recommendations
   const allQualifying = allAshpProducts.filter(p => p.ratedOutputAtDesign >= upperBoundKw);
+  const top3Recommended: ASHPRecommendationOption[] = [];
+
+  if (allQualifying.length > 0) {
+    // 1. Primary Recommendation (Closest surplus, MCS certified)
+    const primary = [...allQualifying].sort((a, b) => {
+      const mcsA = a.mcsStatus === 'MCS_CERTIFIED' ? 1 : 0;
+      const mcsB = b.mcsStatus === 'MCS_CERTIFIED' ? 1 : 0;
+      if (mcsA !== mcsB) return mcsB - mcsA;
+      return (a.ratedOutputAtDesign - upperBoundKw) - (b.ratedOutputAtDesign - upperBoundKw);
+    })[0];
+
+    top3Recommended.push({
+      product: primary,
+      rank: 1,
+      label: 'Primary Recommendation',
+      reason: `Primary MCS match for ${upperBoundKw > 0 ? upperBoundKw.toFixed(1) : 'design'} kW heat loss (${primary.ratedOutputAtDesign} kW @ ${primary.designCondition})`
+    });
+
+    // 2. Lower-cost suitable alternative
+    const remainingAfterPrimary = allQualifying.filter(p => p.id !== primary.id);
+    if (remainingAfterPrimary.length > 0) {
+      const cheapest = [...remainingAfterPrimary].sort((a, b) => a.priceExVat - b.priceExVat)[0];
+      top3Recommended.push({
+        product: cheapest,
+        rank: 2,
+        label: 'Lower-Cost Alternative',
+        reason: `Lower cost £${cheapest.priceExVat.toLocaleString()} ex-VAT suitable option (${cheapest.ratedOutputAtDesign} kW rated)`
+      });
+    }
+
+    // 3. Technical / Brand alternative
+    const selectedIds = new Set(top3Recommended.map(r => r.product.id));
+    const remainingForThird = allQualifying.filter(p => !selectedIds.has(p.id));
+    if (remainingForThird.length > 0) {
+      const preferredBrands = ['daikin', 'vaillant', 'mitsubishi', 'viessmann', 'baxi', 'grant'];
+      const prefMatch = remainingForThird.find(p => preferredBrands.some(b => p.brand.toLowerCase().includes(b))) || remainingForThird[0];
+      top3Recommended.push({
+        product: prefMatch,
+        rank: 3,
+        label: 'Technical Alternative',
+        reason: `Technically suitable ${prefMatch.brand} ${prefMatch.model} (${prefMatch.ratedOutputAtDesign} kW rated)`
+      });
+    }
+  }
 
   const preferredBrands = ['daikin', 'vaillant', 'mitsubishi', 'viessmann', 'baxi', 'grant'];
   const preferred = allQualifying.filter(p => preferredBrands.some(b => p.brand.toLowerCase().includes(b)))
@@ -295,6 +370,7 @@ export async function selectRecommendedASHP(
     selectedProduct,
     isManualOverride,
     overrideNote,
+    top3Recommended,
     alternatives,
     allAshpProducts,
     categorizedSuitableAshps,
