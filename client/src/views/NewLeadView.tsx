@@ -1188,7 +1188,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                     <RotateCcw size={15} /> {calculating ? 'Recalculating...' : 'RECALCULATE ESTIMATE'}
                   </button>
 
-                  {(!currentUser || currentUser.role_name === 'READ_ONLY') ? (
+                  {(!currentUser || (currentUser.role_name || currentUser.role) === 'READ_ONLY') ? (
                     <button
                       type="button"
                       onClick={() => alert('Login required: Saving quote snapshots requires a logged-in account with write permissions (Sales, Estimator, Surveyor, or Admin). Please click Login in the navigation bar.')}

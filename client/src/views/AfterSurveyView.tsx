@@ -604,7 +604,7 @@ export const AfterSurveyView: React.FC<AfterSurveyViewProps> = ({ onQuoteSaved, 
                   </div>
                 </div>
 
-                {(!currentUser || currentUser.role_name === 'READ_ONLY') ? (
+                {(!currentUser || (currentUser.role_name || currentUser.role) === 'READ_ONLY') ? (
                   <button
                     type="button"
                     onClick={() => alert('Login required: Saving survey quote snapshots requires a logged-in account with write permissions (Surveyor, Estimator, Sales, or Admin). Please click Login in the navigation bar.')}

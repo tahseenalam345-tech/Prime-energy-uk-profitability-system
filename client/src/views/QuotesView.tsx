@@ -45,7 +45,8 @@ export const QuotesView: React.FC<QuotesViewProps> = ({ currentUser }) => {
     }
   };
 
-  const isManagerOrAdmin = currentUser?.role_name === 'ESTIMATOR' || currentUser?.role_name === 'ADMIN';
+  const userRole = currentUser?.role_name || currentUser?.role || 'READ_ONLY';
+  const isManagerOrAdmin = userRole === 'ESTIMATOR' || userRole === 'ADMIN';
 
   return (
     <div className="quotes-view-container">

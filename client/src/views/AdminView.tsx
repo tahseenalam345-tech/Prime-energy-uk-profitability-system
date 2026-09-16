@@ -168,8 +168,9 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
     }
   };
 
-  const canEditSettings = currentUser?.role_name === 'ADMIN' || currentUser?.role_name === 'ESTIMATOR' || currentUser?.role_name === 'SALES';
-  const isAdmin = currentUser?.role_name === 'ADMIN';
+  const role = currentUser?.role_name || currentUser?.role || 'READ_ONLY';
+  const canEditSettings = role === 'ADMIN' || role === 'ESTIMATOR' || role === 'SALES';
+  const isAdmin = role === 'ADMIN';
 
   return (
     <div>
@@ -222,7 +223,7 @@ export const AdminView: React.FC<AdminViewProps> = ({ currentUser, onNavigate })
       {!canEditSettings && (
         <div style={{ background: '#fffbeb', border: '1px solid #fde68a', color: '#92400e', padding: '12px 18px', borderRadius: '8px', marginBottom: '20px', fontSize: '0.875rem' }}>
           <AlertTriangle size={16} style={{ display: 'inline', marginRight: '6px' }} />
-          <strong>Read-Only View:</strong> You are currently logged in with the <strong>{currentUser?.role_name}</strong> role. Contact an authorized Commercial Manager or Admin to modify settings.
+          <strong>Read-Only View:</strong> You are currently logged in with the <strong>{role}</strong> role. Contact an authorized Commercial Manager or Admin to modify settings.
         </div>
       )}
 

@@ -95,7 +95,8 @@ export const PricingView: React.FC<PricingViewProps> = ({ currentUser }) => {
     return p.source_type === sourceFilter;
   });
 
-  const isAdmin = currentUser?.role_name === 'ADMIN';
+  const userRole = currentUser?.role_name || currentUser?.role || 'READ_ONLY';
+  const isAdmin = userRole === 'ADMIN';
 
   return (
     <div className="pricing-view-container">

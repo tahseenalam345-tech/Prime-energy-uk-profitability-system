@@ -38,7 +38,8 @@ export const LeadsView: React.FC<LeadsViewProps> = ({ currentUser, onSelectLeadF
     fetchLeads();
   }, []);
 
-  const canEdit = currentUser && currentUser.role_name !== 'READ_ONLY';
+  const userRole = currentUser?.role_name || currentUser?.role || 'READ_ONLY';
+  const canEdit = currentUser && userRole !== 'READ_ONLY';
 
   const handleAddLead = async (e: React.FormEvent) => {
     e.preventDefault();

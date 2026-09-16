@@ -76,7 +76,19 @@ authRouter.post('/logout', authenticateToken, async (req: AuthenticatedRequest, 
 
 // GET Current Authenticated User Profile
 authRouter.get('/me', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
-  res.json({ user: req.user });
+  if (!req.user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const roleName = req.user.role || (req.user as any).role_name || 'READ_ONLY';
+  res.json({
+    user: {
+      id: req.user.id,
+      name: req.user.name,
+      email: req.user.email,
+      role: roleName,
+      role_name: roleName
+    }
+  });
 });
 
 // Diagnostic status endpoint (Non-sensitive env presence and admin status check)

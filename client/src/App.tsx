@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Shield } from 'lucide-react';
 import { Navbar } from './components/Navbar.js';
 import { LoginView } from './views/LoginView.js';
 import { DashboardView } from './views/DashboardView.js';
@@ -165,8 +166,29 @@ export function App() {
         {currentTab === 'pricing' && <PricingView currentUser={currentUser} />}
         {currentTab === 'rules' && <RulesView />}
         {currentTab === 'reports' && <ReportsView />}
-        {currentTab === 'admin' && currentUser?.role_name === 'ADMIN' && (
-          <AdminView currentUser={currentUser} onNavigate={setCurrentTab} />
+        {currentTab === 'admin' && (
+          (currentUser?.role_name === 'ADMIN' || currentUser?.role === 'ADMIN') ? (
+            <AdminView currentUser={currentUser} onNavigate={setCurrentTab} />
+          ) : (
+            <div className="card" style={{ maxWidth: '600px', margin: '40px auto', textAlign: 'center', padding: '32px' }}>
+              <Shield style={{ width: '48px', height: '48px', color: '#ef4444', margin: '0 auto 16px auto' }} />
+              <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '8px', color: 'var(--text-main)' }}>Access Restricted</h2>
+              <p style={{ color: 'var(--text-muted)', marginBottom: '20px', fontSize: '0.95rem' }}>
+                You need Administrator privileges to access the Admin & Users control panel. You are currently logged in with role: <strong>{currentUser?.role_name || currentUser?.role || 'READ_ONLY'}</strong>.
+              </p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                {!currentUser ? (
+                  <button className="btn btn-primary" onClick={() => setCurrentTab('login')}>
+                    Sign In as System Admin
+                  </button>
+                ) : (
+                  <button className="btn btn-secondary" onClick={() => setCurrentTab('dashboard')}>
+                    Return to Dashboard
+                  </button>
+                )}
+              </div>
+            </div>
+          )
         )}
       </main>
     </div>

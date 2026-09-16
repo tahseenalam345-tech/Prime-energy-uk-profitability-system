@@ -2,9 +2,10 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role_id: string;
-  role_name: 'ADMIN' | 'SALES' | 'SURVEYOR' | 'ESTIMATOR' | 'READ_ONLY';
-  role_description: string;
+  role_id?: string;
+  role_name?: 'ADMIN' | 'SALES' | 'SURVEYOR' | 'ESTIMATOR' | 'READ_ONLY' | string;
+  role?: string;
+  role_description?: string;
 }
 
 export interface CommercialSettings {
