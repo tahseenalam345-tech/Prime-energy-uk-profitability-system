@@ -5,6 +5,7 @@ import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import db from '../db/connection.js';
+import { fillDocxTemplatePureJs } from './docxFiller.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -203,42 +204,60 @@ export async function generateQuotationDocument(options: GenerateQuotationOption
     cylinderBrand
   };
 
-  const payloadJsonPath = path.join(storageDir, `payload_${quoteReference}.json`);
-  fs.writeFileSync(payloadJsonPath, JSON.stringify(payload, null, 2), 'utf8');
+  // 8. FIRST: Always populate DOCX in pure JS to guarantee completed DOCX file creation on any OS/Vercel
+  fillDocxTemplatePureJs(templatePath, outputDocxPath, payload);
 
-  // 8. Execute Python Script to Populate Template DOCX and Convert to PDF
-  const pythonExecPaths = [
+  // 9. NEXT: Safely check if Python is available for DOCX-to-PDF conversion (e.g. Windows local environment)
+  let pythonExec: string | null = null;
+  const absolutePythonPaths = [
     'C:\\Users\\M Tahseen\\AppData\\Local\\Python\\bin\\python.exe',
-    'python',
-    'python3'
+    'C:\\Python39\\python.exe',
+    'C:\\Python310\\python.exe',
+    'C:\\Python311\\python.exe',
+    '/usr/bin/python3',
+    '/usr/local/bin/python3'
   ];
 
-  let pythonExec = 'python';
-  for (const p of pythonExecPaths) {
+  for (const p of absolutePythonPaths) {
     if (fs.existsSync(p)) {
       pythonExec = p;
       break;
     }
   }
 
-  try {
-    const { stdout } = await execFileAsync(pythonExec, [pythonScriptPath, payloadJsonPath]);
-    const res = JSON.parse(stdout.trim());
-    if (res.error) {
-      throw new Error(res.error);
-    }
-  } catch (err: any) {
-    console.error('[QuotationGenerator Error]:', err);
-    throw new Error(`Failed to generate quotation from template DOCX: ${err.message || err}`);
-  } finally {
-    if (fs.existsSync(payloadJsonPath)) {
-      fs.unlinkSync(payloadJsonPath);
+  if (!pythonExec) {
+    for (const cmd of ['python', 'python3']) {
+      try {
+        await execFileAsync(cmd, ['--version']);
+        pythonExec = cmd;
+        break;
+      } catch {
+        // Ignored: binary not found in PATH
+      }
     }
   }
 
+  if (pythonExec) {
+    const payloadJsonPath = path.join(storageDir, `payload_${quoteReference}.json`);
+    fs.writeFileSync(payloadJsonPath, JSON.stringify(payload, null, 2), 'utf8');
+
+    try {
+      await execFileAsync(pythonExec, [pythonScriptPath, payloadJsonPath]);
+    } catch (err: any) {
+      console.warn('[QuotationGenerator Notice]: Python script execution skipped:', err.message || err);
+    } finally {
+      if (fs.existsSync(payloadJsonPath)) {
+        fs.unlinkSync(payloadJsonPath);
+      }
+    }
+  } else {
+    console.log('[QuotationGenerator Notice]: Python binary not present in runtime environment. Filled DOCX generated successfully via pure JS.');
+  }
+
+  const finalPdfPath = fs.existsSync(outputPdfPath) ? outputPdfPath : outputDocxPath;
   const generatedAt = new Date().toISOString();
 
-  // 9. Update Quote Record in Database
+  // 10. Update Quote Record in Database
   await db.run(`
     UPDATE quotes
     SET pdf_path = ?,
@@ -247,12 +266,12 @@ export async function generateQuotationDocument(options: GenerateQuotationOption
         template_version = 'v1.0',
         generated_at = ?
     WHERE id = ?
-  `, [outputPdfPath, outputDocxPath, formattedValidUntil, generatedAt, quoteId]);
+  `, [finalPdfPath, outputDocxPath, formattedValidUntil, generatedAt, quoteId]);
 
   return {
     quoteId,
     quoteReference,
-    pdfPath: outputPdfPath,
+    pdfPath: finalPdfPath,
     docxPath: outputDocxPath,
     validUntil: formattedValidUntil,
     generatedAt
