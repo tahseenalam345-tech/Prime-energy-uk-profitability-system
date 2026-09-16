@@ -319,24 +319,99 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({ currentUser })
            d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Status Change Handler for Requirement Items
-  const handleItemStatusChange = async (itemId: string, newStatus: string) => {
+  // Status Change Handler for Requirement Items with Instant Optimistic UI Update (0ms delay)
+  const handleItemStatusChange = (itemId: string, newStatus: string) => {
     if (!workspace) return;
-    try {
-      await api.updateSubmissionItem(workspace.id, itemId, {
-        status: newStatus,
-        user_id: currentUser?.id || 'system',
-        user_name: currentUser?.name || currentUser?.username || 'System User'
+
+    const nowIso = new Date().toISOString();
+
+    // 1. INSTANT OPTIMISTIC STATE UPDATE (0ms UI latency)
+    setWorkspace(prev => {
+      if (!prev || !prev.stages) return prev;
+
+      let totalCompleted = 0;
+      let totalApplicable = 0;
+
+      const updatedStages = prev.stages.map(stg => {
+        const itemIdx = stg.items.findIndex(i => i.id === itemId);
+        if (itemIdx === -1) {
+          const applicable = stg.items.filter(i => i.status !== 'Not Required' && i.status !== 'Superseded');
+          const completed = applicable.filter(i => i.status === 'Completed').length;
+          totalApplicable += applicable.length;
+          totalCompleted += completed;
+          return stg;
+        }
+
+        const updatedItems = stg.items.map(i => {
+          if (i.id === itemId) {
+            return {
+              ...i,
+              status: newStatus,
+              updated_at: nowIso,
+              completed_date: newStatus === 'Completed' ? nowIso.split('T')[0] : (newStatus !== i.status ? null : i.completed_date)
+            };
+          }
+          return i;
+        });
+
+        const applicable = updatedItems.filter(i => i.status !== 'Not Required' && i.status !== 'Superseded');
+        const completed = applicable.filter(i => i.status === 'Completed').length;
+        const pct = applicable.length > 0 ? Math.round((completed / applicable.length) * 100) : 0;
+
+        totalApplicable += applicable.length;
+        totalCompleted += completed;
+
+        let stageStatus = stg.status;
+        if (applicable.length === 0) {
+          stageStatus = 'Not Required';
+        } else if (completed === applicable.length) {
+          stageStatus = 'Completed';
+        } else if (updatedItems.some(i => i.status === 'Rejected')) {
+          stageStatus = 'Blocked';
+        } else if (updatedItems.some(i => i.status === 'In Progress' || i.status === 'Awaiting Customer' || i.status === 'Awaiting Ofgem' || i.status === 'Awaiting MCS' || i.status === 'Pending')) {
+          stageStatus = 'In Progress';
+        }
+
+        return {
+          ...stg,
+          items: updatedItems,
+          completedCount: completed,
+          applicableCount: applicable.length,
+          completionPercentage: pct,
+          status: stageStatus
+        };
       });
-      const updatedWs = await api.getSubmissionDetail(workspace.id);
-      setWorkspace(updatedWs);
-      if (selectedItem && selectedItem.id === itemId) {
-        setSelectedItem(prev => prev ? { ...prev, status: newStatus } : null);
-      }
-    } catch (err: any) {
-      console.error('Failed to update item status:', err);
-      alert('Failed to update status: ' + (err.message || 'Error'));
+
+      const overallPct = totalApplicable > 0 ? Math.round((totalCompleted / totalApplicable) * 100) : 0;
+
+      return {
+        ...prev,
+        stages: updatedStages,
+        overallCompletionPercentage: overallPct
+      };
+    });
+
+    if (selectedItem && selectedItem.id === itemId) {
+      setSelectedItem(prev => prev ? {
+        ...prev,
+        status: newStatus,
+        updated_at: nowIso
+      } : null);
     }
+
+    // 2. ASYNCHRONOUS BACKGROUND API SYNC
+    api.updateSubmissionItem(workspace.id, itemId, {
+      status: newStatus,
+      user_id: currentUser?.id || 'system',
+      user_name: currentUser?.name || currentUser?.username || 'System User'
+    }).then(() => {
+      api.getSubmissionDetail(workspace.id).then(refreshed => {
+        setWorkspace(refreshed);
+      }).catch(err => console.error('Silent refresh failed:', err));
+    }).catch(err => {
+      console.error('Failed to sync item status:', err);
+      alert('Failed to save status update to server: ' + (err.message || 'Error'));
+    });
   };
 
   // Interactive Status Dropdown Select Component
@@ -390,7 +465,7 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({ currentUser })
             borderRadius: '20px',
             padding: '5px 28px 5px 12px',
             fontSize: '0.78rem',
-            fontWeight: 800,
+            fontWeight: 600,
             cursor: 'pointer',
             outline: 'none',
             boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
@@ -399,7 +474,7 @@ export const SubmissionsView: React.FC<SubmissionsViewProps> = ({ currentUser })
           title="Click to update status"
         >
           {allOptions.map(opt => (
-            <option key={opt} value={opt} style={{ background: '#ffffff', color: '#1e293b', fontWeight: 600 }}>
+            <option key={opt} value={opt} style={{ background: '#ffffff', color: '#1e293b', fontWeight: 500 }}>
               {opt.toUpperCase()}
             </option>
           ))}
