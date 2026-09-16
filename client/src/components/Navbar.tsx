@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Flame, Calculator, ClipboardCheck, Users, FileText, Package, Tag, BookOpen, BarChart3, Settings, Shield, Sun, Moon, LogOut, LogIn, Eye } from 'lucide-react';
+import { Flame, Calculator, ClipboardCheck, Users, FileText, Package, Tag, BookOpen, BarChart3, Settings, Shield, ShieldCheck, Sun, Moon, LogOut, LogIn, Eye } from 'lucide-react';
 import { User } from '../types.js';
 
 interface NavbarProps {
