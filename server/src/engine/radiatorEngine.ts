@@ -161,7 +161,7 @@ export async function estimateRadiatorRequirements(inputs: RadiatorEstimationInp
       return {
         mode: 'REPLACEMENT_REQUIRED',
         estimatedReplacementCount: 0,
-        displayQuantity: 'Upgrade quantity not quantified pre-survey',
+        displayQuantity: 'Radiator replacement estimate: Pending survey',
         unitAllowanceCostExVat,
         totalRadiatorCostExVat: 0,
         lineItems: [],
@@ -343,36 +343,62 @@ export function evaluateExistingEmitterCapacity(inputs: EmitterCapacityInputs): 
   }
 
   // Count / Dominant Type Only (No exact dimensions / UINs supplied)
-  // Rule 5: When only count + dominant type are known: produce qualitative emitter information only.
-  // Do NOT invent total radiator kW. Do NOT calculate house heat loss from radiator count/type.
   const isUnknown = totalCount === 0 || dominantType === 'MIXED_UNKNOWN' || dominantType === 'UNKNOWN' || dominantType === 'Mixed' || dominantType === 'Don’t know';
 
   let confidenceLevel: 'High' | 'Medium' | 'Low' | 'Unknown' = 'Unknown';
   let comparisonResult: 'Low emitter capacity' | 'Plausible match' | 'High emitter capacity' | 'Unknown' = 'Unknown';
   let qualitativeSummary = '';
+  let estimatedOutputKwAt50: number | null = null;
+  let estimatedOutputKwAt30: number | null = null;
+  let estimatedOutputKwAt50Display = 'Not calculated';
+  let estimatedOutputKwAt30Display = 'Not calculated';
 
   if (isUnknown) {
     confidenceLevel = 'Unknown';
     comparisonResult = 'Unknown';
-    qualitativeSummary = 'Radiator count or dominant type unsupplied or mixed unknown. Qualitative pre-survey indicator only.';
+    qualitativeSummary = 'Radiator count or dominant type unsupplied or mixed unknown. Pre-survey qualitative indicator only.';
   } else {
     confidenceLevel = 'Low';
-    if (dominantType === 'K2') {
-      comparisonResult = 'Plausible match';
-      qualitativeSummary = 'Mostly K2 radiators indicate higher potential emitter output per size than K1/P+. Qualitative indicator only; does NOT alter heat loss.';
-    } else if (dominantType === 'K1') {
-      comparisonResult = 'Low emitter capacity';
-      qualitativeSummary = 'Mostly K1 radiators may have lower low-temperature emitter capacity. Qualitative indicator only; does NOT alter heat loss.';
+
+    // Calculate indicative capacity using Stelrad Compact 600x1000 standard benchmarks
+    // K1: 968W @ Δt50, 493W @ Δt30
+    // P+: 1332W @ Δt50, 679W @ Δt30
+    // K2: 1747W @ Δt50, 890W @ Δt30
+    let perRad50W = 1500;
+    let perRad30W = 750;
+
+    if (dominantType === 'K1') {
+      perRad50W = 968;
+      perRad30W = 493;
+      qualitativeSummary = 'Mostly K1 radiators indicate lower low-temperature emitter surface area. Indicative pre-survey indicator only; does NOT alter building heat loss.';
     } else if (dominantType === 'P_PLUS' || dominantType === 'P+') {
-      comparisonResult = 'Plausible match';
-      qualitativeSummary = 'Mostly P+ (Type 21) radiators provide moderate emitter surface area. Qualitative indicator only; does NOT alter heat loss.';
+      perRad50W = 1332;
+      perRad30W = 679;
+      qualitativeSummary = 'Mostly P+ (Type 21) radiators provide moderate emitter surface area. Indicative pre-survey indicator only; does NOT alter building heat loss.';
+    } else if (dominantType === 'K2') {
+      perRad50W = 1747;
+      perRad30W = 890;
+      qualitativeSummary = 'Mostly K2 radiators indicate higher emitter output per size than K1/P+. Indicative pre-survey indicator only; does NOT alter building heat loss.';
     } else {
-      comparisonResult = 'Unknown';
-      qualitativeSummary = 'Mixed or unknown radiator types; lower confidence pre-survey indicator.';
+      perRad50W = 1350;
+      perRad30W = 680;
+      qualitativeSummary = 'Mixed radiator types provide moderate estimated emitter capacity. Indicative pre-survey indicator only; does NOT alter building heat loss.';
+    }
+
+    estimatedOutputKwAt50 = Math.round((totalCount * perRad50W / 1000) * 10) / 10;
+    estimatedOutputKwAt30 = Math.round((totalCount * perRad30W / 1000) * 10) / 10;
+
+    estimatedOutputKwAt50Display = `~${estimatedOutputKwAt50.toFixed(1)} kW @ Δt50 (indicative based on standard 600x1000 panel reference)`;
+    estimatedOutputKwAt30Display = `~${estimatedOutputKwAt30.toFixed(1)} kW @ Δt30 (indicative low-temp capacity)`;
+
+    if (estimatedHeatDemandKw > 0 && estimatedOutputKwAt30 < estimatedHeatDemandKw * 0.9) {
+      comparisonResult = 'Low emitter capacity';
+    } else {
+      comparisonResult = 'Plausible match';
     }
   }
 
-  notes.push('Count and dominant type supplied — reported as qualitative emitter indicator. Total radiator kW set to "Not calculated".');
+  notes.push('Count and dominant type supplied — calculated indicative Stelrad Compact emitter capacity. Emitter capacity does NOT alter building heat loss.');
 
   const warningMessage = comparisonResult === 'Low emitter capacity'
     ? 'Existing emitter capacity may be insufficient at the proposed lower flow temperature.'
@@ -385,15 +411,15 @@ export function evaluateExistingEmitterCapacity(inputs: EmitterCapacityInputs): 
     radiatorInfoConfidence: confidenceInput,
     hasExactScheduleOrDimensions: false,
     confidenceLevel,
-    estimatedOutputKwAt50: null,
-    estimatedOutputKwAt50Display: 'Not calculated',
-    estimatedOutputKwAt30: null,
-    estimatedOutputKwAt30Display: 'Not calculated',
+    estimatedOutputKwAt50,
+    estimatedOutputKwAt50Display,
+    estimatedOutputKwAt30,
+    estimatedOutputKwAt30Display,
     qualitativeSummary,
     comparisonResult,
     plausibilityCheck: {
       estimatedHeatDemandKw,
-      emitterCapacityKw: null,
+      emitterCapacityKw: estimatedOutputKwAt30 ?? estimatedOutputKwAt50,
       comparisonResult,
       warningMessage,
       statusLabel: comparisonResult
@@ -403,5 +429,6 @@ export function evaluateExistingEmitterCapacity(inputs: EmitterCapacityInputs): 
     notes
   };
 }
+
 
 

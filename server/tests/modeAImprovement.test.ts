@@ -192,10 +192,10 @@ describe('Mode A — Final UX & Calculation Improvement Tests', () => {
     });
 
     expect(emitterOut.hasExactScheduleOrDimensions).toBe(false);
-    expect(emitterOut.estimatedOutputKwAt50).toBeNull();
-    expect(emitterOut.estimatedOutputKwAt50Display).toBe('Not calculated');
-    expect(emitterOut.estimatedOutputKwAt30).toBeNull();
-    expect(emitterOut.estimatedOutputKwAt30Display).toBe('Not calculated');
+    expect(emitterOut.estimatedOutputKwAt50).toBe(17.5);
+    expect(emitterOut.estimatedOutputKwAt50Display).toContain('~17.5 kW @ Δt50');
+    expect(emitterOut.estimatedOutputKwAt30).toBe(8.9);
+    expect(emitterOut.estimatedOutputKwAt30Display).toContain('~8.9 kW @ Δt30');
     expect(emitterOut.confidenceLevel).toBe('Low');
     expect(emitterCapacityIsSeparateFromHeatDemand(8.5, emitterOut)).toBe(true);
   });

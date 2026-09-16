@@ -193,6 +193,8 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [ashpSearchQuery, setAshpSearchQuery] = useState('');
   const [ashpBrandFilter, setAshpBrandFilter] = useState('ALL');
   const [cylinderSearchQuery, setCylinderSearchQuery] = useState('');
+  const [cylinderSortField, setCylinderSortField] = useState<'capacity' | 'brand' | 'price'>('capacity');
+  const [cylinderSortOrder, setCylinderSortOrder] = useState<'asc' | 'desc'>('asc');
 
   // 6. Rule Evidence popover state
   const [activeRuleEvidence, setActiveRuleEvidence] = useState<RuleEvidence | null>(null);
@@ -574,13 +576,37 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const ashpBrands = Array.from(new Set(ashpCatalog.map(p => p.brand || p.manufacturer))).filter(Boolean);
 
   // Filtered Cylinders for selection modal
-  const filteredCylinders = cylinderCatalog.filter(c => {
-    return !cylinderSearchQuery ||
-      c.model.toLowerCase().includes(cylinderSearchQuery.toLowerCase()) ||
-      c.brand.toLowerCase().includes(cylinderSearchQuery.toLowerCase()) ||
-      c.manufacturer.toLowerCase().includes(cylinderSearchQuery.toLowerCase()) ||
-      c.nominal_litres.toString().includes(cylinderSearchQuery);
-  });
+  const filteredCylinders = cylinderCatalog
+    .filter(c => {
+      return !cylinderSearchQuery ||
+        (c.model || '').toLowerCase().includes(cylinderSearchQuery.toLowerCase()) ||
+        (c.brand || '').toLowerCase().includes(cylinderSearchQuery.toLowerCase()) ||
+        (c.manufacturer || '').toLowerCase().includes(cylinderSearchQuery.toLowerCase()) ||
+        (c.nominal_litres || '').toString().includes(cylinderSearchQuery);
+    })
+    .sort((a, b) => {
+      let res = 0;
+      if (cylinderSortField === 'capacity') {
+        res = Number(a.nominal_litres || 0) - Number(b.nominal_litres || 0);
+      } else if (cylinderSortField === 'brand') {
+        res = (a.brand || a.manufacturer || '').localeCompare(b.brand || b.manufacturer || '');
+      } else if (cylinderSortField === 'price') {
+        res = Number(a.price_ex_vat || 0) - Number(b.price_ex_vat || 0);
+      }
+      return cylinderSortOrder === 'asc' ? res : -res;
+    });
+
+  const reqCylinderLitres = result?.cylinder?.recommendedVolumeLitres || 200;
+  const top3Cylinders = [...cylinderCatalog]
+    .sort((a, b) => {
+      const litA = Number(a.nominal_litres || 0);
+      const litB = Number(b.nominal_litres || 0);
+      const diffA = litA >= reqCylinderLitres ? litA - reqCylinderLitres : 1000 + (reqCylinderLitres - litA);
+      const diffB = litB >= reqCylinderLitres ? litB - reqCylinderLitres : 1000 + (reqCylinderLitres - litB);
+      if (diffA !== diffB) return diffA - diffB;
+      return Number(a.price_ex_vat || 0) - Number(b.price_ex_vat || 0);
+    })
+    .slice(0, 3);
 
   return (
     <div className="new-lead-view-container">
@@ -1694,18 +1720,52 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
           display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1050, padding: '16px'
         }}>
           <div style={{
-            background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border)', borderRadius: '12px', maxWidth: '750px', width: '100%',
+            background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border)', borderRadius: '12px', maxWidth: '800px', width: '100%',
             boxShadow: 'var(--shadow-lg)', overflow: 'hidden'
           }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-panel)' }}>
               <div>
                 <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>Select Hot Water Cylinder</h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Choose any suitable capacity cylinder from the catalog</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Required Volume: <strong>{reqCylinderLitres} L</strong> (based on beds/baths rules)</span>
               </div>
               <button onClick={() => setShowCylinderModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
                 <X size={20} />
               </button>
             </div>
+
+            {/* Top 3 Recommended Cylinders Banner */}
+            {top3Cylinders.length > 0 && (
+              <div style={{ padding: '12px 16px', background: 'var(--bg-panel)', borderBottom: '1px solid var(--border)' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#b45309', marginBottom: '8px' }}>
+                  ★ Top 3 Recommended Cylinders for Current Job
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '8px' }}>
+                  {top3Cylinders.map((rec, idx) => {
+                    const isSelected = overrideCylinderId === rec.id || (!overrideCylinderId && result?.cylinder?.recommendedProduct?.id === rec.id);
+                    return (
+                      <div
+                        key={rec.id}
+                        onClick={() => {
+                          setOverrideCylinderId(rec.id);
+                          setShowCylinderModal(false);
+                        }}
+                        style={{
+                          padding: '8px 12px', borderRadius: '6px', border: `1px solid ${isSelected ? 'var(--primary)' : 'var(--border)'}`,
+                          background: isSelected ? 'var(--primary-light)' : 'var(--bg-card)', cursor: 'pointer'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#b45309', fontWeight: 700 }}>
+                          <span>#{idx + 1} Best Fit</span>
+                          {isSelected && <span style={{ color: 'var(--primary)' }}>Selected</span>}
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)' }}>{rec.nominal_litres}L — {rec.brand} {rec.model}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>£{(rec.price_ex_vat || 0).toLocaleString()} ex VAT</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', background: 'var(--bg-card)' }}>
               <input
@@ -1721,10 +1781,34 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
               <table className="data-table" style={{ fontSize: '0.8125rem' }}>
                 <thead>
                   <tr>
-                    <th>Capacity</th>
-                    <th>Brand & Model</th>
+                    <th
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        if (cylinderSortField === 'capacity') setCylinderSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                        else { setCylinderSortField('capacity'); setCylinderSortOrder('asc'); }
+                      }}
+                    >
+                      Capacity {cylinderSortField === 'capacity' ? (cylinderSortOrder === 'asc' ? '↑' : '↓') : '↕'}
+                    </th>
+                    <th
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        if (cylinderSortField === 'brand') setCylinderSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                        else { setCylinderSortField('brand'); setCylinderSortOrder('asc'); }
+                      }}
+                    >
+                      Brand & Model {cylinderSortField === 'brand' ? (cylinderSortOrder === 'asc' ? '↑' : '↓') : '↕'}
+                    </th>
                     <th>Supplier</th>
-                    <th>Price (ex VAT)</th>
+                    <th
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        if (cylinderSortField === 'price') setCylinderSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+                        else { setCylinderSortField('price'); setCylinderSortOrder('asc'); }
+                      }}
+                    >
+                      Price (ex VAT) {cylinderSortField === 'price' ? (cylinderSortOrder === 'asc' ? '↑' : '↓') : '↕'}
+                    </th>
                     <th>Action</th>
                   </tr>
                 </thead>

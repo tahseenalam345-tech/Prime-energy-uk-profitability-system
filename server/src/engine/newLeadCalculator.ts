@@ -275,7 +275,7 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
     estimatedHeatDemandKw: heatDemand.maxDemandKw
   });
 
-  const isLowCapacityIndicated = emitterCapacity.matchStatus === 'LOW_EMITTER_CAPACITY' || emitterCapacity.matchStatus === 'INSUFFICIENT_EMITTER_CAPACITY';
+  const isLowCapacityIndicated = emitterCapacity.comparisonResult === 'Low emitter capacity';
 
   const radiators = await estimateRadiatorRequirements({
     heatDemandKw: heatDemand.centralDemandKw,

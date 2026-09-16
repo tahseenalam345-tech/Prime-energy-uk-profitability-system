@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle2, ShieldCheck, Zap, Award, Tag, Info, AlertTriangle } from 'lucide-react';
-import { Badge } from './Badge.js';
+import { X, CheckCircle2, ShieldCheck, Zap, Award, Tag, Info, AlertTriangle, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
 export interface SuitableAshpItem {
   id: string;
@@ -19,6 +18,7 @@ export interface SuitableAshpItem {
   mcsReference?: string | null;
   priceExVat?: number | null;
   supplier?: string | null;
+  manualUrl?: string | null;
 }
 
 export interface SuitableAshpsModalProps {
@@ -38,6 +38,8 @@ export interface SuitableAshpsModalProps {
   allAshps?: SuitableAshpItem[];
 }
 
+type SortField = 'brand' | 'model' | 'ratedOutput' | 'price' | 'mcsStatus';
+
 export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
   isOpen,
   onClose,
@@ -49,54 +51,61 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
   allAshps = []
 }) => {
   const [activeTab, setActiveTab] = useState<'preferred' | 'bestMatch' | 'valueCost' | 'all'>('preferred');
+  const [sortField, setSortField] = useState<SortField>('ratedOutput');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   if (!isOpen) return null;
 
   const reqDemand = Number(requiredHeatDemandKw ?? estimatedHeatDemandKw ?? 0);
 
-  const safeQualifyingList = (categorizedAshps?.allQualifying && categorizedAshps.allQualifying.length > 0)
+  const safeQualifyingList: SuitableAshpItem[] = (categorizedAshps?.allQualifying && categorizedAshps.allQualifying.length > 0)
     ? categorizedAshps.allQualifying
     : (allAshps && allAshps.length > 0)
     ? allAshps
+    : (categorizedAshps?.bestMatch && categorizedAshps.bestMatch.length > 0)
+    ? categorizedAshps.bestMatch
     : [];
 
   const filterQualifying = (list: SuitableAshpItem[]) => {
     return list.filter(p => {
-      const rated = Number(p.ratedOutputAtDesign ?? p.ratedOutputKw ?? 0);
+      const rated = Number(p.ratedOutputAtDesign ?? p.ratedOutputKw ?? p.nominalCapacity ?? 0);
       const isVerified = (p.mcsStatus || '').toUpperCase() !== 'UNVERIFIED';
       return (reqDemand === 0 || rated >= reqDemand) && isVerified;
     });
   };
 
   const rawQualifying = filterQualifying(safeQualifyingList);
+  const fallbackList = safeQualifyingList.length > 0 ? safeQualifyingList : [];
+
+  const effectiveQualifying = rawQualifying.length > 0 ? rawQualifying : fallbackList;
 
   const preferredBrands = ['daikin', 'vaillant', 'mitsubishi', 'viessmann', 'baxi', 'grant'];
-
   const getBrandString = (p: SuitableAshpItem) => (p.brand || p.manufacturer || '').toLowerCase();
 
-  const preferredList = (categorizedAshps?.preferred?.length ? filterQualifying(categorizedAshps.preferred) : rawQualifying)
-    .filter(p => preferredBrands.some(b => getBrandString(p).includes(b)))
+  // Top 3 Recommendation Logic:
+  // 1. Meets requirement
+  // 2. Lowest technical surplus (closest fit to heat demand)
+  // 3. Certified status
+  // 4. Commercial cost
+  const top3Recommended = [...effectiveQualifying]
     .sort((a, b) => {
       const ratedA = Number(a.ratedOutputAtDesign ?? a.ratedOutputKw ?? 0);
       const ratedB = Number(b.ratedOutputAtDesign ?? b.ratedOutputKw ?? 0);
-      return (ratedA - reqDemand) - (ratedB - reqDemand);
-    });
+      const surplusA = reqDemand > 0 ? ratedA - reqDemand : ratedA;
+      const surplusB = reqDemand > 0 ? ratedB - reqDemand : ratedB;
+      if (surplusA !== surplusB) return surplusA - surplusB;
+      const priceA = Number(a.priceExVat ?? 0);
+      const priceB = Number(b.priceExVat ?? 0);
+      return priceA - priceB;
+    })
+    .slice(0, 3);
 
-  const bestMatchList = (categorizedAshps?.bestMatch?.length ? filterQualifying(categorizedAshps.bestMatch) : rawQualifying)
-    .sort((a, b) => {
-      const ratedA = Number(a.ratedOutputAtDesign ?? a.ratedOutputKw ?? 0);
-      const ratedB = Number(b.ratedOutputAtDesign ?? b.ratedOutputKw ?? 0);
-      return (ratedA - reqDemand) - (ratedB - reqDemand);
-    });
+  const preferredList = (categorizedAshps?.preferred?.length ? filterQualifying(categorizedAshps.preferred) : effectiveQualifying)
+    .filter(p => preferredBrands.some(b => getBrandString(p).includes(b)));
 
-  const valueCostList = (categorizedAshps?.valueCost?.length ? filterQualifying(categorizedAshps.valueCost) : rawQualifying)
-    .sort((a, b) => Number(a.priceExVat ?? 0) - Number(b.priceExVat ?? 0));
-
-  const allList = [...rawQualifying].sort((a, b) => {
-    const ratedA = Number(a.ratedOutputAtDesign ?? a.ratedOutputKw ?? 0);
-    const ratedB = Number(b.ratedOutputAtDesign ?? b.ratedOutputKw ?? 0);
-    return (ratedA - reqDemand) - (ratedB - reqDemand);
-  });
+  const bestMatchList = (categorizedAshps?.bestMatch?.length ? filterQualifying(categorizedAshps.bestMatch) : effectiveQualifying);
+  const valueCostList = (categorizedAshps?.valueCost?.length ? filterQualifying(categorizedAshps.valueCost) : effectiveQualifying);
+  const allList = effectiveQualifying;
 
   const getActiveList = () => {
     switch (activeTab) {
@@ -110,18 +119,58 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
 
   const activeItems = getActiveList();
 
+  const handleSortToggle = (field: SortField) => {
+    if (sortField === field) {
+      setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
+    }
+  };
+
+  const sortedItems = [...activeItems].sort((a, b) => {
+    let result = 0;
+    if (sortField === 'brand') {
+      const brandA = (a.brand || a.manufacturer || '').toLowerCase();
+      const brandB = (b.brand || b.manufacturer || '').toLowerCase();
+      result = brandA.localeCompare(brandB);
+    } else if (sortField === 'model') {
+      const modelA = (a.model || '').toLowerCase();
+      const modelB = (b.model || '').toLowerCase();
+      result = modelA.localeCompare(modelB);
+    } else if (sortField === 'ratedOutput') {
+      const ratedA = Number(a.ratedOutputAtDesign ?? a.ratedOutputKw ?? 0);
+      const ratedB = Number(b.ratedOutputAtDesign ?? b.ratedOutputKw ?? 0);
+      result = ratedA - ratedB;
+    } else if (sortField === 'price') {
+      const priceA = Number(a.priceExVat ?? 0);
+      const priceB = Number(b.priceExVat ?? 0);
+      result = priceA - priceB;
+    } else if (sortField === 'mcsStatus') {
+      const statusA = (a.mcsStatus || '').toLowerCase();
+      const statusB = (b.mcsStatus || '').toLowerCase();
+      result = statusA.localeCompare(statusB);
+    }
+    return sortOrder === 'asc' ? result : -result;
+  });
+
+  const renderSortIndicator = (field: SortField) => {
+    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 text-slate-500 ml-1 inline" />;
+    return sortOrder === 'asc' ? <ArrowUp className="w-3.5 h-3.5 text-emerald-400 ml-1 inline" /> : <ArrowDown className="w-3.5 h-3.5 text-emerald-400 ml-1 inline" />;
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
+        <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
           <div>
             <div className="flex items-center space-x-2">
               <Zap className="w-5 h-5 text-emerald-400" />
               <h2 className="text-xl font-bold text-white">Technically Suitable Verified Heat Pumps</h2>
             </div>
             <p className="text-sm text-slate-400 mt-1">
-              Required Output: <span className="font-semibold text-emerald-400">≥ {reqDemand > 0 ? reqDemand.toFixed(1) : 'N/A'} kW</span> at design condition | All models verified
+              Required Output: <span className="font-semibold text-emerald-400">≥ {reqDemand > 0 ? reqDemand.toFixed(1) : 'N/A'} kW</span> at design condition | Certified MCS Catalog
             </p>
           </div>
           <button
@@ -131,6 +180,47 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Top 3 Recommended Banner */}
+        {top3Recommended.length > 0 && (
+          <div className="p-4 bg-slate-950/80 border-b border-slate-800">
+            <div className="flex items-center space-x-2 mb-2.5">
+              <Award className="w-4 h-4 text-amber-400" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300">Top 3 Recommended for Current Job</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {top3Recommended.map((rec, idx) => {
+                const rated = Number(rec.ratedOutputAtDesign ?? rec.ratedOutputKw ?? 0);
+                const price = Number(rec.priceExVat ?? 0);
+                const isSelected = selectedAshpId === rec.id;
+                return (
+                  <div
+                    key={rec.id}
+                    onClick={() => {
+                      onSelectAshp(rec.id);
+                      onClose();
+                    }}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                      isSelected
+                        ? 'bg-emerald-950/40 border-emerald-500 shadow-md ring-1 ring-emerald-500/50'
+                        : 'bg-slate-900/90 border-slate-800 hover:border-emerald-500/60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <span className="font-bold text-amber-400">#{idx + 1} Best Fit</span>
+                      {isSelected && <span className="text-emerald-400 font-bold">Selected</span>}
+                    </div>
+                    <div className="font-semibold text-white text-sm truncate">{rec.brand || rec.manufacturer} {rec.model}</div>
+                    <div className="flex justify-between items-center text-xs mt-1 text-slate-400">
+                      <span>Rated: <strong className="text-emerald-400">{rated > 0 ? `${rated.toFixed(1)} kW` : 'N/A'}</strong></span>
+                      <span className="font-bold text-slate-200">£{price > 0 ? price.toLocaleString() : 'N/A'} ex VAT</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <div className="flex border-b border-slate-800 bg-slate-950/60 px-5 pt-3 space-x-2">
@@ -179,16 +269,38 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
           </button>
         </div>
 
+        {/* Sort Bar */}
+        <div className="px-5 py-2.5 bg-slate-950/90 border-b border-slate-800 flex flex-wrap items-center justify-between text-xs text-slate-400">
+          <span>Click headers to toggle sort (ASC/DESC):</span>
+          <div className="flex items-center space-x-4">
+            <button onClick={() => handleSortToggle('brand')} className="hover:text-white font-medium flex items-center">
+              Brand {renderSortIndicator('brand')}
+            </button>
+            <button onClick={() => handleSortToggle('model')} className="hover:text-white font-medium flex items-center">
+              Model {renderSortIndicator('model')}
+            </button>
+            <button onClick={() => handleSortToggle('ratedOutput')} className="hover:text-white font-medium flex items-center">
+              Rated kW {renderSortIndicator('ratedOutput')}
+            </button>
+            <button onClick={() => handleSortToggle('price')} className="hover:text-white font-medium flex items-center">
+              Price ex VAT {renderSortIndicator('price')}
+            </button>
+            <button onClick={() => handleSortToggle('mcsStatus')} className="hover:text-white font-medium flex items-center">
+              MCS Status {renderSortIndicator('mcsStatus')}
+            </button>
+          </div>
+        </div>
+
         {/* Content List */}
         <div className="flex-1 overflow-y-auto p-5 space-y-3">
-          {activeItems.length === 0 ? (
+          {sortedItems.length === 0 ? (
             <div className="p-8 text-center bg-slate-950/40 rounded-xl border border-slate-800/80">
               <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto mb-2" />
-              <p className="text-slate-300 font-medium">No qualifying models in this category.</p>
-              <p className="text-sm text-slate-500 mt-1">Try switching to the "All Models" tab to view available alternatives.</p>
+              <p className="text-slate-300 font-medium">No qualifying models in this view.</p>
+              <p className="text-sm text-slate-500 mt-1">Try switching tabs or adjusting property heat demand inputs.</p>
             </div>
           ) : (
-            activeItems.map((item) => {
+            sortedItems.map((item) => {
               const isSelected = selectedAshpId === item.id;
               const ratedOutput = Number(item.ratedOutputAtDesign ?? item.ratedOutputKw ?? 0);
               const nominalKw = Number(item.nominalCapacity ?? item.marketingNominalKw ?? 0);
@@ -242,7 +354,7 @@ export const SuitableAshpsModal: React.FC<SuitableAshpsModalProps> = ({
 
                   <div className="flex items-center space-x-4 justify-between md:justify-end">
                     <div className="text-right">
-                      <div className="text-lg font-bold text-white">£{priceEx.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="text-lg font-bold text-white">£{priceEx > 0 ? priceEx.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</div>
                       <div className="text-xs text-slate-400">ex. VAT</div>
                     </div>
 
