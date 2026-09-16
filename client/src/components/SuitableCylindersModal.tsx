@@ -130,35 +130,69 @@ export const SuitableCylindersModal: React.FC<SuitableCylindersModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/65 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700/60 rounded-2xl shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      backgroundColor: 'rgba(15, 23, 42, 0.75)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1050,
+      padding: '16px',
+      backdropFilter: 'blur(4px)'
+    }}>
+      <div style={{
+        background: 'var(--bg-card, #0f172a)',
+        color: 'var(--text-main, #f8fafc)',
+        border: '1px solid var(--border, #334155)',
+        borderRadius: '16px',
+        maxWidth: '980px',
+        width: '100%',
+        maxHeight: '90vh',
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.6)'
+      }}>
         {/* Header */}
-        <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
+        <div style={{
+          padding: '18px 24px',
+          borderBottom: '1px solid var(--border, #1e293b)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: 'var(--bg-panel, #0f172a)'
+        }}>
           <div>
-            <div className="flex items-center space-x-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              <h2 className="text-xl font-bold text-white">Select Hot Water Storage Cylinder</h2>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <ShieldCheck size={20} color="#10b981" />
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, margin: 0, color: 'var(--text-main, #ffffff)' }}>
+                Select Hot Water Storage Cylinder
+              </h2>
             </div>
-            <p className="text-sm text-slate-400 mt-1">
-              Required Minimum Capacity: <span className="font-semibold text-emerald-400">{targetVol} L</span> (CIBSE / BS 6700 Rule)
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-muted, #94a3b8)', marginTop: '4px', margin: 0 }}>
+              Required Minimum Capacity: <strong style={{ color: '#10b981' }}>{targetVol} L</strong> (CIBSE / BS 6700 Rule)
             </p>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted, #94a3b8)', padding: '6px', borderRadius: '6px' }}
           >
-            <X className="w-5 h-5" />
+            <X size={20} />
           </button>
         </div>
 
         {/* Top 3 Recommended Cylinders Banner */}
         {top3Recommended.length > 0 && (
-          <div className="p-4 bg-slate-950/80 border-b border-slate-800">
-            <div className="flex items-center space-x-2 mb-2.5">
-              <Award className="w-4 h-4 text-amber-400" />
-              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-300">Top 3 Recommended Cylinders for Current Job</h3>
+          <div style={{ padding: '14px 20px', background: '#090d16', borderBottom: '1px solid var(--border, #1e293b)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+              <Award size={16} color="#fbbf24" />
+              <h3 style={{ fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fcd34d', margin: 0 }}>
+                Top 3 Recommended Cylinders for Current Job
+              </h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
               {top3Recommended.map((option) => {
                 const rec = option.product;
                 const vol = Number(rec.volumeLitres ?? rec.nominal_litres ?? 200);
@@ -171,21 +205,26 @@ export const SuitableCylindersModal: React.FC<SuitableCylindersModalProps> = ({
                       onSelectCylinder(rec.id);
                       onClose();
                     }}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                      isSelected
-                        ? 'bg-emerald-950/40 border-emerald-500 shadow-md ring-1 ring-emerald-500/50'
-                        : 'bg-slate-900/90 border-slate-800 hover:border-emerald-500/60'
-                    }`}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: isSelected ? '2px solid #10b981' : '1px solid var(--border, #1e293b)',
+                      background: isSelected ? 'rgba(6, 78, 59, 0.4)' : '#0f172a',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
                   >
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-bold text-amber-400">#{option.rank} {option.label}</span>
-                      {isSelected && <span className="text-emerald-400 font-bold">Selected</span>}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 800, color: '#fbbf24' }}>#{option.rank} {option.label}</span>
+                      {isSelected && <span style={{ color: '#34d399', fontWeight: 800 }}>Selected</span>}
                     </div>
-                    <div className="font-semibold text-white text-sm truncate">{vol} L — {rec.brand || rec.manufacturer} {rec.model}</div>
-                    <div className="text-xs text-slate-400 mt-0.5 truncate">{option.reason}</div>
-                    <div className="flex justify-between items-center text-xs mt-2 text-slate-400">
-                      <span>Capacity: <strong className="text-sky-400">{vol} L</strong></span>
-                      <span className="font-bold text-slate-200">£{price > 0 ? price.toLocaleString() : 'N/A'} ex VAT</span>
+                    <div style={{ fontWeight: 700, color: '#ffffff', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {vol} L — {rec.brand || rec.manufacturer} {rec.model}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{option.reason}</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', marginTop: '8px', color: '#cbd5e1' }}>
+                      <span>Capacity: <strong style={{ color: '#38bdf8' }}>{vol} L</strong></span>
+                      <span style={{ fontWeight: 700, color: '#f8fafc' }}>£{price > 0 ? price.toLocaleString() : 'N/A'} ex VAT</span>
                     </div>
                   </div>
                 );
@@ -195,42 +234,43 @@ export const SuitableCylindersModal: React.FC<SuitableCylindersModalProps> = ({
         )}
 
         {/* Filter and Search Bar */}
-        <div className="p-4 bg-slate-950/60 border-b border-slate-800 flex items-center justify-between gap-4">
+        <div style={{ padding: '12px 20px', background: '#090d16', borderBottom: '1px solid var(--border, #1e293b)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
           <input
             type="text"
             placeholder="Search cylinder by capacity (150L, 210L...), brand, or model..."
-            className="w-full max-w-md px-3.5 py-2 rounded-lg bg-slate-900 border border-slate-700 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
+            className="form-control"
+            style={{ maxWidth: '420px', width: '100%', padding: '8px 12px', fontSize: '0.85rem' }}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <span className="text-xs text-slate-400">Showing {sortedItems.length} verified models</span>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Showing {sortedItems.length} verified models</span>
         </div>
 
         {/* Sort Bar */}
-        <div className="px-5 py-2.5 bg-slate-950/90 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400">
+        <div style={{ padding: '8px 20px', background: '#090d16', borderBottom: '1px solid var(--border, #1e293b)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8' }}>
           <span>Click column headers to sort numerically:</span>
-          <div className="flex items-center space-x-4">
-            <button onClick={() => handleSortToggle('capacity')} className="hover:text-white font-medium flex items-center">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <button type="button" onClick={() => handleSortToggle('capacity')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: sortField === 'capacity' ? '#ffffff' : '#94a3b8', fontWeight: 600, fontSize: '0.75rem', display: 'flex', alignItems: 'center' }}>
               Capacity (Litres) {renderSortIndicator('capacity')}
             </button>
-            <button onClick={() => handleSortToggle('brand')} className="hover:text-white font-medium flex items-center">
+            <button type="button" onClick={() => handleSortToggle('brand')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: sortField === 'brand' ? '#ffffff' : '#94a3b8', fontWeight: 600, fontSize: '0.75rem', display: 'flex', alignItems: 'center' }}>
               Brand & Model {renderSortIndicator('brand')}
             </button>
-            <button onClick={() => handleSortToggle('supplier')} className="hover:text-white font-medium flex items-center">
+            <button type="button" onClick={() => handleSortToggle('supplier')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: sortField === 'supplier' ? '#ffffff' : '#94a3b8', fontWeight: 600, fontSize: '0.75rem', display: 'flex', alignItems: 'center' }}>
               Supplier {renderSortIndicator('supplier')}
             </button>
-            <button onClick={() => handleSortToggle('price')} className="hover:text-white font-medium flex items-center">
+            <button type="button" onClick={() => handleSortToggle('price')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: sortField === 'price' ? '#ffffff' : '#94a3b8', fontWeight: 600, fontSize: '0.75rem', display: 'flex', alignItems: 'center' }}>
               Price ex VAT {renderSortIndicator('price')}
             </button>
           </div>
         </div>
 
         {/* Table Content */}
-        <div className="flex-1 overflow-y-auto p-5 space-y-3">
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
           {sortedItems.length === 0 ? (
-            <div className="p-8 text-center bg-slate-950/40 rounded-xl border border-slate-800/80">
-              <AlertTriangle className="w-8 h-8 text-amber-400 mx-auto mb-2" />
-              <p className="text-slate-300 font-medium">No cylinder models match query '{searchQuery}'.</p>
+            <div style={{ padding: '32px', textAlign: 'center', background: '#090d16', borderRadius: '12px', border: '1px solid #1e293b' }}>
+              <AlertTriangle size={32} color="#fbbf24" style={{ margin: '0 auto 8px' }} />
+              <p style={{ color: '#e2e8f0', fontWeight: 600, margin: 0 }}>No cylinder models match query '{searchQuery}'.</p>
             </div>
           ) : (
             sortedItems.map((item) => {
@@ -242,48 +282,59 @@ export const SuitableCylindersModal: React.FC<SuitableCylindersModalProps> = ({
               return (
                 <div
                   key={item.id}
-                  className={`p-4 rounded-xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 ${
-                    isSelected
-                      ? 'bg-emerald-950/30 border-emerald-500/80 ring-1 ring-emerald-500/40'
-                      : isBelowRequirement
-                      ? 'bg-slate-950/40 border-slate-800 opacity-70'
-                      : 'bg-slate-900/90 border-slate-800 hover:border-slate-700'
-                  }`}
+                  style={{
+                    padding: '14px 18px',
+                    borderRadius: '12px',
+                    border: isSelected ? '2px solid #10b981' : '1px solid #1e293b',
+                    background: isSelected ? 'rgba(6, 78, 59, 0.25)' : isBelowRequirement ? '#090d16' : '#0f172a',
+                    opacity: isBelowRequirement ? 0.7 : 1,
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px'
+                  }}
                 >
-                  <div className="space-y-1.5 flex-1">
-                    <div className="flex items-center space-x-2.5">
-                      <span className="font-bold text-sky-400 text-base">{vol > 0 ? `${vol} L` : 'N/A'}</span>
-                      <span className="font-bold text-white text-base">{item.brand || item.manufacturer} {item.model}</span>
+                  <div style={{ flex: 1, minWidth: '240px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                      <span style={{ fontWeight: 800, color: '#38bdf8', fontSize: '1rem' }}>{vol > 0 ? `${vol} L` : 'N/A'}</span>
+                      <span style={{ fontWeight: 800, color: '#ffffff', fontSize: '1rem' }}>{item.brand || item.manufacturer} {item.model}</span>
                       {isSelected && (
-                        <span className="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Currently Selected
+                        <span style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.4)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircle2 size={12} /> Currently Selected
                         </span>
                       )}
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400">
-                      <div>Capacity: <strong className="text-sky-300">{vol} Litres</strong></div>
-                      <div>Supplier: <span className="text-slate-300">{item.supplier || 'City Plumbing'}</span></div>
-                      <div>Dimensions: <span className="text-slate-400">{item.dimensions || 'Unvented Stainless Steel'}</span></div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '16px', fontSize: '0.75rem', color: '#94a3b8' }}>
+                      <div>Capacity: <strong style={{ color: '#7dd3fc' }}>{vol} Litres</strong></div>
+                      <div>Supplier: <span style={{ color: '#cbd5e1' }}>{item.supplier || 'City Plumbing'}</span></div>
+                      <div>Dimensions: <span style={{ color: '#94a3b8' }}>{item.dimensions || 'Unvented Stainless Steel'}</span></div>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-4 justify-between md:justify-end">
-                    <div className="text-right">
-                      <div className="text-lg font-bold text-white">£{priceEx > 0 ? priceEx.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</div>
-                      <div className="text-xs text-slate-400">ex. VAT</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#ffffff' }}>£{priceEx > 0 ? priceEx.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}</div>
+                      <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>ex. VAT</div>
                     </div>
 
                     <button
+                      type="button"
                       onClick={() => {
                         onSelectCylinder(item.id);
                         onClose();
                       }}
-                      className={`px-4 py-2 rounded-lg font-semibold text-sm transition-all ${
-                        isSelected
-                          ? 'bg-emerald-600 text-white hover:bg-emerald-500 shadow-md shadow-emerald-950'
-                          : 'bg-slate-800 hover:bg-emerald-600 text-slate-200 hover:text-white border border-slate-700 hover:border-emerald-500'
-                      }`}
+                      className={isSelected ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm'}
+                      style={{
+                        padding: '8px 16px',
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        background: isSelected ? '#059669' : '#0f172a',
+                        color: '#ffffff',
+                        border: isSelected ? '1px solid #10b981' : '1px solid #334155'
+                      }}
                     >
                       {isSelected ? 'Selected' : 'Select Cylinder'}
                     </button>
@@ -295,14 +346,16 @@ export const SuitableCylindersModal: React.FC<SuitableCylindersModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-950/80 flex items-center justify-between text-xs text-slate-400">
-          <div className="flex items-center space-x-1.5">
-            <Info className="w-4 h-4 text-emerald-400" />
+        <div style={{ padding: '14px 24px', borderTop: '1px solid var(--border, #1e293b)', background: '#090d16', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#94a3b8' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Info size={16} color="#10b981" />
             <span>Cylinder sizing is derived from property occupancy rules (CIBSE / BS 6700).</span>
           </div>
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition-colors font-medium text-sm"
+            className="btn btn-secondary btn-sm"
+            style={{ padding: '6px 16px', fontSize: '0.85rem' }}
           >
             Close
           </button>
@@ -311,3 +364,4 @@ export const SuitableCylindersModal: React.FC<SuitableCylindersModalProps> = ({
     </div>
   );
 };
+

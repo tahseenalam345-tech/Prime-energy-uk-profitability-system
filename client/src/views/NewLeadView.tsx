@@ -1399,7 +1399,8 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                       <button
-                        onClick={() => setShowSuitableAshpsModal(true)}
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowSuitableAshpsModal(true); }}
                         className="btn btn-primary btn-sm"
                         style={{ fontSize: '0.75rem', padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                       >
@@ -1407,7 +1408,8 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                       </button>
 
                       <button
-                        onClick={() => setShowAshpModal(true)}
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowAshpModal(true); }}
                         className="btn btn-secondary btn-sm"
                         style={{ fontSize: '0.75rem', padding: '5px 10px' }}
                       >
@@ -1416,7 +1418,8 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
                       {result.ashp?.isManualOverride && (
                         <button
-                          onClick={() => setOverrideAshpId(null)}
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOverrideAshpId(null); }}
                           className="btn btn-secondary btn-sm"
                           style={{ fontSize: '0.75rem', padding: '5px 10px', color: '#059669' }}
                         >
@@ -1489,7 +1492,8 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
                     <div style={{ display: 'flex', gap: '8px' }}>
                       <button
-                        onClick={() => setShowCylinderModal(true)}
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowCylinderModal(true); }}
                         className="btn btn-secondary btn-sm"
                         style={{ fontSize: '0.75rem', padding: '4px 10px' }}
                       >
@@ -1497,7 +1501,8 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                       </button>
                       {result.cylinder?.isManualOverride && (
                         <button
-                          onClick={() => setOverrideCylinderId(null)}
+                          type="button"
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); setOverrideCylinderId(null); }}
                           className="btn btn-secondary btn-sm"
                           style={{ fontSize: '0.75rem', padding: '4px 10px', color: '#059669' }}
                         >
