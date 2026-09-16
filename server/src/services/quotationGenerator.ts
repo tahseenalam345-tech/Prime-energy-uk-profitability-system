@@ -1,9 +1,11 @@
 import path from 'path';
 import fs from 'fs';
+import os from 'os';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { fileURLToPath } from 'url';
 import db from '../db/connection.js';
+import { generateFallbackPdf } from './pdfFallback.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -155,7 +157,7 @@ export async function generateQuotationDocument(options: GenerateQuotationOption
 
   // 5. Commercial Totals
   const totalContractValueExVat = calculationResult.commercials?.requiredRevenue || calculationResult.costBreakdown?.totalJobCost || (goodsTotal + servicesTotal);
-  const vat = 0.00; // 0% VAT for domestic heat pumps
+  const vat = 0.00;
   const busDeduction = calculationResult.bus?.grantAmount || calculationResult.commercials?.busGrant || 0;
   const customerContributionIncVat = calculationResult.commercials?.customerContribution || 0;
 
@@ -163,19 +165,18 @@ export async function generateQuotationDocument(options: GenerateQuotationOption
   const ashpBrand = calculationResult.ashp?.selectedProduct?.brand || 'Daikin';
   const cylinderBrand = calculationResult.cylinder?.selectedCylinder?.brand || 'Joule';
 
-  // 7. Define Output Paths
+  // 7. Define Output Paths using os.tmpdir() for Vercel/Serverless safety (solves EROFS error)
   const rootDir = path.resolve(__dirname, '../../../');
   const templatePath = path.resolve(rootDir, 'server/templates/Heat Pump Quotation.docx');
-  const storageDir = path.resolve(rootDir, 'server/storage/quotations');
+  const storageDir = path.join(os.tmpdir(), 'prime_energy_quotations');
   if (!fs.existsSync(storageDir)) {
     fs.mkdirSync(storageDir, { recursive: true });
   }
 
-  const outputDocxPath = path.resolve(storageDir, `${quoteReference}.docx`);
-  const outputPdfPath = path.resolve(storageDir, `${quoteReference}.pdf`);
+  const outputDocxPath = path.join(storageDir, `${quoteReference}.docx`);
+  const outputPdfPath = path.join(storageDir, `${quoteReference}.pdf`);
   const pythonScriptPath = path.resolve(rootDir, 'server/src/scripts/generate_quotation.py');
 
-  // Payload for python script
   const payload = {
     templatePath,
     outputDocxPath,
@@ -198,11 +199,12 @@ export async function generateQuotationDocument(options: GenerateQuotationOption
     cylinderBrand
   };
 
-  // Write temporary payload JSON file
-  const payloadJsonPath = path.resolve(storageDir, `payload_${quoteReference}.json`);
+  const payloadJsonPath = path.join(storageDir, `payload_${quoteReference}.json`);
   fs.writeFileSync(payloadJsonPath, JSON.stringify(payload, null, 2), 'utf8');
 
-  // 8. Execute python script
+  // 8. Try Python + Word COM generation first, with fallback to pure JS pdf-lib for Vercel Serverless
+  let generatedSuccess = false;
+
   const pythonExecPaths = [
     'C:\\Users\\M Tahseen\\AppData\\Local\\Python\\bin\\python.exe',
     'python',
@@ -218,17 +220,25 @@ export async function generateQuotationDocument(options: GenerateQuotationOption
   }
 
   try {
-    const { stdout, stderr } = await execFileAsync(pythonExec, [pythonScriptPath, payloadJsonPath]);
+    const { stdout } = await execFileAsync(pythonExec, [pythonScriptPath, payloadJsonPath]);
     const res = JSON.parse(stdout.trim());
-    if (res.error) {
-      throw new Error(res.error);
+    if (res.success) {
+      generatedSuccess = true;
     }
   } catch (err: any) {
-    console.error('[QuotationGenerator Error]:', err);
-    throw new Error(`Failed to generate quotation PDF: ${err.message || err}`);
+    console.warn('[QuotationGenerator Warning] Python / Word COM execution skipped or unavailable. Falling back to pdf-lib generator:', err.message || err);
   } finally {
     if (fs.existsSync(payloadJsonPath)) {
       fs.unlinkSync(payloadJsonPath);
+    }
+  }
+
+  // Fallback if Python / PowerShell MS Word COM is unavailable (e.g. Vercel Linux Serverless)
+  if (!generatedSuccess || !fs.existsSync(outputPdfPath)) {
+    await generateFallbackPdf(payload, outputPdfPath);
+    // Create empty/template docx copy if missing
+    if (!fs.existsSync(outputDocxPath) && fs.existsSync(templatePath)) {
+      fs.copyFileSync(templatePath, outputDocxPath);
     }
   }
 
