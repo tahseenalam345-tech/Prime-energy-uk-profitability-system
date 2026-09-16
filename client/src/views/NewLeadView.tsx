@@ -193,6 +193,8 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [cylinderCatalog, setCylinderCatalog] = useState<any[]>([]);
   const [ashpSearchQuery, setAshpSearchQuery] = useState('');
   const [ashpBrandFilter, setAshpBrandFilter] = useState('ALL');
+  const [ashpCatalogSortField, setAshpCatalogSortField] = useState<'brand' | 'marketing' | 'rated' | 'mcs' | 'price'>('rated');
+  const [ashpCatalogSortOrder, setAshpCatalogSortOrder] = useState<'asc' | 'desc'>('asc');
   const [cylinderSearchQuery, setCylinderSearchQuery] = useState('');
   const [cylinderSortField, setCylinderSortField] = useState<'capacity' | 'brand' | 'price'>('capacity');
   const [cylinderSortOrder, setCylinderSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -563,18 +565,69 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
     }
   };
 
-  // Filtered ASHPs for selection modal
-  const filteredAshps = ashpCatalog.filter(p => {
-    const matchesSearch = !ashpSearchQuery || 
-      p.model.toLowerCase().includes(ashpSearchQuery.toLowerCase()) ||
-      p.manufacturer.toLowerCase().includes(ashpSearchQuery.toLowerCase()) ||
-      (p.brand && p.brand.toLowerCase().includes(ashpSearchQuery.toLowerCase())) ||
-      (p.sku && p.sku.toLowerCase().includes(ashpSearchQuery.toLowerCase()));
-    const matchesBrand = ashpBrandFilter === 'ALL' || (p.brand || p.manufacturer) === ashpBrandFilter;
-    return matchesSearch && matchesBrand;
-  });
+  // Filtered & Deduplicated ASHPs for selection modal with column header sorting
+  const deduplicatedAshpCatalog = (() => {
+    const seen = new Set<string>();
+    const res: any[] = [];
+    for (const item of ashpCatalog) {
+      const brand = (item.brand || item.manufacturer || '').toLowerCase().trim();
+      const model = (item.model || '').toLowerCase().trim();
+      const rated = Number(item.rated_output_at_design ?? item.ratedOutputAtDesign ?? item.rated_output_kw ?? item.ratedOutputKw ?? 0);
+      const key = item.sku ? item.sku.toLowerCase().trim() : `${brand}_${model}_${rated}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        res.push(item);
+      }
+    }
+    return res;
+  })();
 
-  const ashpBrands = Array.from(new Set(ashpCatalog.map(p => p.brand || p.manufacturer))).filter(Boolean);
+  const filteredAshps = deduplicatedAshpCatalog
+    .filter(p => {
+      const matchesSearch = !ashpSearchQuery || 
+        (p.model || '').toLowerCase().includes(ashpSearchQuery.toLowerCase()) ||
+        (p.manufacturer || '').toLowerCase().includes(ashpSearchQuery.toLowerCase()) ||
+        (p.brand || '').toLowerCase().includes(ashpSearchQuery.toLowerCase()) ||
+        (p.sku || '').toLowerCase().includes(ashpSearchQuery.toLowerCase());
+      const matchesBrand = ashpBrandFilter === 'ALL' || (p.brand || p.manufacturer) === ashpBrandFilter;
+      return matchesSearch && matchesBrand;
+    })
+    .sort((a, b) => {
+      let res = 0;
+      if (ashpCatalogSortField === 'brand') {
+        const nameA = `${a.brand || a.manufacturer || ''} ${a.model || ''}`.toLowerCase();
+        const nameB = `${b.brand || b.manufacturer || ''} ${b.model || ''}`.toLowerCase();
+        res = nameA.localeCompare(nameB);
+      } else if (ashpCatalogSortField === 'marketing') {
+        const mktA = Number(a.nominal_capacity ?? a.marketing_nominal_kw ?? a.nominalCapacity ?? a.marketingNominalKw ?? a.nominal_capacity_kw ?? 0);
+        const mktB = Number(b.nominal_capacity ?? b.marketing_nominal_kw ?? b.nominalCapacity ?? b.marketingNominalKw ?? b.nominal_capacity_kw ?? 0);
+        res = mktA - mktB;
+      } else if (ashpCatalogSortField === 'rated') {
+        const ratedA = Number(a.rated_output_at_design ?? a.ratedOutputAtDesign ?? a.rated_output_kw ?? a.ratedOutputKw ?? 0);
+        const ratedB = Number(b.rated_output_at_design ?? b.ratedOutputAtDesign ?? b.rated_output_kw ?? b.ratedOutputKw ?? 0);
+        res = ratedA - ratedB;
+      } else if (ashpCatalogSortField === 'mcs') {
+        const mcsA = (a.mcs_status || a.mcsStatus || '').toLowerCase();
+        const mcsB = (b.mcs_status || b.mcsStatus || '').toLowerCase();
+        res = mcsA.localeCompare(mcsB);
+      } else if (ashpCatalogSortField === 'price') {
+        const priceA = Number(a.price_ex_vat ?? a.priceExVat ?? 0);
+        const priceB = Number(b.price_ex_vat ?? b.priceExVat ?? 0);
+        res = priceA - priceB;
+      }
+      return ashpCatalogSortOrder === 'asc' ? res : -res;
+    });
+
+  const handleAshpHeaderSort = (field: 'brand' | 'marketing' | 'rated' | 'mcs' | 'price') => {
+    if (ashpCatalogSortField === field) {
+      setAshpCatalogSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setAshpCatalogSortField(field);
+      setAshpCatalogSortOrder('asc');
+    }
+  };
+
+  const ashpBrands = Array.from(new Set(deduplicatedAshpCatalog.map(p => p.brand || p.manufacturer))).filter(Boolean);
 
   // Filtered Cylinders for selection modal
   const filteredCylinders = cylinderCatalog
@@ -1681,39 +1734,55 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
               <table className="data-table" style={{ fontSize: '0.8125rem' }}>
                 <thead>
                   <tr>
-                    <th>Brand & Model</th>
-                    <th>Marketing kW</th>
-                    <th>Rated Output kW</th>
-                    <th>MCS / PEL</th>
-                    <th>Price (ex VAT)</th>
+                    <th onClick={() => handleAshpHeaderSort('brand')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      Brand & Model {ashpCatalogSortField === 'brand' ? (ashpCatalogSortOrder === 'asc' ? '▲' : '▼') : '↕'}
+                    </th>
+                    <th onClick={() => handleAshpHeaderSort('marketing')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      Marketing kW {ashpCatalogSortField === 'marketing' ? (ashpCatalogSortOrder === 'asc' ? '▲' : '▼') : '↕'}
+                    </th>
+                    <th onClick={() => handleAshpHeaderSort('rated')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      Rated Output kW {ashpCatalogSortField === 'rated' ? (ashpCatalogSortOrder === 'asc' ? '▲' : '▼') : '↕'}
+                    </th>
+                    <th onClick={() => handleAshpHeaderSort('mcs')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      MCS / PEL {ashpCatalogSortField === 'mcs' ? (ashpCatalogSortOrder === 'asc' ? '▲' : '▼') : '↕'}
+                    </th>
+                    <th onClick={() => handleAshpHeaderSort('price')} style={{ cursor: 'pointer', userSelect: 'none' }}>
+                      Price (ex VAT) {ashpCatalogSortField === 'price' ? (ashpCatalogSortOrder === 'asc' ? '▲' : '▼') : '↕'}
+                    </th>
                     <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredAshps.slice(0, 30).map(p => {
+                  {filteredAshps.map(p => {
                     const isSelected = overrideAshpId === p.id || (!overrideAshpId && result?.ashp?.recommendedProduct?.id === p.id);
+                    const mktKw = Number(p.nominal_capacity ?? p.marketing_nominal_kw ?? p.nominalCapacity ?? p.marketingNominalKw ?? 0);
+                    const ratedKw = Number(p.rated_output_at_design ?? p.ratedOutputAtDesign ?? p.rated_output_kw ?? p.ratedOutputKw ?? mktKw ?? 0);
+                    const condStr = p.rated_output_condition || p.ratedOutputCondition || p.design_condition || p.designCondition || '-2°C / 45°C';
+                    const priceEx = Number(p.price_ex_vat ?? p.priceExVat ?? 0);
+                    const mcs = p.mcs_status || p.mcsStatus || 'UNVERIFIED';
+
                     return (
                       <tr key={p.id} style={{ backgroundColor: isSelected ? 'var(--primary-light)' : undefined }}>
                         <td>
                           <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{p.brand || p.manufacturer} {p.model}</div>
                           <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>SKU: {p.sku || 'N/A'}</div>
                         </td>
-                        <td>{p.nominal_capacity_kw || p.marketing_kw} kW</td>
+                        <td>{mktKw > 0 ? `${mktKw.toFixed(1)} kW` : 'N/A'}</td>
                         <td>
-                          <strong style={{ color: 'var(--primary)' }}>{p.rated_output_kw || p.nominal_capacity_kw} kW</strong>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>@{p.rated_output_condition || '-2°C / 45°C'}</div>
+                          <strong style={{ color: 'var(--primary)' }}>{ratedKw > 0 ? `${ratedKw.toFixed(1)} kW` : 'N/A'}</strong>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>@{condStr}</div>
                         </td>
                         <td>
                           <div style={{ fontSize: '0.7rem' }}>
-                            {p.mcs_status === 'MCS_CERTIFIED' ? (
+                            {mcs.toUpperCase() === 'MCS_CERTIFIED' ? (
                               <span style={{ color: 'var(--success)', fontWeight: 600 }}>MCS Certified</span>
                             ) : (
-                              <span style={{ color: 'var(--text-muted)' }}>{p.mcs_status || 'Unverified'}</span>
+                              <span style={{ color: 'var(--text-muted)' }}>{mcs}</span>
                             )}
                           </div>
                         </td>
                         <td style={{ fontWeight: 700 }}>
-                          £{(p.price_ex_vat || 0).toLocaleString()}
+                          £{priceEx > 0 ? priceEx.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : 'N/A'}
                         </td>
                         <td>
                           <button
