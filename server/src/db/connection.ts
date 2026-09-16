@@ -107,10 +107,30 @@ export async function initDatabase() {
     // Column already exists
   }
   try {
+    await db.execute('ALTER TABLE commercial_settings ADD COLUMN quote_validity_days INTEGER DEFAULT 30');
+  } catch (err) {
+    // Column already exists
+  }
+  try {
     await db.execute('ALTER TABLE radiator_catalogue ADD COLUMN source_page_evidence TEXT');
   } catch (err) {
     // Column already exists
   }
+  try {
+    await db.execute('ALTER TABLE quotes ADD COLUMN pdf_path TEXT');
+  } catch (err) {}
+  try {
+    await db.execute('ALTER TABLE quotes ADD COLUMN docx_path TEXT');
+  } catch (err) {}
+  try {
+    await db.execute('ALTER TABLE quotes ADD COLUMN valid_until TEXT');
+  } catch (err) {}
+  try {
+    await db.execute('ALTER TABLE quotes ADD COLUMN template_version TEXT DEFAULT "v1.0"');
+  } catch (err) {}
+  try {
+    await db.execute('ALTER TABLE quotes ADD COLUMN generated_at DATETIME');
+  } catch (err) {}
 }
 
 export default db;

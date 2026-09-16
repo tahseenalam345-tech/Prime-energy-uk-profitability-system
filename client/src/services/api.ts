@@ -259,6 +259,55 @@ export const api = {
     return res.json();
   },
 
+  async generateQuotation(data: { leadId: string; calculationResult: any; existingQuoteId?: string; userId?: string }) {
+    const calc = data.calculationResult ? { ...data.calculationResult } : {};
+    if (calc.ashp) {
+      const { allAshpProducts, ...ashpClean } = calc.ashp;
+      calc.ashp = ashpClean;
+    }
+    if (calc.cylinder) {
+      const { allCylinders, ...cylClean } = calc.cylinder;
+      calc.cylinder = cylClean;
+    }
+    const res = await fetch(`${BASE_URL}/quotes/generate-quotation`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({
+        leadId: data.leadId,
+        calculationResult: calc,
+        existingQuoteId: data.existingQuoteId,
+        userId: data.userId || 'user_sales'
+      })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status} - Failed to generate quotation`);
+    }
+    return res.json();
+  },
+
+  async regenerateQuotation(quoteId: string, calculationResult: any) {
+    const calc = calculationResult ? { ...calculationResult } : {};
+    if (calc.ashp) {
+      const { allAshpProducts, ...ashpClean } = calc.ashp;
+      calc.ashp = ashpClean;
+    }
+    if (calc.cylinder) {
+      const { allCylinders, ...cylClean } = calc.cylinder;
+      calc.cylinder = cylClean;
+    }
+    const res = await fetch(`${BASE_URL}/quotes/${quoteId}/regenerate`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ calculationResult: calc })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || `HTTP ${res.status} - Failed to regenerate quotation`);
+    }
+    return res.json();
+  },
+
   async getQuoteSnapshot(id: string) {
     const res = await fetch(`${BASE_URL}/quotes/${id}/snapshot`, {
       headers: getHeaders()

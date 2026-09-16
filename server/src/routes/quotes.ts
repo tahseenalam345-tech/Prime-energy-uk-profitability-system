@@ -1,7 +1,10 @@
 import { Router, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { db } from '../db/connection.js';
 import { saveCalculationSnapshot, getCalculationSnapshot, verifyHistoricalSnapshotReproduction } from '../engine/snapshotEngine.js';
 import { authenticateToken, optionalAuthenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
+import { generateQuotationDocument } from '../services/quotationGenerator.js';
 
 export const quotesRouter = Router();
 
@@ -290,3 +293,226 @@ quotesRouter.post('/:id/override', authenticateToken, requireRole('ADMIN', 'ESTI
     safeErrorResponse(res, err, 'Failed to execute override');
   }
 });
+
+// GENERATE QUOTATION (Mode A)
+quotesRouter.post('/generate-quotation', authenticateToken, requireRole('ADMIN', 'SALES', 'SURVEYOR', 'ESTIMATOR'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { leadId, calculationResult, existingQuoteId } = req.body;
+    const userId = req.user?.id || req.body.userId || 'user_sales';
+
+    if (!leadId || !calculationResult) {
+      return res.status(400).json({ error: 'leadId and calculationResult are required.' });
+    }
+
+    // 1. Validate customer & job information
+    const lead = await db.get('SELECT * FROM leads WHERE id = ?', [leadId]);
+    if (!lead) {
+      return res.status(404).json({ error: 'Lead record not found.' });
+    }
+    if (!lead.customer_name || lead.customer_name.trim().length === 0) {
+      return res.status(400).json({ error: 'Customer Name is required to generate a formal quotation.' });
+    }
+
+    const prop = await db.get('SELECT * FROM properties WHERE lead_id = ?', [leadId]);
+    if (!prop || !prop.address_line1 || !prop.postcode) {
+      return res.status(400).json({ error: 'Installation Address (Address Line 1 and Postcode) is required to generate a formal quotation.' });
+    }
+
+    // 2. Save quote record or update existing
+    let quoteId = existingQuoteId;
+    let quoteRef = '';
+
+    if (quoteId) {
+      const existingQuote = await db.get('SELECT * FROM quotes WHERE id = ?', [quoteId]);
+      if (existingQuote) {
+        quoteRef = existingQuote.quote_reference;
+      }
+    }
+
+    if (!quoteId || !quoteRef) {
+      quoteId = `quote_${Date.now()}`;
+      quoteRef = `PEQ-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+      const batchStatements: Array<{ sql: string; args?: any[] }> = [
+        {
+          sql: `
+            INSERT INTO quotes (
+              id, quote_reference, lead_id, mode, total_job_cost, bus_grant,
+              required_revenue, customer_contribution, actual_revenue, gross_profit,
+              gross_margin_percent, confidence_score, confidence_level, profitability_grade,
+              commercial_recommendation, status, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+          args: [
+            quoteId,
+            quoteRef,
+            leadId,
+            calculationResult.mode || 'NEW_LEAD',
+            calculationResult.costBreakdown?.totalJobCost || 0,
+            calculationResult.bus?.grantAmount || 0,
+            calculationResult.commercials?.requiredRevenue || 0,
+            calculationResult.commercials?.customerContribution || 0,
+            calculationResult.commercials?.actualRevenue || 0,
+            calculationResult.commercials?.grossProfit || 0,
+            calculationResult.commercials?.grossMarginPercent || 0,
+            calculationResult.confidence?.score ?? null,
+            calculationResult.confidence?.level || 'PRE-SURVEY',
+            calculationResult.rating?.finalGrade || 'B',
+            calculationResult.recommendation?.status || 'PROCEED',
+            'DRAFT',
+            userId
+          ]
+        }
+      ];
+
+      for (const item of calculationResult.lineItems || []) {
+        batchStatements.push({
+          sql: `
+            INSERT INTO quote_line_items (
+              id, quote_id, category, description, quantity,
+              unit_cost_ex_vat, total_cost_ex_vat, vat_rate, total_cost_inc_vat
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+          args: [
+            `item_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+            quoteId,
+            item.category || 'General',
+            item.description,
+            item.quantity || 1,
+            item.unitPriceExVat || 0,
+            item.totalPriceExVat || 0,
+            0.00,
+            item.totalPriceExVat || 0
+          ]
+        });
+      }
+
+      batchStatements.push({
+        sql: 'UPDATE leads SET status = ? WHERE id = ?',
+        args: [calculationResult.mode === 'AFTER_SURVEY' ? 'QUOTED' : 'ESTIMATED', leadId]
+      });
+
+      await db.batch(batchStatements, 'write');
+
+      await saveCalculationSnapshot({
+        quoteId,
+        quoteReference: quoteRef,
+        userId,
+        mode: calculationResult.mode || 'NEW_LEAD',
+        inputs: { leadId, heatDemand: calculationResult.heatDemand },
+        products: calculationResult.lineItems,
+        prices: (calculationResult.lineItems || []).map((l: any) => ({ description: l.description, price: l.unitPriceExVat })),
+        rulesetVersions: {
+          bus: calculationResult.bus?.rulesetVersion || 1,
+          commercialSettings: calculationResult.commercialSettingsUsed?.version || 1
+        },
+        commercialSettings: calculationResult.commercialSettingsUsed || {},
+        outputs: calculationResult
+      });
+    }
+
+    // 3. Generate Word DOCX & PDF
+    const result = await generateQuotationDocument({
+      quoteId,
+      quoteReference: quoteRef,
+      leadId,
+      calculationResult,
+      userId
+    });
+
+    res.json({
+      success: true,
+      quoteId: result.quoteId,
+      quoteReference: result.quoteReference,
+      pdfUrl: `/api/quotes/${result.quoteId}/pdf`,
+      docxUrl: `/api/quotes/${result.quoteId}/docx`,
+      validUntil: result.validUntil,
+      generatedAt: result.generatedAt
+    });
+
+  } catch (err: any) {
+    safeErrorResponse(res, err, 'Failed to generate quotation document');
+  }
+});
+
+// GET PDF FOR PREVIEW / DOWNLOAD (Authenticated & Public Signed URLs)
+quotesRouter.get('/:id/pdf', optionalAuthenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const quote = await db.get('SELECT * FROM quotes WHERE id = ?', [req.params.id]);
+    if (!quote || !quote.pdf_path) {
+      return res.status(404).json({ error: 'Quotation PDF not generated yet.' });
+    }
+
+    if (!fs.existsSync(quote.pdf_path)) {
+      return res.status(404).json({ error: 'PDF file missing on server.' });
+    }
+
+    const filename = `${quote.quote_reference || 'Quotation'}.pdf`;
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    fs.createReadStream(quote.pdf_path).pipe(res);
+  } catch (err: any) {
+    safeErrorResponse(res, err, 'Failed to serve PDF file');
+  }
+});
+
+// GET DOCX FOR DOWNLOAD
+quotesRouter.get('/:id/docx', optionalAuthenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const quote = await db.get('SELECT * FROM quotes WHERE id = ?', [req.params.id]);
+    if (!quote || !quote.docx_path) {
+      return res.status(404).json({ error: 'Quotation DOCX not generated yet.' });
+    }
+
+    if (!fs.existsSync(quote.docx_path)) {
+      return res.status(404).json({ error: 'DOCX file missing on server.' });
+    }
+
+    const filename = `${quote.quote_reference || 'Quotation'}.docx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    fs.createReadStream(quote.docx_path).pipe(res);
+  } catch (err: any) {
+    safeErrorResponse(res, err, 'Failed to serve DOCX file');
+  }
+});
+
+// REGENERATE QUOTATION
+quotesRouter.post('/:id/regenerate', authenticateToken, requireRole('ADMIN', 'SALES', 'SURVEYOR', 'ESTIMATOR'), async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { calculationResult } = req.body;
+    const quoteId = req.params.id;
+    const userId = req.user?.id || 'user_sales';
+
+    const existingQuote = await db.get('SELECT * FROM quotes WHERE id = ?', [quoteId]);
+    if (!existingQuote) {
+      return res.status(404).json({ error: 'Quote not found for regeneration.' });
+    }
+
+    if (!calculationResult) {
+      return res.status(400).json({ error: 'Latest calculationResult is required to regenerate quotation.' });
+    }
+
+    // Generate new quotation document
+    const result = await generateQuotationDocument({
+      quoteId,
+      quoteReference: existingQuote.quote_reference,
+      leadId: existingQuote.lead_id,
+      calculationResult,
+      userId
+    });
+
+    res.json({
+      success: true,
+      quoteId: result.quoteId,
+      quoteReference: result.quoteReference,
+      pdfUrl: `/api/quotes/${result.quoteId}/pdf`,
+      docxUrl: `/api/quotes/${result.quoteId}/docx`,
+      validUntil: result.validUntil,
+      generatedAt: result.generatedAt
+    });
+  } catch (err: any) {
+    safeErrorResponse(res, err, 'Failed to regenerate quotation');
+  }
+});
+

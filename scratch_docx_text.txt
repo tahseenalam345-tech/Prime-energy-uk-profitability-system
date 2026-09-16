@@ -1,0 +1,74 @@
+P: KNF LINX Limited T/A Prime Energy UK
+P: Office 27 Lythgoe HouseManchester RoadBoltonBL3 2NZ
+P: 0800 001 6077
+P: info@primeenergyuk.com
+TABLE ROW: Customer Name: <Customer Name> | Project Reference: <Reference>
+P: Customer Name: <Customer Name>
+P: Project Reference: <Reference>
+TABLE ROW: Installation Address:<Site Address>
+P: Installation Address:
+P: <Site Address>
+TABLE ROW: Quotation issued by:   | Date issued:   | Valid until: 
+P: Quotation issued by:  
+P: Date issued:  
+P: Valid until: 
+TABLE ROW: Description of Goods | Qty. | Unit Price | Total Price
+P: Description of Goods
+P: Qty.
+P: Unit Price
+P: Total Price
+TABLE ROW:  |  |  | 
+TABLE ROW:  |  |  | 
+TABLE ROW:  |  |  | 
+TABLE ROW:  |  |  | 
+TABLE ROW: Goods Total: | 
+P: Goods Total:
+TABLE ROW: Description of Services | Qty. | Unit Price | Total Price
+P: Description of Services
+P: Qty.
+P: Unit Price
+P: Total Price
+TABLE ROW:  |  |  | 
+TABLE ROW:  |  |  | 
+TABLE ROW:  |  |  | 
+TABLE ROW:  |  |  | 
+TABLE ROW: Services Total: | 
+P: Services Total:
+TABLE ROW: Total Contract Value (exc. VAT) | 
+P: Total Contract Value (exc. VAT)
+TABLE ROW: VAT: | 
+P: VAT:
+TABLE ROW: BUS voucher deduction: | 
+P: BUS voucher deduction:
+TABLE ROW: Customer contribution (inc. VAT):  | 
+P: Customer contribution (inc. VAT): 
+TABLE ROW: Our intention is to give you a full and clear cost for the installation of the system. Providing nothing unforeseen should occur the only additional costs would be those associated with the Energy Performance Certificate (if not included above) and any planning related issues should they be required. You are responsible for these costs unless we state otherwise. If there is an existing EPC for your home, please ensure it is up to date – consider any recent work at your home including insulation, extensions, improvements.
+P: Our intention is to give you a full and clear cost for the installation of the system. Providing nothing unforeseen should occur the only additional costs would be those associated with the Energy Performance Certificate (if not included above) and any planning related issues should they be required. You are responsible for these costs unless we state otherwise. If there is an existing EPC for your home, please ensure it is up to date – consider any recent work at your home including insulation, extensions, improvements.
+TABLE ROW: Guarantees and Warranties
+P: Guarantees and Warranties
+TABLE ROW:  |  | Years
+P: Years
+TABLE ROW:  |  | Years
+P: Years
+TABLE ROW:  |  | Years
+P: Years
+TABLE ROW:  |  | Years
+P: Years
+TABLE ROW:  |  | Years
+P: Years
+P: Your equipment is guaranteed by its manufacturer, but you should contact us in the first instance if anything appears to be operating incorrectly.
+P: All information can be supplied in a large text if required
+P: Important notes concerning this quotation
+P: Boiler Upgrade Scheme (BUS)
+P: If you have indicated that you give consent for us to apply for a Boiler Upgrade Scheme voucher on your behalf, we will make the application as soon as possible. We are required to submit certain information about you and your property to make the application, and you will be contacted by the scheme administrator to provide consent yourself. This should arrive via email. 
+P: You will have 14 days to give consent, so we ask that said consent is given in a timely manner for us to begin the installation. If consent is not given within this time, your application may be deemed 'dormant' and we would be unable to progress the application at that time.
+P: Once a voucher is approved, we have 3 months from the date of the voucher to complete the installation for air source heat pumps, and 6 months for ground source, to be able to redeem the funds. 
+P: Once the installation is complete, we will then submit information to redeem the voucher funds. If at this point Ofgem requires the installation to be audited, you must provide access to the installation if they request it, otherwise funds may be withheld.
+P: Please note that while an accepted application means technically the funds are available for us redeem for your installation, until Ofgem accepts the information provided at redemption stage once the installation is complete, it is not guaranteed that these funds will be granted. 
+P: After sales support and maintenance
+P: If, following installation, the system does not appear to be operating correctly please refer to the operating instructions. We will explain the safe operation of the system and any maintenance requirements to you when we complete the handover. 
+P: If you are still in doubt as to any aspect of the systems operation, please contact us.
+P: If you wish to accept the quotation 
+P: If you wish to accept the quotation, we will provide you with a Contract of sale. Please read the Contract carefully. If you agree with our terms and conditions, please sign and return to us with a deposit, if we've requested one. 
+P:  
+P: If you have any questions on any aspect of this quotation, the contract or any other related issue please do not hesitate to contact us. 

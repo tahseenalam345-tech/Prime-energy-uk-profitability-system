@@ -3,7 +3,7 @@ import {
   Calculator, AlertTriangle, ShieldCheck, CheckCircle2,
   Info, Save, ArrowRight, HelpCircle, FileCheck, Search,
   ExternalLink, RotateCcw, Plus, Trash2, Edit3, X, SlidersHorizontal, Lock,
-  RefreshCw, History
+  RefreshCw, History, FileText, Download, Eye
 } from 'lucide-react';
 import { api } from '../services/api.js';
 import { Badge } from '../components/Badge.js';
@@ -208,7 +208,19 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [result, setResult] = useState<CalculationResult | null>(null);
   const [calcError, setCalcError] = useState('');
   const [savingQuote, setSavingQuote] = useState(false);
-  const [savedQuoteRef, setSavedQuoteRef] = useState('');
+  const [savedQuoteRef, setSavedQuoteRef] = useState<string | null>(null);
+
+  // 6. Quotation Generation State (Mode A)
+  const [generatingQuotation, setGeneratingQuotation] = useState(false);
+  const [quotationResult, setQuotationResult] = useState<{
+    quoteId: string;
+    quoteReference: string;
+    pdfUrl: string;
+    docxUrl: string;
+    validUntil: string;
+    generatedAt: string;
+  } | null>(null);
+  const [showPdfModal, setShowPdfModal] = useState(false);
   const [inputsChanged, setInputsChanged] = useState(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -562,6 +574,105 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
       alert('Failed to save quote snapshot: ' + err.message);
     } finally {
       setSavingQuote(false);
+    }
+  };
+
+  const handleGenerateQuotation = async () => {
+    if (!result) return;
+
+    if (!customerName || customerName.trim().length === 0) {
+      alert('Customer Name is required to generate a formal quotation document. Please enter Customer Name in Customer Details.');
+      return;
+    }
+    if (!addressLine1 || addressLine1.trim().length === 0 || !postcode || postcode.trim().length === 0) {
+      alert('Installation Address (Address Line 1 and Postcode) is required to generate a formal quotation document. Please complete property address fields.');
+      return;
+    }
+
+    setGeneratingQuotation(true);
+    try {
+      const leadRes = await api.createLead({
+        customerName: customerName.trim(),
+        email: email ? email.trim() : undefined,
+        phone: phone ? phone.trim() : undefined,
+        leadSource: leadSource || undefined,
+        addressLine1: addressLine1.trim(),
+        postcode: postcode.trim().toUpperCase(),
+        country: country || 'England',
+        propertyType: propertyType || 'Detached',
+        propertyStatus: propertyStatus || 'Existing property',
+        epcRating: epcRating || undefined,
+        epcFloorArea: epcFloorArea ? parseFloat(epcFloorArea) : undefined,
+        storeys: storeys ? parseInt(storeys, 10) : undefined,
+        annualHeatingKwh: annualHeatingKwh ? parseFloat(annualHeatingKwh) : undefined,
+        annualHotWaterKwh: annualHotWaterKwh ? parseFloat(annualHotWaterKwh) : undefined,
+        epcCertificateNumber: epcCertificateNumber || undefined,
+        bedrooms: bedrooms ? parseInt(bedrooms, 10) : undefined,
+        bathrooms: bathrooms ? parseInt(bathrooms, 10) : undefined,
+        wallInsulation: wallInsulation || undefined,
+        roofInsulation: roofInsulation || undefined,
+        existingHeatingSystem: existingHeatingSystem || undefined,
+        boilerType: boilerType || undefined,
+        onOffGasGrid: onOffGasGrid || undefined,
+        cylinderSpace: cylinderSpace || undefined,
+        existingPipework: existingPipework || undefined,
+        previousGovernmentGrant: previousGovernmentGrant || undefined,
+        salesNotes: salesNotes || ''
+      });
+
+      const leadId = leadRes?.id || leadRes?.lead?.id;
+      if (!leadId) {
+        throw new Error(leadRes?.error || 'Failed to create or retrieve lead ID.');
+      }
+
+      const res = await api.generateQuotation({
+        leadId,
+        calculationResult: result,
+        existingQuoteId: quotationResult?.quoteId || undefined,
+        userId: currentUserId
+      });
+
+      if (!res || !res.quoteId) {
+        throw new Error(res?.error || 'Server failed to return generated quotation.');
+      }
+
+      setQuotationResult({
+        quoteId: res.quoteId,
+        quoteReference: res.quoteReference,
+        pdfUrl: res.pdfUrl,
+        docxUrl: res.docxUrl,
+        validUntil: res.validUntil,
+        generatedAt: res.generatedAt
+      });
+
+      setSavedQuoteRef(res.quoteReference);
+      if (onQuoteSaved) {
+        onQuoteSaved(res.quoteId);
+      }
+    } catch (err: any) {
+      alert('Failed to generate quotation document: ' + (err.message || err));
+    } finally {
+      setGeneratingQuotation(false);
+    }
+  };
+
+  const handleRegenerateQuotation = async () => {
+    if (!quotationResult || !result) return;
+    setGeneratingQuotation(true);
+    try {
+      const res = await api.regenerateQuotation(quotationResult.quoteId, result);
+      setQuotationResult({
+        quoteId: res.quoteId,
+        quoteReference: res.quoteReference,
+        pdfUrl: res.pdfUrl,
+        docxUrl: res.docxUrl,
+        validUntil: res.validUntil,
+        generatedAt: res.generatedAt
+      });
+    } catch (err: any) {
+      alert('Failed to regenerate quotation: ' + (err.message || err));
+    } finally {
+      setGeneratingQuotation(false);
     }
   };
 
@@ -1266,6 +1377,89 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                 </div>
               </div>
 
+              {/* MODE A AUTOMATIC QUOTATION GENERATION (Requirement 2, 17, 18) */}
+              <div className="card" style={{ background: 'linear-gradient(135deg, rgba(37,99,235,0.04), rgba(16,185,129,0.04))', border: '1.5px solid var(--primary, #2563eb)', marginBottom: '20px', padding: '18px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <h3 className="card-title" style={{ fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, color: 'var(--primary-dark, #1e40af)' }}>
+                      <FileText size={20} color="var(--primary, #2563eb)" /> Mode A Quotation Generation
+                    </h3>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary, #64748b)' }}>
+                      Fills master Word template (<code style={{ fontSize: '0.75rem' }}>Heat Pump Quotation.docx</code>) and converts to PDF.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={handleGenerateQuotation}
+                      disabled={generatingQuotation}
+                      className="btn btn-primary"
+                      style={{
+                        padding: '10px 18px', fontSize: '0.9rem', fontWeight: 700,
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none'
+                      }}
+                    >
+                      <FileText size={17} />
+                      {generatingQuotation ? 'GENERATING QUOTATION...' : quotationResult ? 'REGENERATE QUOTATION' : 'GENERATE QUOTATION'}
+                    </button>
+
+                    {quotationResult && (
+                      <>
+                        <button
+                          onClick={() => setShowPdfModal(true)}
+                          className="btn btn-secondary"
+                          style={{ padding: '9px 14px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <Eye size={15} /> Preview
+                        </button>
+
+                        <a
+                          href={quotationResult.pdfUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-primary"
+                          style={{ padding: '9px 14px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
+                        >
+                          <Download size={15} /> Download PDF
+                        </a>
+
+                        <a
+                          href={quotationResult.docxUrl}
+                          download
+                          className="btn btn-secondary"
+                          style={{ padding: '9px 14px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
+                          title="Download completed Word DOCX file"
+                        >
+                          <Download size={15} /> DOCX
+                        </a>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {quotationResult && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px', background: 'var(--surface-color, #fff)', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border-color, #e2e8f0)', fontSize: '0.825rem', marginTop: '10px' }}>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary, #64748b)' }}>Quotation Ref:</span>
+                      <strong style={{ display: 'block', color: 'var(--text-color, #0f172a)', fontSize: '0.9rem' }}>{quotationResult.quoteReference}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary, #64748b)' }}>Customer:</span>
+                      <strong style={{ display: 'block', color: 'var(--text-color, #0f172a)' }}>{customerName || 'Customer'}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary, #64748b)' }}>Valid Until:</span>
+                      <strong style={{ display: 'block', color: '#059669' }}>{quotationResult.validUntil}</strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary, #64748b)' }}>Generated:</span>
+                      <strong style={{ display: 'block', color: 'var(--text-color, #0f172a)' }}>{new Date(quotationResult.generatedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} ({new Date(quotationResult.generatedAt).toLocaleDateString('en-GB')})</strong>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* FINAL MODE A OUTPUT — PRE-SURVEY ESTIMATE */}
               <div className="card">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -1837,6 +2031,67 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         isOpen={showEvidenceModal}
         onClose={() => setShowEvidenceModal(false)}
       />
+
+      {/* PDF PREVIEW MODAL (Requirement 17) */}
+      {showPdfModal && quotationResult && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(4px)',
+          zIndex: 9999, display: 'flex', flexDirection: 'column',
+          justifyContent: 'center', alignItems: 'center', padding: '20px'
+        }}>
+          <div style={{
+            width: '95%', maxWidth: '1050px', height: '90vh',
+            backgroundColor: '#ffffff', borderRadius: '12px',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          }}>
+            <div style={{
+              padding: '14px 20px', background: '#0f172a', color: '#ffffff',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+            }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: '#f8fafc' }}>
+                  <FileText size={20} color="#10b981" /> Quotation PDF Preview — {quotationResult.quoteReference}
+                </h3>
+                <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                  Customer: {customerName || 'Customer'} | BUS Grant: £{(result?.bus?.grantAmount || 0).toLocaleString()} | Customer Contribution: £{(result?.commercials?.customerContribution || 0).toLocaleString()}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <a
+                  href={quotationResult.pdfUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-primary"
+                  style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', background: '#10b981', border: 'none', textDecoration: 'none' }}
+                >
+                  <Download size={15} /> Download PDF
+                </a>
+
+                <button
+                  onClick={() => setShowPdfModal(false)}
+                  style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
+                  title="Close Preview"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            <div style={{ flex: 1, backgroundColor: '#334155' }}>
+              <iframe
+                src={`${quotationResult.pdfUrl}#toolbar=1&navpanes=0`}
+                title="Quotation PDF Preview"
+                width="100%"
+                height="100%"
+                style={{ border: 'none' }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
