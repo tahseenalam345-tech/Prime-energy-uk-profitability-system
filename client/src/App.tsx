@@ -12,6 +12,8 @@ import { PricingView } from './views/PricingView.js';
 import { RulesView } from './views/RulesView.js';
 import { ReportsView } from './views/ReportsView.js';
 import { AdminView } from './views/AdminView.js';
+import { SubmissionsView } from './views/SubmissionsView.js';
+import { SubmissionGuideView } from './views/SubmissionGuideView.js';
 import { api } from './services/api.js';
 import { User, Lead } from './types.js';
 
@@ -141,6 +143,8 @@ export function App() {
 
       <main key={currentTab} className="main-content page-fade-in">
         {currentTab === 'dashboard' && <DashboardView onNavigate={setCurrentTab} />}
+        {currentTab === 'submissions' && <SubmissionsView currentUser={currentUser} />}
+        {currentTab === 'submission-guide' && <SubmissionGuideView />}
         {currentTab === 'new-lead' && (
           <NewLeadView
             currentUserId={currentUserId}

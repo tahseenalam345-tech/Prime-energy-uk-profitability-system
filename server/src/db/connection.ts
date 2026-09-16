@@ -106,6 +106,11 @@ export async function initDatabase() {
   } catch (err) {
     // Column already exists
   }
+  try {
+    await db.execute('ALTER TABLE radiator_catalogue ADD COLUMN source_page_evidence TEXT');
+  } catch (err) {
+    // Column already exists
+  }
 }
 
 export default db;

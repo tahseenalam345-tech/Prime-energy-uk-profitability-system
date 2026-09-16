@@ -38,6 +38,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   // Navigation Items with explicit role permissions
   const allNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
+    { id: 'submissions', label: 'Submissions', icon: ShieldCheck, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
+    { id: 'submission-guide', label: 'Submission Book', icon: BookOpen, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
     { id: 'new-lead', label: 'New Lead (Mode A)', icon: Calculator, roles: ['ADMIN', 'ESTIMATOR', 'SALES'] },
     { id: 'after-survey', label: 'After Survey (Mode B)', icon: ClipboardCheck, roles: ['ADMIN', 'ESTIMATOR', 'SURVEYOR'] },
     { id: 'leads', label: 'Leads / Jobs', icon: Users, roles: ['ADMIN', 'ESTIMATOR', 'SALES', 'SURVEYOR', 'READ_ONLY'] },
@@ -52,7 +54,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const allowedItems = allNavItems.filter(item => {
     // If not logged in, allow default READ_ONLY tabs
     if (!currentUser) {
-      return ['dashboard', 'leads', 'quotes', 'products', 'pricing', 'rules', 'reports'].includes(item.id);
+      return ['dashboard', 'submissions', 'submission-guide', 'leads', 'quotes', 'products', 'pricing', 'rules', 'reports'].includes(item.id);
     }
     return item.roles.includes(role);
   });

@@ -22,6 +22,138 @@ export interface CommercialSettings {
   notes?: string;
 }
 
+export interface SubmissionEvidence {
+  id: string;
+  submission_id: string;
+  item_id: string;
+  file_name: string;
+  file_type?: string;
+  file_size?: number;
+  file_path_or_url: string;
+  reference_no?: string;
+  uploaded_by?: string;
+  notes?: string;
+  uploaded_at: string;
+}
+
+export interface SubmissionAuditLog {
+  id: string;
+  submission_id: string;
+  item_id?: string;
+  user_id?: string;
+  user_name?: string;
+  field_changed: string;
+  old_value?: string;
+  new_value?: string;
+  notes?: string;
+  changed_at: string;
+}
+
+export interface SubmissionItem {
+  id: string;
+  submission_id: string;
+  stage_code: string;
+  stage_name: string;
+  section_name: string;
+  requirement_key: string;
+  title: string;
+  short_description?: string;
+  what_is_this?: string;
+  why_required?: string;
+  who_completes?: string;
+  who_submits?: string;
+  customer_signature_type: 'No signature' | 'Customer signature' | 'Ofgem electronic consent' | 'Conditional' | 'Installer/portal authentication' | string;
+  classification: 'OFFICIAL' | 'CONDITIONAL' | 'PRIME ENERGY INTERNAL' | 'NEEDS CONFIRMATION' | string;
+  status: 'Pending' | 'In Progress' | 'Awaiting Customer' | 'Awaiting Ofgem' | 'Awaiting MCS' | 'Awaiting Supplier' | 'Completed' | 'Not Required' | 'Rejected' | 'Expired' | 'Superseded' | 'Needs Review' | string;
+  is_conditional?: number;
+  condition_rule?: string;
+  due_date?: string;
+  completed_date?: string;
+  responsible_person?: string;
+  reviewer_person?: string;
+  evidence_required?: string;
+  reference_number?: string;
+  notes?: string;
+  authority?: string;
+  source_url?: string;
+  document_version?: string;
+  clause_page?: string;
+  last_verified_date?: string;
+  sort_order?: number;
+  created_at?: string;
+  updated_at?: string;
+  evidenceCount?: number;
+  evidenceFiles?: SubmissionEvidence[];
+  auditLogs?: SubmissionAuditLog[];
+}
+
+export interface SubmissionStageSummary {
+  code: string;
+  name: string;
+  itemsCount: number;
+  applicableCount: number;
+  completedCount: number;
+  completionPercentage: number;
+  status: 'Completed' | 'In Progress' | 'Pending' | 'Blocked' | 'Not Required' | string;
+  items: SubmissionItem[];
+}
+
+export interface Submission {
+  id: string;
+  job_reference: string;
+  lead_id?: string;
+  customer_name: string;
+  customer_email?: string;
+  customer_phone?: string;
+  property_address: string;
+  postcode?: string;
+  country?: string;
+  technology?: string;
+  property_status?: string;
+  on_off_gas_grid?: string;
+  existing_fuel?: string;
+  cylinder_applicable?: number;
+  installation_date?: string;
+  commissioning_date?: string;
+  bus_voucher_reference?: string;
+  bus_voucher_expiry?: string;
+  mcs_certificate_number?: string;
+  grant_category?: string;
+  current_stage: string;
+  overall_status: string;
+  completion_percentage: number;
+  next_action?: string;
+  assigned_to?: string;
+  notes?: string;
+  six_year_retention_date?: string;
+  created_at: string;
+  updated_at: string;
+  stages?: SubmissionStageSummary[];
+  stats?: {
+    totalItems: number;
+    applicableItems: number;
+    completedItems: number;
+    awaitingCustomer: number;
+    awaitingOfgem: number;
+    awaitingMcs: number;
+    overdueItems: number;
+  };
+  evidenceFiles?: SubmissionEvidence[];
+}
+
+export interface SubmissionSummary {
+  totalActive: number;
+  totalCount: number;
+  pending: number;
+  inProgress: number;
+  awaitingCustomer: number;
+  awaitingOfgem: number;
+  awaitingMcs: number;
+  completed: number;
+  overdue: number;
+}
+
+
 export interface Lead {
   id: string;
   reference_no: string;

@@ -453,5 +453,91 @@ export const api = {
       body: JSON.stringify({ password })
     });
     return res.json();
+  },
+
+  // SUBMISSIONS MODULE API
+  async getSubmissionsSummary() {
+    const res = await fetch(`${BASE_URL}/submissions/summary`, {
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
+  async getSubmissions(params?: { search?: string; stage?: string; status?: string; technology?: string }) {
+    const query = new URLSearchParams();
+    if (params?.search) query.append('search', params.search);
+    if (params?.stage) query.append('stage', params.stage);
+    if (params?.status) query.append('status', params.status);
+    if (params?.technology) query.append('technology', params.technology);
+    const queryString = query.toString() ? `?${query.toString()}` : '';
+    const res = await fetch(`${BASE_URL}/submissions${queryString}`, {
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
+  async createSubmission(data: any) {
+    const res = await fetch(`${BASE_URL}/submissions`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async getSubmissionDetail(id: string) {
+    const res = await fetch(`${BASE_URL}/submissions/${id}`, {
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
+  async updateSubmission(id: string, data: any) {
+    const res = await fetch(`${BASE_URL}/submissions/${id}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async getSubmissionItemDetail(submissionId: string, itemId: string) {
+    const res = await fetch(`${BASE_URL}/submissions/${submissionId}/items/${itemId}`, {
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
+  async updateSubmissionItem(submissionId: string, itemId: string, data: any) {
+    const res = await fetch(`${BASE_URL}/submissions/${submissionId}/items/${itemId}`, {
+      method: 'PATCH',
+      headers: getHeaders(),
+      body: JSON.stringify(data)
+    });
+    return res.json();
+  },
+
+  async uploadSubmissionEvidence(submissionId: string, itemId: string, evidenceData: any) {
+    const res = await fetch(`${BASE_URL}/submissions/${submissionId}/items/${itemId}/evidence`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(evidenceData)
+    });
+    return res.json();
+  },
+
+  async deleteSubmissionEvidence(submissionId: string, itemId: string, evidenceId: string) {
+    const res = await fetch(`${BASE_URL}/submissions/${submissionId}/items/${itemId}/evidence/${evidenceId}`, {
+      method: 'DELETE',
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
+  async getSubmissionGuideBook() {
+    const res = await fetch(`${BASE_URL}/submissions/guide-book`, {
+      headers: getHeaders()
+    });
+    return res.json();
   }
 };

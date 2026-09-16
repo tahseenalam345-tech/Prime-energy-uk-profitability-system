@@ -11,6 +11,7 @@ import { leadsRouter } from './routes/leads.js';
 import { quotesRouter } from './routes/quotes.js';
 import { adminRouter } from './routes/admin.js';
 import { reportsRouter } from './routes/reports.js';
+import { submissionsRouter } from './routes/submissions.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -70,6 +71,7 @@ app.use('/api/leads', leadsRouter);
 app.use('/api/quotes', quotesRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/submissions', submissionsRouter);
 
 // Health check with active runtime database diagnostics
 app.get('/api/health', (req, res) => {
