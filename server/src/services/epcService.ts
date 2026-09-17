@@ -166,9 +166,6 @@ export async function mapEpcRecordToModeA(record: EpcPropertySearchResult): Prom
     propertyType = 'End terrace';
   } else if (rawBuiltForm === '4' || rawBuiltForm === '5') {
     propertyType = 'Mid terrace';
-  } else if (rawPropType.includes('house')) {
-    // If built form is completely unstated for a house, leave unassigned so user can select, rather than assuming Detached
-    propertyType = undefined;
   }
 
   // Habitable Rooms & Bedroom heuristic
@@ -178,33 +175,41 @@ export async function mapEpcRecordToModeA(record: EpcPropertySearchResult): Prom
     bedrooms = Math.max(1, Math.min(6, Math.round(habitableRoomsCount - 2)));
   }
 
-  // Wall Insulation Mapping
+  // Wall Insulation Mapping (Fixed Bug: Negative checks before positive substring matching)
   let wallInsulation: string | undefined = undefined;
   let wallsDesc = record.wallsDescription || '';
   if (fullDetails?.walls && Array.isArray(fullDetails.walls)) {
     wallsDesc = fullDetails.walls.map((w: any) => w.description || '').join(' ');
   }
-  wallsDesc = wallsDesc.toLowerCase();
-  if (wallsDesc.includes('filled') || wallsDesc.includes('insulated') || wallsDesc.includes('internal') || wallsDesc.includes('external')) {
+  const wLower = wallsDesc.toLowerCase();
+
+  const isUninsulatedWall = wLower.includes('no insulation') || wLower.includes('uninsulated') || (wLower.includes('as built') && !wLower.includes('insulated'));
+  const isInsulatedWall = wLower.includes('filled cavity') || wLower.includes('internal insulation') || wLower.includes('external insulation') || (wLower.includes('insulated') && !isUninsulatedWall);
+
+  if (isInsulatedWall) {
     wallInsulation = 'Insulated';
-  } else if (wallsDesc.includes('uninsulated') || wallsDesc.includes('no insulation') || wallsDesc.includes('as built')) {
+  } else if (isUninsulatedWall || wLower.length > 0) {
     wallInsulation = 'Uninsulated';
   }
 
-  // Roof Insulation Mapping
+  // Roof Insulation Mapping (Fixed Bug)
   let roofInsulation: string | undefined = undefined;
   let roofDesc = record.roofDescription || '';
   if (fullDetails?.roofs && Array.isArray(fullDetails.roofs)) {
     roofDesc = fullDetails.roofs.map((r: any) => r.description || '').join(' ');
   }
-  roofDesc = roofDesc.toLowerCase();
-  if (roofDesc.includes('200') || roofDesc.includes('250') || roofDesc.includes('300') || roofDesc.includes('insulated') || roofDesc.includes('pitched')) {
+  const rLower = roofDesc.toLowerCase();
+
+  const isUninsulatedRoof = rLower.includes('no insulation') || rLower.includes('uninsulated') || rLower.includes('0mm') || rLower.includes('limited');
+  const isInsulatedRoof = (rLower.includes('mm') || rLower.includes('insulated')) && !isUninsulatedRoof;
+
+  if (isInsulatedRoof) {
     roofInsulation = 'Insulated';
-  } else if (roofDesc.includes('no insulation') || roofDesc.includes('limited') || roofDesc.includes('0mm')) {
+  } else if (isUninsulatedRoof || rLower.length > 0) {
     roofInsulation = 'Uninsulated';
   }
 
-  // Heating System & Fuel Mapping
+  // Heating System, Fuel & Infrastructure Mapping
   let existingHeatingSystem: string | undefined = undefined;
   let existingFuelType: string | undefined = undefined;
   let onOffGasGrid: string | undefined = undefined;
@@ -213,27 +218,32 @@ export async function mapEpcRecordToModeA(record: EpcPropertySearchResult): Prom
   if (fullDetails?.main_heating && Array.isArray(fullDetails.main_heating)) {
     mainHeatingDesc = fullDetails.main_heating.map((h: any) => h.description || '').join(' ');
   }
+  if (!mainHeatingDesc && fullDetails?.sap_heating) {
+    mainHeatingDesc = JSON.stringify(fullDetails.sap_heating);
+  }
   const fuelDesc = mainHeatingDesc.toLowerCase();
 
-  if (fuelDesc.includes('gas') && !fuelDesc.includes('lpg')) {
-    onOffGasGrid = 'On gas grid';
-    existingFuelType = 'Mains Gas';
-    existingHeatingSystem = 'Gas Central Heating';
+  if (fuelDesc.includes('lpg')) {
+    onOffGasGrid = 'Off gas grid';
+    existingFuelType = 'Bulk LPG';
+    existingHeatingSystem = 'LPG Boiler';
   } else if (fuelDesc.includes('oil')) {
     onOffGasGrid = 'Off gas grid';
     existingFuelType = 'Heating Oil';
     existingHeatingSystem = 'Oil Boiler';
-  } else if (fuelDesc.includes('lpg')) {
-    onOffGasGrid = 'Off gas grid';
-    existingFuelType = 'Bulk LPG';
-    existingHeatingSystem = 'LPG Boiler';
   } else if (fuelDesc.includes('electric') || fuelDesc.includes('storage')) {
+    onOffGasGrid = 'On gas grid';
     existingFuelType = 'Electricity';
     existingHeatingSystem = 'Electric Storage Heaters';
+  } else {
+    // Default to Mains Gas / Gas Central Heating for standard domestic gas heating
+    onOffGasGrid = 'On gas grid';
+    existingFuelType = 'Mains Gas';
+    existingHeatingSystem = 'Gas Central Heating';
   }
 
-  // Annual Space Heating & Water Heating Energy (kWh/year)
-  const annualHeatingKwh = parseFirstNumeric([
+  // Annual Space Heating & Water Heating Energy (kWh/year) Extraction & Calculation
+  let annualHeatingKwh = parseFirstNumeric([
     fullDetails?.space_heating_demand,
     fullDetails?.space_heating_kwh,
     fullDetails?.annual_space_heating,
@@ -249,7 +259,7 @@ export async function mapEpcRecordToModeA(record: EpcPropertySearchResult): Prom
     record.annualHeatingKwh
   ]);
 
-  const annualHotWaterKwh = parseFirstNumeric([
+  let annualHotWaterKwh = parseFirstNumeric([
     fullDetails?.water_heating_demand,
     fullDetails?.water_heating_kwh,
     fullDetails?.annual_water_heating,
@@ -264,6 +274,25 @@ export async function mapEpcRecordToModeA(record: EpcPropertySearchResult): Prom
     raw['water_heating_demand'],
     record.annualHotWaterKwh
   ]);
+
+  // Fallback Calculation from Floor Area & Energy Consumption Rate (energy_consumption_current)
+  const areaNum = epcFloorArea || parseFirstNumeric([fullDetails?.total_floor_area, raw['total-floor-area']]);
+  const rateNum = parseFirstNumeric([fullDetails?.energy_consumption_current, raw['energy-consumption-current']]);
+
+  if (!annualHeatingKwh && areaNum && rateNum) {
+    annualHeatingKwh = Math.round(areaNum * rateNum * 0.85);
+  }
+  if (!annualHotWaterKwh && areaNum && rateNum) {
+    annualHotWaterKwh = Math.round(areaNum * rateNum * 0.15);
+  }
+
+  // Final heuristic fallback from floor area if energy consumption rate was absent
+  if (!annualHeatingKwh && areaNum) {
+    annualHeatingKwh = Math.round(areaNum * 90);
+  }
+  if (!annualHotWaterKwh && areaNum) {
+    annualHotWaterKwh = Math.round(areaNum * 18);
+  }
 
   return {
     epcReference: epcRef,
