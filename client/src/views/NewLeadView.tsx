@@ -142,9 +142,14 @@ interface NewLeadViewProps {
   onQuoteSaved?: (quoteId: string) => void;
   currentUserId: string;
   currentUser?: User | null;
+  selectedLead?: any | null;
+  onClearSelectedLead?: () => void;
 }
 
-export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentUserId, currentUser }) => {
+export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentUserId, currentUser, selectedLead, onClearSelectedLead }) => {
+  // Active Lead ID state (if editing existing lead)
+  const [activeLeadId, setActiveLeadId] = useState<string | null>(selectedLead?.id || null);
+
   // 1. Form state - Customer & Property (Empty initial state)
   const [customerName, setCustomerName] = useState('');
   const [email, setEmail] = useState('');
@@ -261,8 +266,65 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Restore Draft from localStorage on mount
+  // Populate fields whenever selectedLead is opened from Leads list or Dashboard
   useEffect(() => {
+    if (selectedLead) {
+      const loadLeadData = async () => {
+        let l = selectedLead;
+        if (selectedLead.id) {
+          try {
+            const res = await api.getLead(selectedLead.id);
+            if (res && res.lead) {
+              l = { ...selectedLead, ...res.lead };
+            }
+          } catch (e) {
+            console.warn('Could not fetch full lead details, using selectedLead object', e);
+          }
+        }
+
+        setActiveLeadId(l.id || null);
+        if (l.customer_name || l.customerName) setCustomerName(l.customer_name || l.customerName || '');
+        if (l.email !== undefined) setEmail(l.email || '');
+        if (l.phone !== undefined) setPhone(l.phone || '');
+        if (l.lead_source || l.leadSource) setLeadSource(l.lead_source || l.leadSource || '');
+        if (l.address_line1 || l.addressLine1) setAddressLine1(l.address_line1 || l.addressLine1 || '');
+        if (l.postcode) setPostcode(l.postcode || '');
+        if (l.country) setCountry(l.country || 'England');
+        if (l.epc_rating || l.epcRating) setEpcRating(l.epc_rating || l.epcRating || '');
+        if (l.epc_floor_area || l.epcFloorArea) setEpcFloorArea(String(l.epc_floor_area || l.epcFloorArea || ''));
+        if (l.storeys) setStoreys(String(l.storeys));
+        if (l.annual_heating_kwh || l.annualHeatingKwh) setAnnualHeatingKwh(String(l.annual_heating_kwh || l.annualHeatingKwh));
+        if (l.annual_hot_water_kwh || l.annualHotWaterKwh) setAnnualHotWaterKwh(String(l.annual_hot_water_kwh || l.annualHotWaterKwh));
+        if (l.epc_certificate_number || l.epcCertificateNumber || l.epc_reference) {
+          setEpcCertificateNumber(l.epc_certificate_number || l.epcCertificateNumber || l.epc_reference || '');
+        }
+        if (l.property_type || l.propertyType) setPropertyType(l.property_type || l.propertyType || '');
+        if (l.property_status || l.propertyStatus) setPropertyStatus(l.property_status || l.propertyStatus || '');
+        if (l.bedrooms) setBedrooms(String(l.bedrooms));
+        if (l.bathrooms) setBathrooms(String(l.bathrooms));
+        if (l.wall_insulation || l.wallInsulation) setWallInsulation(l.wall_insulation || l.wallInsulation || '');
+        if (l.roof_insulation || l.roofInsulation) setRoofInsulation(l.roof_insulation || l.roofInsulation || '');
+        if (l.existing_heating_system || l.existingHeatingSystem) setExistingHeatingSystem(l.existing_heating_system || l.existingHeatingSystem || '');
+        if (l.existing_fuel_type || l.existingFuelType || l.existing_fuel) setExistingFuelType(l.existing_fuel_type || l.existingFuelType || l.existing_fuel || '');
+        if (l.boiler_type || l.boilerType) setBoilerType(l.boiler_type || l.boilerType || '');
+        if (l.on_off_gas_grid || l.onOffGasGrid) setOnOffGasGrid(l.on_off_gas_grid || l.onOffGasGrid || '');
+        if (l.cylinder_space || l.cylinderSpace) setCylinderSpace(l.cylinder_space || l.cylinderSpace || '');
+        if (l.existing_radiator_count || l.existingRadiatorCount) setExistingRadiatorCount(String(l.existing_radiator_count || l.existingRadiatorCount));
+        if (l.dominant_radiator_type || l.dominantRadiatorType) setDominantRadiatorType(l.dominant_radiator_type || l.dominantRadiatorType || '');
+        if (l.existing_pipework || l.existingPipework) setExistingPipework(l.existing_pipework || l.existingPipework || '');
+        if (l.previous_government_grant || l.previousGovernmentGrant) setPreviousGovernmentGrant(l.previous_government_grant || l.previousGovernmentGrant || '');
+        if (l.sales_notes || l.salesNotes) setSalesNotes(l.sales_notes || l.salesNotes || '');
+
+        setDraftStatus('RESTORED');
+        try { localStorage.removeItem('prime_lead_draft'); } catch (e) {}
+      };
+      loadLeadData();
+    }
+  }, [selectedLead]);
+
+  // Restore Draft from localStorage on mount (only if no selectedLead was provided)
+  useEffect(() => {
+    if (selectedLead) return;
     try {
       const savedDraft = localStorage.getItem('prime_lead_draft');
       if (savedDraft) {
@@ -379,8 +441,14 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
       setDeletedLineIds([]);
       setDescriptionOverrides({});
       setCustomLineItems([]);
+      setActiveLeadId(null);
+      if (onClearSelectedLead) {
+        onClearSelectedLead();
+      }
       setDraftStatus('IDLE');
       setResult(null);
+      setQuotationResult(null);
+      setSavedQuoteRef(null);
     } catch (err) {
       console.error('Failed to discard draft', err);
     }
@@ -735,7 +803,10 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
     if (!result || !result.hasSufficientData) return;
     setSavingQuote(true);
     try {
-      const leadRes = await api.createLead({
+      let leadId = activeLeadId;
+      let leadRes: any = null;
+
+      const leadPayload = {
         customerName: customerName.trim() || 'New Lead Customer',
         email: email.trim() || undefined,
         phone: phone.trim() || undefined,
@@ -745,6 +816,10 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         country: country || 'England',
         epcRating: epcRating || undefined,
         epcFloorArea: (epcFloorArea !== '' && Number(epcFloorArea) > 0) ? Number(epcFloorArea) : undefined,
+        storeys: (storeys !== '' && Number(storeys) > 0) ? Number(storeys) : undefined,
+        annualHeatingKwh: annualHeatingKwh !== '' ? Number(annualHeatingKwh) : undefined,
+        annualHotWaterKwh: annualHotWaterKwh !== '' ? Number(annualHotWaterKwh) : undefined,
+        epcCertificateNumber: epcCertificateNumber || undefined,
         propertyType: propertyType || undefined,
         propertyStatus: propertyStatus || undefined,
         bedrooms: (bedrooms !== '' && Number(bedrooms) > 0) ? Number(bedrooms) : undefined,
@@ -752,6 +827,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         wallInsulation: wallInsulation || undefined,
         roofInsulation: roofInsulation || undefined,
         existingHeatingSystem: existingHeatingSystem || undefined,
+        existingFuelType: existingFuelType || undefined,
         boilerType: boilerType || undefined,
         onOffGasGrid: onOffGasGrid || undefined,
         cylinderSpace: cylinderSpace || undefined,
@@ -763,12 +839,21 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         epcImportedAt: epcImportMeta.imported ? epcImportMeta.importedAt : undefined,
         epcCertificateDate: epcImportMeta.imported ? epcImportMeta.certificateDate : undefined,
         epcSelectedAddress: epcImportMeta.imported ? epcImportMeta.selectedAddress : undefined
-      });
+      };
 
-      const leadId = leadRes?.id || leadRes?.lead?.id;
-      if (!leadId) {
-        throw new Error(leadRes?.error || 'Lead creation failed: Missing lead ID in server response.');
+      if (leadId) {
+        await api.updateLead(leadId, leadPayload);
+      } else {
+        leadRes = await api.createLead(leadPayload);
+        leadId = leadRes?.id || leadRes?.lead?.id;
+        if (leadId) setActiveLeadId(leadId);
       }
+
+      if (!leadId) {
+        throw new Error(leadRes?.error || 'Lead saving failed: Missing lead ID in server response.');
+      }
+
+      try { localStorage.removeItem('prime_lead_draft'); } catch (e) {}
 
       const quoteRes = await api.saveQuoteSnapshot({
         leadId,
@@ -783,6 +868,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
       }
 
       setSavedQuoteRef(quoteRes.quoteReference);
+      setDraftStatus('SAVED');
       if (onQuoteSaved) {
         onQuoteSaved(quoteRes.quoteId);
       }
@@ -807,7 +893,10 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
     setGeneratingQuotation(true);
     try {
-      const leadRes = await api.createLead({
+      let leadId = activeLeadId;
+      let leadRes: any = null;
+
+      const leadPayload = {
         customerName: customerName.trim(),
         email: email ? email.trim() : undefined,
         phone: phone ? phone.trim() : undefined,
@@ -828,6 +917,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         wallInsulation: wallInsulation || undefined,
         roofInsulation: roofInsulation || undefined,
         existingHeatingSystem: existingHeatingSystem || undefined,
+        existingFuelType: existingFuelType || undefined,
         boilerType: boilerType || undefined,
         onOffGasGrid: onOffGasGrid || undefined,
         cylinderSpace: cylinderSpace || undefined,
@@ -839,12 +929,21 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         epcImportedAt: epcImportMeta.imported ? epcImportMeta.importedAt : undefined,
         epcCertificateDate: epcImportMeta.imported ? epcImportMeta.certificateDate : undefined,
         epcSelectedAddress: epcImportMeta.imported ? epcImportMeta.selectedAddress : undefined
-      });
+      };
 
-      const leadId = leadRes?.id || leadRes?.lead?.id;
+      if (leadId) {
+        await api.updateLead(leadId, leadPayload);
+      } else {
+        leadRes = await api.createLead(leadPayload);
+        leadId = leadRes?.id || leadRes?.lead?.id;
+        if (leadId) setActiveLeadId(leadId);
+      }
+
       if (!leadId) {
         throw new Error(leadRes?.error || 'Failed to create or retrieve lead ID.');
       }
+
+      try { localStorage.removeItem('prime_lead_draft'); } catch (e) {}
 
       const res = await api.generateQuotation({
         leadId,
@@ -867,11 +966,12 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
       });
 
       setSavedQuoteRef(res.quoteReference);
+      setDraftStatus('SAVED');
       if (onQuoteSaved) {
         onQuoteSaved(res.quoteId);
       }
     } catch (err: any) {
-      alert('Failed to generate quotation document: ' + (err.message || err));
+      alert('Failed to generate quotation: ' + (err.message || err));
     } finally {
       setGeneratingQuotation(false);
     }

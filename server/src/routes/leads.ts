@@ -16,8 +16,10 @@ leadsRouter.get('/', authenticateToken, async (req: AuthenticatedRequest, res: R
     const query = `
       SELECT 
         l.id, l.reference_no, l.customer_name, l.email, l.phone, l.lead_source, l.status, l.assigned_to, l.created_at,
+        l.epc_source, l.epc_reference, l.epc_imported_at, l.epc_certificate_date, l.epc_selected_address,
         p.address_line1, p.postcode, p.country, p.epc_rating, p.epc_floor_area, p.property_type, p.property_status,
-        p.bedrooms, p.bathrooms, p.boiler_type, p.cylinder_space, p.existing_pipework, p.on_off_gas_grid, p.sales_notes
+        p.bedrooms, p.bathrooms, p.wall_insulation, p.roof_insulation, p.existing_heating_system, p.boiler_type,
+        p.cylinder_space, p.existing_radiator_count, p.existing_pipework, p.on_off_gas_grid, p.previous_government_grant, p.sales_notes
       FROM leads l
       LEFT JOIN properties p ON l.id = p.lead_id
       ORDER BY l.created_at DESC
@@ -246,16 +248,44 @@ leadsRouter.put('/:id', authenticateToken, requireRole('ADMIN', 'SALES', 'SURVEY
           UPDATE properties
           SET address_line1 = COALESCE(?, address_line1),
               postcode = COALESCE(?, postcode),
-              property_type = COALESCE(?, property_type),
+              country = COALESCE(?, country),
               epc_rating = COALESCE(?, epc_rating),
+              epc_floor_area = COALESCE(?, epc_floor_area),
+              property_type = COALESCE(?, property_type),
+              property_status = COALESCE(?, property_status),
+              bedrooms = COALESCE(?, bedrooms),
+              bathrooms = COALESCE(?, bathrooms),
+              wall_insulation = COALESCE(?, wall_insulation),
+              roof_insulation = COALESCE(?, roof_insulation),
+              existing_heating_system = COALESCE(?, existing_heating_system),
+              boiler_type = COALESCE(?, boiler_type),
+              on_off_gas_grid = COALESCE(?, on_off_gas_grid),
+              cylinder_space = COALESCE(?, cylinder_space),
+              existing_radiator_count = COALESCE(?, existing_radiator_count),
+              existing_pipework = COALESCE(?, existing_pipework),
+              previous_government_grant = COALESCE(?, previous_government_grant),
               sales_notes = COALESCE(?, sales_notes)
           WHERE lead_id = ?
         `,
         args: [
           data.addressLine1 !== undefined ? data.addressLine1 : null,
           data.postcode !== undefined ? data.postcode : null,
-          data.propertyType !== undefined ? data.propertyType : null,
+          data.country !== undefined ? data.country : null,
           data.epcRating !== undefined ? data.epcRating : null,
+          data.epcFloorArea !== undefined ? data.epcFloorArea : null,
+          data.propertyType !== undefined ? data.propertyType : null,
+          data.propertyStatus !== undefined ? data.propertyStatus : null,
+          data.bedrooms !== undefined ? data.bedrooms : null,
+          data.bathrooms !== undefined ? data.bathrooms : null,
+          data.wallInsulation !== undefined ? data.wallInsulation : null,
+          data.roofInsulation !== undefined ? data.roofInsulation : null,
+          data.existingHeatingSystem !== undefined ? data.existingHeatingSystem : null,
+          data.boilerType !== undefined ? data.boilerType : null,
+          data.onOffGasGrid !== undefined ? data.onOffGasGrid : null,
+          data.cylinderSpace !== undefined ? data.cylinderSpace : null,
+          data.existingRadiatorCount !== undefined ? data.existingRadiatorCount : null,
+          data.existingPipework !== undefined ? data.existingPipework : null,
+          data.previousGovernmentGrant !== undefined ? data.previousGovernmentGrant : null,
           data.salesNotes !== undefined ? data.salesNotes : null,
           leadId
         ]

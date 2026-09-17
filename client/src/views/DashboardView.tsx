@@ -14,7 +14,7 @@ import { GoldenFormulaExplainer } from '../components/GoldenFormulaExplainer.js'
 import { SnapshotModal } from '../components/SnapshotModal.js';
 
 interface DashboardViewProps {
-  onNavigate: (tab: string) => void;
+  onNavigate: (tab: string, lead?: any) => void;
 }
 
 export const ALL_17_STATUSES = [
@@ -138,7 +138,7 @@ interface JobDossierSliderProps {
   onPrevJob?: () => void;
   onNextJob?: () => void;
   onSelectSnapshot?: (quoteId: string) => void;
-  onNavigate: (tab: string) => void;
+  onNavigate: (tab: string, lead?: any) => void;
 }
 
 const JobDossierSlider: React.FC<JobDossierSliderProps> = ({
@@ -226,7 +226,7 @@ const JobDossierSlider: React.FC<JobDossierSliderProps> = ({
           )}
 
           <button
-            onClick={() => onNavigate(hasComm && job.commercial?.mode === 'AFTER_SURVEY' ? 'after-survey' : 'new-lead')}
+            onClick={() => onNavigate(hasComm && job.commercial?.mode === 'AFTER_SURVEY' ? 'after-survey' : 'new-lead', job)}
             className="btn btn-primary btn-sm"
             style={{ padding: '4px 10px', fontSize: '0.725rem' }}
           >
@@ -540,7 +540,7 @@ const JobDossierSlider: React.FC<JobDossierSliderProps> = ({
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button
                   type="button"
-                  onClick={() => onNavigate(hasComm && job.commercial?.mode === 'AFTER_SURVEY' ? 'after-survey' : 'new-lead')}
+                  onClick={() => onNavigate(hasComm && job.commercial?.mode === 'AFTER_SURVEY' ? 'after-survey' : 'new-lead', job)}
                   className="btn btn-primary btn-sm"
                   style={{ flex: 1, padding: '6px 10px', fontSize: '0.75rem', justifyContent: 'center' }}
                 >

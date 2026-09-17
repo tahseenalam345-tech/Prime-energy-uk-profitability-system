@@ -79,8 +79,20 @@ export function App() {
     setCurrentTab('dashboard');
   };
 
-  const handleSelectLeadForCalc = (lead: Lead) => {
-    setCurrentTab('new-lead');
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
+
+  const handleSelectLeadForCalc = (lead: Lead | null, targetTab: string = 'new-lead') => {
+    setSelectedLead(lead || null);
+    setCurrentTab(targetTab);
+  };
+
+  const handleNavigateTab = (tab: string, lead?: Lead | null) => {
+    if (lead !== undefined) {
+      setSelectedLead(lead);
+    } else if (tab === 'new-lead' && !lead) {
+      setSelectedLead(null);
+    }
+    setCurrentTab(tab);
   };
 
   const handleQuoteSaved = (quoteId: string) => {
@@ -120,7 +132,7 @@ export function App() {
     return (
       <LoginView
         onLoginSuccess={handleLoginSuccess}
-        onCancel={() => setCurrentTab('dashboard')}
+        onCancel={() => handleNavigateTab('dashboard')}
         theme={theme}
         onToggleTheme={handleToggleTheme}
       />
@@ -134,7 +146,7 @@ export function App() {
     <div className="app-container">
       <Navbar
         currentTab={currentTab}
-        setCurrentTab={setCurrentTab}
+        setCurrentTab={handleNavigateTab}
         currentUser={currentUser}
         onLogout={handleLogout}
         theme={theme}
@@ -142,13 +154,15 @@ export function App() {
       />
 
       <main key={currentTab} className="main-content page-fade-in">
-        {currentTab === 'dashboard' && <DashboardView onNavigate={setCurrentTab} />}
+        {currentTab === 'dashboard' && <DashboardView onNavigate={(tab, lead) => handleNavigateTab(tab, lead)} />}
         {currentTab === 'submissions' && <SubmissionsView currentUser={currentUser} />}
         {currentTab === 'submission-guide' && <SubmissionGuideView />}
         {currentTab === 'new-lead' && (
           <NewLeadView
             currentUserId={currentUserId}
             currentUser={currentUser}
+            selectedLead={selectedLead}
+            onClearSelectedLead={() => setSelectedLead(null)}
             onQuoteSaved={handleQuoteSaved}
           />
         )}
@@ -160,7 +174,7 @@ export function App() {
           />
         )}
         {currentTab === 'leads' && (
-          <LeadsView currentUser={currentUser} onSelectLeadForCalc={handleSelectLeadForCalc} />
+          <LeadsView currentUser={currentUser} onSelectLeadForCalc={(l) => handleSelectLeadForCalc(l, 'new-lead')} />
         )}
 
         {currentTab === 'quotes' && (
