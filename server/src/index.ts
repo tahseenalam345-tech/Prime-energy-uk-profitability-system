@@ -12,6 +12,7 @@ import { quotesRouter } from './routes/quotes.js';
 import { adminRouter } from './routes/admin.js';
 import { reportsRouter } from './routes/reports.js';
 import { submissionsRouter } from './routes/submissions.js';
+import { epcRouter } from './routes/epc.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,6 +73,7 @@ app.use('/api/quotes', quotesRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/submissions', submissionsRouter);
+app.use('/api/epc', epcRouter);
 
 // Health check with active runtime database diagnostics
 app.get('/api/health', (req, res) => {

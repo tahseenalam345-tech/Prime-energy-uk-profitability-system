@@ -223,6 +223,31 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [inputsChanged, setInputsChanged] = useState(false);
 
+  // 7. GOV.UK EPC Import State & Provenance Tracking
+  const [epcSearchPostcode, setEpcSearchPostcode] = useState('');
+  const [epcSearching, setEpcSearching] = useState(false);
+  const [epcSearchResults, setEpcSearchResults] = useState<any[]>([]);
+  const [epcSearchNotice, setEpcSearchNotice] = useState('');
+  const [epcSearchError, setEpcSearchError] = useState('');
+  const [selectedEpcRecord, setSelectedEpcRecord] = useState<any | null>(null);
+  const [epcImportMeta, setEpcImportMeta] = useState<{
+    imported: boolean;
+    reference: string;
+    importedAt: string;
+    certificateDate: string;
+    selectedAddress: string;
+    importedValues: Record<string, any>;
+    manualEdits: Record<string, boolean>;
+  }>({
+    imported: false,
+    reference: '',
+    importedAt: '',
+    certificateDate: '',
+    selectedAddress: '',
+    importedValues: {},
+    manualEdits: {}
+  });
+
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Restore Draft from localStorage on mount
@@ -348,6 +373,129 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
     } catch (err) {
       console.error('Failed to discard draft', err);
     }
+  };
+
+  // Search EPC by postcode (GOV.UK EPC Data Service)
+  const handleSearchEpc = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const queryPc = epcSearchPostcode || postcode;
+    if (!queryPc || queryPc.trim().length < 3) {
+      setEpcSearchError('Please enter a valid UK postcode to search EPC records.');
+      return;
+    }
+
+    setEpcSearching(true);
+    setEpcSearchError('');
+    setEpcSearchNotice('');
+    setEpcSearchResults([]);
+    setSelectedEpcRecord(null);
+
+    try {
+      const res = await api.searchEpc(queryPc.trim());
+      if (res.results && res.results.length > 0) {
+        setEpcSearchResults(res.results);
+        setSelectedEpcRecord(res.results[0]);
+        if (res.notice) setEpcSearchNotice(res.notice);
+      } else {
+        setEpcSearchError(`No domestic EPC records found on GOV.UK for postcode ${queryPc.toUpperCase()}.`);
+      }
+    } catch (err: any) {
+      setEpcSearchError('Failed to query GOV.UK EPC database: ' + (err.message || err));
+    } finally {
+      setEpcSearching(false);
+    }
+  };
+
+  // Import selected EPC record into Mode A fields
+  const handleImportEpc = async () => {
+    if (!selectedEpcRecord) return;
+    try {
+      const res = await api.mapEpcRecord(selectedEpcRecord);
+      if (res.mappedData) {
+        const m = res.mappedData;
+        const newImportedValues: Record<string, any> = {};
+
+        if (m.addressLine1) { setAddressLine1(m.addressLine1); newImportedValues.addressLine1 = m.addressLine1; }
+        if (m.postcode) { setPostcode(m.postcode); newImportedValues.postcode = m.postcode; }
+        if (m.epcRating) { setEpcRating(m.epcRating); newImportedValues.epcRating = m.epcRating; }
+        if (m.epcFloorArea !== undefined) { setEpcFloorArea(String(m.epcFloorArea)); newImportedValues.epcFloorArea = String(m.epcFloorArea); }
+        if (m.propertyType) { setPropertyType(m.propertyType); newImportedValues.propertyType = m.propertyType; }
+        if (m.bedrooms !== undefined) { setBedrooms(String(m.bedrooms)); newImportedValues.bedrooms = String(m.bedrooms); }
+        if (m.wallInsulation) { setWallInsulation(m.wallInsulation); newImportedValues.wallInsulation = m.wallInsulation; }
+        if (m.roofInsulation) { setRoofInsulation(m.roofInsulation); newImportedValues.roofInsulation = m.roofInsulation; }
+        if (m.existingHeatingSystem) { setExistingHeatingSystem(m.existingHeatingSystem); newImportedValues.existingHeatingSystem = m.existingHeatingSystem; }
+        if (m.existingFuelType) { setExistingFuelType(m.existingFuelType); newImportedValues.existingFuelType = m.existingFuelType; }
+        if (m.onOffGasGrid) { setOnOffGasGrid(m.onOffGasGrid); newImportedValues.onOffGasGrid = m.onOffGasGrid; }
+        if (m.epcReference) { setEpcCertificateNumber(m.epcReference); newImportedValues.epcCertificateNumber = m.epcReference; }
+
+        setEpcImportMeta({
+          imported: true,
+          reference: m.epcReference,
+          importedAt: new Date().toLocaleDateString('en-GB'),
+          certificateDate: m.certificateDate || '',
+          selectedAddress: m.selectedAddress || selectedEpcRecord.address,
+          importedValues: newImportedValues,
+          manualEdits: {}
+        });
+      }
+    } catch (err: any) {
+      alert('Failed to import EPC record: ' + err.message);
+    }
+  };
+
+  // Re-import / reset imported EPC values
+  const handleReimportEpc = () => {
+    if (!epcImportMeta.imported) return;
+    const vals = epcImportMeta.importedValues;
+    if (vals.addressLine1 !== undefined) setAddressLine1(vals.addressLine1);
+    if (vals.postcode !== undefined) setPostcode(vals.postcode);
+    if (vals.epcRating !== undefined) setEpcRating(vals.epcRating);
+    if (vals.epcFloorArea !== undefined) setEpcFloorArea(vals.epcFloorArea);
+    if (vals.propertyType !== undefined) setPropertyType(vals.propertyType);
+    if (vals.bedrooms !== undefined) setBedrooms(vals.bedrooms);
+    if (vals.wallInsulation !== undefined) setWallInsulation(vals.wallInsulation);
+    if (vals.roofInsulation !== undefined) setRoofInsulation(vals.roofInsulation);
+    if (vals.existingHeatingSystem !== undefined) setExistingHeatingSystem(vals.existingHeatingSystem);
+    if (vals.existingFuelType !== undefined) setExistingFuelType(vals.existingFuelType);
+    if (vals.onOffGasGrid !== undefined) setOnOffGasGrid(vals.onOffGasGrid);
+    if (vals.epcCertificateNumber !== undefined) setEpcCertificateNumber(vals.epcCertificateNumber);
+
+    setEpcImportMeta(prev => ({
+      ...prev,
+      manualEdits: {}
+    }));
+  };
+
+  const trackFieldChange = (fieldName: string, value: any) => {
+    if (!epcImportMeta.imported || !(fieldName in epcImportMeta.importedValues)) return;
+    const original = String(epcImportMeta.importedValues[fieldName] ?? '');
+    const current = String(value ?? '');
+    const isEdited = original !== current;
+
+    setEpcImportMeta(prev => ({
+      ...prev,
+      manualEdits: {
+        ...prev.manualEdits,
+        [fieldName]: isEdited
+      }
+    }));
+  };
+
+  const renderEpcBadge = (fieldName: string) => {
+    if (!epcImportMeta.imported || !(fieldName in epcImportMeta.importedValues)) return null;
+    const isEdited = epcImportMeta.manualEdits[fieldName];
+    if (isEdited) {
+      return (
+        <span className="badge badge-warning" style={{ fontSize: '0.68rem', marginLeft: '6px', padding: '2px 6px' }} title="This value was edited after importing from GOV.UK EPC">
+          Manually edited
+        </span>
+      );
+    }
+    return (
+      <span className="badge badge-success" style={{ fontSize: '0.68rem', marginLeft: '6px', padding: '2px 6px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }} title="Imported from official GOV.UK Energy Performance of Buildings Register">
+        Imported from GOV.UK EPC
+      </span>
+    );
   };
 
   // Load catalogs ONCE on mount (Requirement 6: Do not refetch on every field change)
@@ -546,7 +694,12 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         cylinderSpace: cylinderSpace || undefined,
         existingPipework: existingPipework || undefined,
         previousGovernmentGrant: previousGovernmentGrant || undefined,
-        salesNotes: salesNotes || ''
+        salesNotes: salesNotes || '',
+        epcSource: epcImportMeta.imported ? 'GOV.UK' : undefined,
+        epcReference: epcImportMeta.imported ? epcImportMeta.reference : undefined,
+        epcImportedAt: epcImportMeta.imported ? epcImportMeta.importedAt : undefined,
+        epcCertificateDate: epcImportMeta.imported ? epcImportMeta.certificateDate : undefined,
+        epcSelectedAddress: epcImportMeta.imported ? epcImportMeta.selectedAddress : undefined
       });
 
       const leadId = leadRes?.id || leadRes?.lead?.id;
@@ -617,7 +770,12 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         cylinderSpace: cylinderSpace || undefined,
         existingPipework: existingPipework || undefined,
         previousGovernmentGrant: previousGovernmentGrant || undefined,
-        salesNotes: salesNotes || ''
+        salesNotes: salesNotes || '',
+        epcSource: epcImportMeta.imported ? 'GOV.UK' : undefined,
+        epcReference: epcImportMeta.imported ? epcImportMeta.reference : undefined,
+        epcImportedAt: epcImportMeta.imported ? epcImportMeta.importedAt : undefined,
+        epcCertificateDate: epcImportMeta.imported ? epcImportMeta.certificateDate : undefined,
+        epcSelectedAddress: epcImportMeta.imported ? epcImportMeta.selectedAddress : undefined
       });
 
       const leadId = leadRes?.id || leadRes?.lead?.id;
@@ -848,6 +1006,125 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         
         {/* LEFT COLUMN: GUIDED PROPERTY FORM */}
         <div>
+          {/* IMPORT EPC FROM GOV.UK (Official Data Service) */}
+          <div className="card" style={{ border: '1px solid #bfdbfe', background: '#f8fafc', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+              <h2 className="card-title" style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', color: '#1e3a8a', fontSize: '1rem' }}>
+                <Search size={18} color="#2563eb" /> Import EPC from GOV.UK Data Service
+              </h2>
+              {epcImportMeta.imported && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="badge badge-success" style={{ fontSize: '0.75rem', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCircle2 size={13} /> EPC Imported ({epcImportMeta.reference})
+                  </span>
+                  <button
+                    onClick={handleReimportEpc}
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: '3px 8px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                    title="Reset edited fields back to imported EPC values"
+                  >
+                    <RotateCcw size={12} /> Re-import EPC
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleSearchEpc} style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '12px' }}>
+              <div style={{ flex: 1 }}>
+                <input
+                  className="form-control"
+                  placeholder="Enter Postcode (e.g. WA15 8XL or SW1A 1AA)"
+                  value={epcSearchPostcode || postcode}
+                  onChange={(e) => setEpcSearchPostcode(e.target.value)}
+                  style={{ textTransform: 'uppercase', fontWeight: 600 }}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={epcSearching}
+                className="btn btn-primary"
+                style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', background: '#2563eb', border: 'none', whiteSpace: 'nowrap' }}
+              >
+                {epcSearching ? <RefreshCw size={14} className="animate-spin" /> : <Search size={14} />} Search EPC
+              </button>
+            </form>
+
+            {epcSearchNotice && (
+              <div style={{ fontSize: '0.78rem', color: '#1e40af', background: '#eff6ff', border: '1px solid #bfdbfe', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px' }}>
+                <Info size={13} style={{ display: 'inline', marginRight: '6px', verticalAlign: '-2px' }} />
+                {epcSearchNotice}
+              </div>
+            )}
+
+            {epcSearchError && (
+              <div style={{ fontSize: '0.8rem', color: '#b91c1c', background: '#fee2e2', border: '1px solid #fca5a5', padding: '8px 12px', borderRadius: '6px', marginBottom: '12px' }}>
+                {epcSearchError}
+              </div>
+            )}
+
+            {/* Property Selector Table */}
+            {epcSearchResults.length > 0 && (
+              <div style={{ background: '#ffffff', borderRadius: '8px', border: '1px solid #cbd5e1', padding: '12px', marginTop: '8px' }}>
+                <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Select Property Certificate ({epcSearchResults.length} found):</span>
+                  <button
+                    onClick={handleImportEpc}
+                    disabled={!selectedEpcRecord}
+                    className="btn btn-primary btn-sm"
+                    style={{ padding: '6px 14px', fontSize: '0.8rem', background: '#059669', border: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <Download size={13} /> Import EPC
+                  </button>
+                </div>
+
+                <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                  <table className="data-table" style={{ fontSize: '0.78rem' }}>
+                    <thead>
+                      <tr>
+                        <th style={{ width: '35px' }}></th>
+                        <th>Address</th>
+                        <th>EPC Rating</th>
+                        <th>Cert. Date</th>
+                        <th>Property Type</th>
+                        <th>Floor Area</th>
+                        <th>EPC Reference</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {epcSearchResults.map((rec) => {
+                        const isSelected = selectedEpcRecord?.lmkKey === rec.lmkKey;
+                        return (
+                          <tr
+                            key={rec.lmkKey}
+                            onClick={() => setSelectedEpcRecord(rec)}
+                            style={{ cursor: 'pointer', background: isSelected ? '#eff6ff' : undefined }}
+                          >
+                            <td>
+                              <input
+                                type="radio"
+                                name="epc_property_select"
+                                checked={isSelected}
+                                onChange={() => setSelectedEpcRecord(rec)}
+                              />
+                            </td>
+                            <td style={{ fontWeight: isSelected ? 700 : 500 }}>{rec.address}</td>
+                            <td>
+                              <Badge type="grade" value={rec.epcRating} />
+                            </td>
+                            <td>{rec.certificateDate}</td>
+                            <td>{rec.builtForm ? `${rec.builtForm} (${rec.propertyType})` : rec.propertyType}</td>
+                            <td>{rec.floorAreaSqM ? `${rec.floorAreaSqM} m²` : '—'}</td>
+                            <td style={{ fontSize: '0.7rem', color: '#64748b' }}>{rec.lmkKey}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Customer & Lead Info */}
           <div className="card">
             <h2 className="card-title">1. Customer & Lead Origin</h2>
@@ -898,21 +1175,33 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
             <h2 className="card-title">2. Property Architecture & Fabric</h2>
             <div className="form-grid">
               <div className="form-group">
-                <label className="form-label">Address Line 1</label>
+                <label className="form-label">
+                  Address Line 1 {renderEpcBadge('addressLine1')}
+                </label>
                 <input
                   className="form-control"
                   placeholder="e.g. 14 Meadow Lane"
                   value={addressLine1}
-                  onChange={(e) => setAddressLine1(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setAddressLine1(val);
+                    trackFieldChange('addressLine1', val);
+                  }}
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Postcode</label>
+                <label className="form-label">
+                  Postcode {renderEpcBadge('postcode')}
+                </label>
                 <input
                   className="form-control font-mono"
                   placeholder="e.g. LS6 2NW"
                   value={postcode}
-                  onChange={(e) => setPostcode(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setPostcode(val);
+                    trackFieldChange('postcode', val);
+                  }}
                 />
               </div>
               <div className="form-group">
@@ -926,11 +1215,17 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Property Type</label>
+                <label className="form-label">
+                  Property Type {renderEpcBadge('propertyType')}
+                </label>
                 <SearchableSelect
                   options={propertyTypeOptions}
                   value={propertyType}
-                  onChange={(val) => setPropertyType(val || '')}
+                  onChange={(val) => {
+                    const v = val || '';
+                    setPropertyType(v);
+                    trackFieldChange('propertyType', v);
+                  }}
                   placeholder="Select property type..."
                   searchPlaceholder="Search property type..."
                 />
@@ -946,17 +1241,25 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">EPC Rating</label>
+                <label className="form-label">
+                  EPC Rating {renderEpcBadge('epcRating')}
+                </label>
                 <SearchableSelect
                   options={epcRatingOptions}
                   value={epcRating}
-                  onChange={(val) => setEpcRating(val || '')}
+                  onChange={(val) => {
+                    const v = val || '';
+                    setEpcRating(v);
+                    trackFieldChange('epcRating', v);
+                  }}
                   placeholder="Select EPC band..."
                   searchPlaceholder="Search EPC band..."
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">EPC Floor Area (m²)</label>
+                <label className="form-label">
+                  EPC Floor Area (m²) {renderEpcBadge('epcFloorArea')}
+                </label>
                 <input
                   type="number"
                   min="0"
@@ -964,7 +1267,11 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   className="form-control font-mono"
                   placeholder="e.g. 120"
                   value={epcFloorArea}
-                  onChange={(e) => setEpcFloorArea(e.target.value === '' ? '' : Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? '' : String(e.target.value);
+                    setEpcFloorArea(val);
+                    trackFieldChange('epcFloorArea', val);
+                  }}
                 />
               </div>
               <div className="form-group">
@@ -1006,11 +1313,17 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
               </div>
 
               <div className="form-group">
-                <label className="form-label">Bedrooms</label>
+                <label className="form-label">
+                  Bedrooms {renderEpcBadge('bedrooms')}
+                </label>
                 <SearchableSelect
                   options={bedroomOptions}
                   value={bedrooms}
-                  onChange={(val) => setBedrooms(val !== '' && val !== null && val !== undefined ? Number(val) : '')}
+                  onChange={(val) => {
+                    const v = val !== '' && val !== null && val !== undefined ? String(val) : '';
+                    setBedrooms(v);
+                    trackFieldChange('bedrooms', v);
+                  }}
                   placeholder="Select bedrooms..."
                   searchPlaceholder="Search bedrooms..."
                 />
@@ -1026,21 +1339,33 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Wall Insulation</label>
+                <label className="form-label">
+                  Wall Insulation {renderEpcBadge('wallInsulation')}
+                </label>
                 <SearchableSelect
                   options={wallInsulationOptions}
                   value={wallInsulation}
-                  onChange={(val) => setWallInsulation(val || '')}
+                  onChange={(val) => {
+                    const v = val || '';
+                    setWallInsulation(v);
+                    trackFieldChange('wallInsulation', v);
+                  }}
                   placeholder="Select wall insulation..."
                   searchPlaceholder="Search wall insulation..."
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Roof / Loft Insulation</label>
+                <label className="form-label">
+                  Roof / Loft Insulation {renderEpcBadge('roofInsulation')}
+                </label>
                 <SearchableSelect
                   options={roofInsulationOptions}
                   value={roofInsulation}
-                  onChange={(val) => setRoofInsulation(val || '')}
+                  onChange={(val) => {
+                    const v = val || '';
+                    setRoofInsulation(v);
+                    trackFieldChange('roofInsulation', v);
+                  }}
                   placeholder="Select roof insulation..."
                   searchPlaceholder="Search roof insulation..."
                 />
@@ -1053,31 +1378,49 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
             <h2 className="card-title">3. Heating System, Fuel & Infrastructure</h2>
             <div className="form-grid">
               <div className="form-group">
-                <label className="form-label">Gas Grid Connection</label>
+                <label className="form-label">
+                  Gas Grid Connection {renderEpcBadge('onOffGasGrid')}
+                </label>
                 <SearchableSelect
                   options={onOffGasGridOptions}
                   value={onOffGasGrid}
-                  onChange={(val) => setOnOffGasGrid(val || '')}
+                  onChange={(val) => {
+                    const v = val || '';
+                    setOnOffGasGrid(v);
+                    trackFieldChange('onOffGasGrid', v);
+                  }}
                   placeholder="Select grid status..."
                   searchPlaceholder="Search grid status..."
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Existing Fuel Type</label>
+                <label className="form-label">
+                  Existing Fuel Type {renderEpcBadge('existingFuelType')}
+                </label>
                 <SearchableSelect
                   options={existingFuelTypeOptions}
                   value={existingFuelType}
-                  onChange={(val) => setExistingFuelType(val || '')}
+                  onChange={(val) => {
+                    const v = val || '';
+                    setExistingFuelType(v);
+                    trackFieldChange('existingFuelType', v);
+                  }}
                   placeholder="Select fuel type..."
                   searchPlaceholder="Search fuel type..."
                 />
               </div>
               <div className="form-group">
-                <label className="form-label">Existing Boiler / Heat Source</label>
+                <label className="form-label">
+                  Existing Boiler / Heat Source {renderEpcBadge('existingHeatingSystem')}
+                </label>
                 <SearchableSelect
                   options={existingHeatingSystemOptions}
                   value={existingHeatingSystem}
-                  onChange={(val) => setExistingHeatingSystem(val || '')}
+                  onChange={(val) => {
+                    const v = val || '';
+                    setExistingHeatingSystem(v);
+                    trackFieldChange('existingHeatingSystem', v);
+                  }}
                   placeholder="Select existing system..."
                   searchPlaceholder="Search system..."
                 />

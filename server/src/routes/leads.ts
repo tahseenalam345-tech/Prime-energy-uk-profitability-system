@@ -76,8 +76,8 @@ leadsRouter.post('/', authenticateToken, requireRole('ADMIN', 'SALES', 'SURVEYOR
     await db.batch([
       {
         sql: `
-          INSERT INTO leads (id, reference_no, customer_name, email, phone, lead_source, status, assigned_to)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO leads (id, reference_no, customer_name, email, phone, lead_source, status, assigned_to, epc_source, epc_reference, epc_imported_at, epc_certificate_date, epc_selected_address)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
         args: [
           leadId,
@@ -87,7 +87,12 @@ leadsRouter.post('/', authenticateToken, requireRole('ADMIN', 'SALES', 'SURVEYOR
           data.phone || null,
           data.leadSource || 'Manual Entry',
           'NEW',
-          userId
+          userId,
+          data.epcSource || null,
+          data.epcReference || null,
+          data.epcImportedAt || null,
+          data.epcCertificateDate || null,
+          data.epcSelectedAddress || null
         ]
       },
       {

@@ -131,6 +131,21 @@ export async function initDatabase() {
   try {
     await db.execute('ALTER TABLE quotes ADD COLUMN generated_at DATETIME');
   } catch (err) {}
+  try {
+    await db.execute('ALTER TABLE leads ADD COLUMN epc_source TEXT');
+  } catch (err) {}
+  try {
+    await db.execute('ALTER TABLE leads ADD COLUMN epc_reference TEXT');
+  } catch (err) {}
+  try {
+    await db.execute('ALTER TABLE leads ADD COLUMN epc_imported_at DATETIME');
+  } catch (err) {}
+  try {
+    await db.execute('ALTER TABLE leads ADD COLUMN epc_certificate_date TEXT');
+  } catch (err) {}
+  try {
+    await db.execute('ALTER TABLE leads ADD COLUMN epc_selected_address TEXT');
+  } catch (err) {}
 }
 
 export default db;

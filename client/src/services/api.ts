@@ -588,5 +588,21 @@ export const api = {
       headers: getHeaders()
     });
     return res.json();
+  },
+
+  async searchEpc(postcode: string) {
+    const res = await fetch(`${BASE_URL}/epc/search?postcode=${encodeURIComponent(postcode)}`, {
+      headers: getHeaders()
+    });
+    return res.json();
+  },
+
+  async mapEpcRecord(record: any) {
+    const res = await fetch(`${BASE_URL}/epc/map`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify({ record })
+    });
+    return res.json();
   }
 };
