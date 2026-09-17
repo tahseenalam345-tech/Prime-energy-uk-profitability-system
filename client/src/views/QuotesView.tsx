@@ -114,15 +114,26 @@ export const QuotesView: React.FC<QuotesViewProps> = ({ currentUser }) => {
                   <td>
                     <div style={{ display: 'flex', gap: '6px' }}>
                       <a
-                        href={`/api/quotes/${q.id}/pdf`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-secondary btn-sm"
-                        style={{ padding: '5px 8px', fontSize: '0.75rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                        title="View / Download PDF Quotation"
+                        href={`/api/quotes/${q.id}/docx`}
+                        download
+                        className="btn btn-primary btn-sm"
+                        style={{ padding: '5px 8px', fontSize: '0.75rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', background: '#059669', borderColor: '#059669', color: '#ffffff' }}
+                        title="Download Master Word DOCX Quotation"
                       >
-                        <Download size={13} /> PDF
+                        <Download size={13} /> DOCX
                       </a>
+                      {q.pdf_path && (
+                        <a
+                          href={`/api/quotes/${q.id}/pdf`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '5px 8px', fontSize: '0.75rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          title="View / Download PDF Quotation"
+                        >
+                          <Download size={13} /> PDF
+                        </a>
+                      )}
                       <button
                         onClick={() => setSelectedSnapshotId(q.id)}
                         className="btn btn-secondary btn-sm"

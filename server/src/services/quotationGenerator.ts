@@ -254,7 +254,7 @@ export async function generateQuotationDocument(options: GenerateQuotationOption
     console.log('[QuotationGenerator Notice]: Python binary not present in runtime environment. Filled DOCX generated successfully via pure JS.');
   }
 
-  const finalPdfPath = fs.existsSync(outputPdfPath) ? outputPdfPath : outputDocxPath;
+  const finalPdfPath = fs.existsSync(outputPdfPath) ? outputPdfPath : null;
   const generatedAt = new Date().toISOString();
 
   // 10. Update Quote Record in Database
@@ -271,7 +271,7 @@ export async function generateQuotationDocument(options: GenerateQuotationOption
   return {
     quoteId,
     quoteReference,
-    pdfPath: finalPdfPath,
+    pdfPath: finalPdfPath || '',
     docxPath: outputDocxPath,
     validUntil: formattedValidUntil,
     generatedAt

@@ -2032,7 +2032,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         onClose={() => setShowEvidenceModal(false)}
       />
 
-      {/* PDF PREVIEW MODAL (Requirement 17) */}
+      {/* QUOTATION PREVIEW / DOWNLOAD MODAL (Requirement 17) */}
       {showPdfModal && quotationResult && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -2052,7 +2052,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
             }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: '#f8fafc' }}>
-                  <FileText size={20} color="#10b981" /> Quotation PDF Preview — {quotationResult.quoteReference}
+                  <FileText size={20} color="#10b981" /> Heat Pump Quotation — {quotationResult.quoteReference}
                 </h3>
                 <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
                   Customer: {customerName || 'Customer'} | BUS Grant: £{(result?.bus?.grantAmount || 0).toLocaleString()} | Customer Contribution: £{(result?.commercials?.customerContribution || 0).toLocaleString()}
@@ -2061,14 +2061,25 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <a
-                  href={quotationResult.pdfUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href={quotationResult.docxUrl}
+                  download
                   className="btn btn-primary"
-                  style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', background: '#10b981', border: 'none', textDecoration: 'none' }}
+                  style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', background: '#059669', border: 'none', textDecoration: 'none', color: '#ffffff', fontWeight: 700 }}
                 >
-                  <Download size={15} /> Download PDF
+                  <Download size={15} /> Download Word DOCX
                 </a>
+
+                {quotationResult.pdfUrl && (
+                  <a
+                    href={quotationResult.pdfUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary"
+                    style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', background: '#334155', border: 'none', textDecoration: 'none', color: '#ffffff' }}
+                  >
+                    <Download size={15} /> Download PDF
+                  </a>
+                )}
 
                 <button
                   onClick={() => setShowPdfModal(false)}
@@ -2080,14 +2091,52 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
               </div>
             </div>
 
-            <div style={{ flex: 1, backgroundColor: '#334155' }}>
-              <iframe
-                src={`${quotationResult.pdfUrl}#toolbar=1&navpanes=0`}
-                title="Quotation PDF Preview"
-                width="100%"
-                height="100%"
-                style={{ border: 'none' }}
-              />
+            <div style={{ flex: 1, backgroundColor: '#f8fafc', overflowY: 'auto' }}>
+              {quotationResult.pdfUrl ? (
+                <iframe
+                  src={`${quotationResult.pdfUrl}#toolbar=1&navpanes=0`}
+                  title="Quotation PDF Preview"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 'none' }}
+                />
+              ) : (
+                <div style={{ padding: '40px 20px', maxWidth: '720px', margin: '0 auto', textAlign: 'center' }}>
+                  <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+                    <CheckCircle2 size={36} />
+                  </div>
+                  <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0f172a', marginBottom: '8px' }}>
+                    Quotation Document Generated Successfully
+                  </h2>
+                  <p style={{ color: '#475569', fontSize: '0.92rem', marginBottom: '24px', lineHeight: 1.5 }}>
+                    Your formal quotation for <strong>{customerName || 'Valued Customer'}</strong> ({quotationResult.quoteReference}) has been populated directly into the master Word template with exact branding, table structures, and legal BUS wording.
+                  </p>
+
+                  <div style={{ background: '#ffffff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '20px', textAlign: 'left', marginBottom: '24px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize: '0.88rem' }}>
+                      <div><span style={{ color: '#64748b' }}>Quote Reference:</span> <strong>{quotationResult.quoteReference}</strong></div>
+                      <div><span style={{ color: '#64748b' }}>Date Issued:</span> <strong>{new Date().toLocaleDateString('en-GB')}</strong></div>
+                      <div><span style={{ color: '#64748b' }}>Installation Address:</span> <strong>{addressLine1}, {postcode}</strong></div>
+                      <div><span style={{ color: '#64748b' }}>Valid Until:</span> <strong>{quotationResult.validUntil}</strong></div>
+                      <div><span style={{ color: '#64748b' }}>Recommended ASHP:</span> <strong>{result?.ashp?.selectedProduct?.model || 'Air Source Heat Pump'}</strong></div>
+                      <div><span style={{ color: '#64748b' }}>Hot Water Cylinder:</span> <strong>{result?.cylinder?.selectedCylinder?.model || 'Hot Water Cylinder'}</strong></div>
+                      <div><span style={{ color: '#64748b' }}>BUS Grant Deduction:</span> <strong style={{ color: '#059669' }}>-£{(result?.bus?.grantAmount || 0).toLocaleString()}</strong></div>
+                      <div><span style={{ color: '#64748b' }}>Net Customer Contribution:</span> <strong style={{ color: '#b45309' }}>£{(result?.commercials?.customerContribution || 0).toLocaleString()}</strong></div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                    <a
+                      href={quotationResult.docxUrl}
+                      download
+                      className="btn btn-primary"
+                      style={{ padding: '12px 24px', fontSize: '1rem', background: '#059669', borderColor: '#059669', color: '#ffffff', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '8px', textDecoration: 'none', borderRadius: '6px' }}
+                    >
+                      <Download size={18} /> Download Master Word Quotation (.docx)
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

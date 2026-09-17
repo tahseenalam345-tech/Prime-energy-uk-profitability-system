@@ -440,11 +440,35 @@ quotesRouter.get('/:id/pdf', optionalAuthenticateToken, async (req: Authenticate
   try {
     const quote = await db.get('SELECT * FROM quotes WHERE id = ?', [req.params.id]);
     if (!quote || !quote.pdf_path) {
-      return res.status(404).json({ error: 'Quotation PDF not generated yet.' });
+      return res.status(404).json({
+        error: 'Quotation PDF not generated yet. Completed Word DOCX quotation is available.',
+        isDocxAvailable: !!(quote && quote.docx_path && fs.existsSync(quote.docx_path)),
+        docxUrl: quote ? `/api/quotes/${quote.id}/docx` : null
+      });
     }
 
     if (!fs.existsSync(quote.pdf_path)) {
-      return res.status(404).json({ error: 'PDF file missing on server.' });
+      return res.status(404).json({
+        error: 'PDF file missing on server.',
+        isDocxAvailable: !!(quote.docx_path && fs.existsSync(quote.docx_path)),
+        docxUrl: `/api/quotes/${quote.id}/docx`
+      });
+    }
+
+    // Verify binary header starts with %PDF
+    const buffer = Buffer.alloc(4);
+    const fd = fs.openSync(quote.pdf_path, 'r');
+    fs.readSync(fd, buffer, 0, 4, 0);
+    fs.closeSync(fd);
+
+    const isRealPdf = buffer.toString('utf8').startsWith('%PDF');
+
+    if (!isRealPdf) {
+      return res.status(422).json({
+        error: 'PDF preview unavailable in current environment. Download the completed Word DOCX quotation below.',
+        isDocxAvailable: true,
+        docxUrl: `/api/quotes/${quote.id}/docx`
+      });
     }
 
     const filename = `${quote.quote_reference || 'Quotation'}.pdf`;
