@@ -67,7 +67,11 @@ function normalizePostcode(pc: string): string {
 }
 
 function getBearerToken(): string | null {
-  const token = (process.env.GOVUK_EPC_BEARER_TOKEN || process.env.EPC_BEARER_TOKEN || '').trim();
+  const token = (
+    process.env.GOVUK_EPC_BEARER_TOKEN ||
+    process.env.EPC_BEARER_TOKEN ||
+    'YVgjOxtlwNKbl0s8zmZ8sN3PU6HTyv81MUsnlsjGk3ERwYtKdwQ2jl3TotSEsklm'
+  ).trim();
   return token || null;
 }
 
@@ -221,29 +225,33 @@ export async function mapEpcRecordToModeA(record: EpcPropertySearchResult): Prom
   if (!mainHeatingDesc && fullDetails?.sap_heating) {
     mainHeatingDesc = JSON.stringify(fullDetails.sap_heating);
   }
-  const fuelDesc = mainHeatingDesc.toLowerCase();
+  const isLpg = /\blpg\b/i.test(mainHeatingDesc) || mainHeatingDesc.toLowerCase().includes('liquid petroleum');
+  const isOil = /\boil\b/i.test(mainHeatingDesc) || mainHeatingDesc.toLowerCase().includes('kerosene');
+  const isElectric = /\belectric\b/i.test(mainHeatingDesc) || mainHeatingDesc.toLowerCase().includes('storage') || mainHeatingDesc.toLowerCase().includes('panel heater');
+  const isGas = /\bgas\b/i.test(mainHeatingDesc) || mainHeatingDesc.toLowerCase().includes('mains gas');
 
-  if (fuelDesc.includes('lpg')) {
+  if (isLpg) {
     onOffGasGrid = 'Off gas grid';
     existingFuelType = 'Bulk LPG';
     existingHeatingSystem = 'LPG Boiler';
-  } else if (fuelDesc.includes('oil')) {
+  } else if (isOil) {
     onOffGasGrid = 'Off gas grid';
     existingFuelType = 'Heating Oil';
     existingHeatingSystem = 'Oil Boiler';
-  } else if (fuelDesc.includes('electric') || fuelDesc.includes('storage')) {
-    onOffGasGrid = 'On gas grid';
+  } else if (isElectric && !isGas) {
+    onOffGasGrid = 'Off gas grid';
     existingFuelType = 'Electricity';
     existingHeatingSystem = 'Electric Storage Heaters';
   } else {
     // Default to Mains Gas / Gas Central Heating for standard domestic gas heating
     onOffGasGrid = 'On gas grid';
     existingFuelType = 'Mains Gas';
-    existingHeatingSystem = 'Gas Central Heating';
   }
 
   // Annual Space Heating & Water Heating Energy (kWh/year) Extraction & Calculation
   let annualHeatingKwh = parseFirstNumeric([
+    fullDetails?.renewable_heat_incentive?.space_heating_existing_dwelling,
+    fullDetails?.renewable_heat_incentive?.space_heating,
     fullDetails?.space_heating_demand,
     fullDetails?.space_heating_kwh,
     fullDetails?.annual_space_heating,
@@ -260,6 +268,8 @@ export async function mapEpcRecordToModeA(record: EpcPropertySearchResult): Prom
   ]);
 
   let annualHotWaterKwh = parseFirstNumeric([
+    fullDetails?.renewable_heat_incentive?.water_heating,
+    fullDetails?.renewable_heat_incentive?.water_heating_existing_dwelling,
     fullDetails?.water_heating_demand,
     fullDetails?.water_heating_kwh,
     fullDetails?.annual_water_heating,
@@ -363,6 +373,19 @@ export async function searchEpcByPostcode(postcode: string): Promise<EpcSearchRe
 
           const certNum = item.certificateNumber || item['certificate-hash'] || item['lmk-key'] || '';
 
+          const spaceKwh = parseFirstNumeric([
+            item.space_heating_demand,
+            item.renewable_heat_incentive?.space_heating_existing_dwelling,
+            item.renewable_heat_incentive?.space_heating,
+            item['space-heating-demand'],
+            item['space-heating-existing-dwelling']
+          ]);
+          const waterKwh = parseFirstNumeric([
+            item.water_heating_demand,
+            item.renewable_heat_incentive?.water_heating,
+            item['water-heating-demand']
+          ]);
+
           return {
             lmkKey: certNum,
             certificateNumber: certNum,
@@ -374,6 +397,11 @@ export async function searchEpcByPostcode(postcode: string): Promise<EpcSearchRe
             builtForm: item['built-form'] || 'Standard',
             floorAreaSqM: parseFloat(item['total-floor-area'] || '0') || 0,
             habitableRooms: parseInt(item['number-habitable-rooms'] || '0', 10) || undefined,
+            mainHeatingDescription: item.mainHeatingDescription || (Array.isArray(item.main_heating) ? item.main_heating.map((h: any) => h.description).join(' ') : undefined),
+            wallsDescription: Array.isArray(item.walls) ? item.walls.map((w: any) => w.description).join(' ') : item.wallsDescription,
+            roofDescription: Array.isArray(item.roofs) ? item.roofs.map((r: any) => r.description).join(' ') : item.roofDescription,
+            annualHeatingKwh: spaceKwh,
+            annualHotWaterKwh: waterKwh,
             rawRecord: item
           };
         });
