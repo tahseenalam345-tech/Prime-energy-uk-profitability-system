@@ -426,6 +426,8 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         if (m.existingHeatingSystem) { setExistingHeatingSystem(m.existingHeatingSystem); newImportedValues.existingHeatingSystem = m.existingHeatingSystem; }
         if (m.existingFuelType) { setExistingFuelType(m.existingFuelType); newImportedValues.existingFuelType = m.existingFuelType; }
         if (m.onOffGasGrid) { setOnOffGasGrid(m.onOffGasGrid); newImportedValues.onOffGasGrid = m.onOffGasGrid; }
+        if (m.annualHeatingKwh !== undefined) { setAnnualHeatingKwh(String(m.annualHeatingKwh)); newImportedValues.annualHeatingKwh = String(m.annualHeatingKwh); }
+        if (m.annualHotWaterKwh !== undefined) { setAnnualHotWaterKwh(String(m.annualHotWaterKwh)); newImportedValues.annualHotWaterKwh = String(m.annualHotWaterKwh); }
         if (m.epcReference) { setEpcCertificateNumber(m.epcReference); newImportedValues.epcCertificateNumber = m.epcReference; }
 
         setEpcImportMeta({
@@ -437,6 +439,11 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
           importedValues: newImportedValues,
           manualEdits: {}
         });
+
+        // Clear search input & close search results table box after successful import
+        setEpcSearchPostcode('');
+        setEpcSearchResults([]);
+        setSelectedEpcRecord(null);
       }
     } catch (err: any) {
       alert('Failed to import EPC record: ' + err.message);
@@ -458,6 +465,8 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
     if (vals.existingHeatingSystem !== undefined) setExistingHeatingSystem(vals.existingHeatingSystem);
     if (vals.existingFuelType !== undefined) setExistingFuelType(vals.existingFuelType);
     if (vals.onOffGasGrid !== undefined) setOnOffGasGrid(vals.onOffGasGrid);
+    if (vals.annualHeatingKwh !== undefined) setAnnualHeatingKwh(vals.annualHeatingKwh);
+    if (vals.annualHotWaterKwh !== undefined) setAnnualHotWaterKwh(vals.annualHotWaterKwh);
     if (vals.epcCertificateNumber !== undefined) setEpcCertificateNumber(vals.epcCertificateNumber);
 
     setEpcImportMeta(prev => ({
@@ -1013,10 +1022,20 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                 <Search size={18} color="#2563eb" /> Import EPC from GOV.UK Data Service
               </h2>
               {epcImportMeta.imported && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   <span className="badge badge-success" style={{ fontSize: '0.75rem', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     <CheckCircle2 size={13} /> EPC Imported ({epcImportMeta.reference})
                   </span>
+                  <a
+                    href={`https://find-energy-certificate.service.gov.uk/energy-certificate/${epcImportMeta.reference}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary btn-sm"
+                    style={{ padding: '3px 8px', fontSize: '0.72rem', color: '#2563eb', borderColor: '#bfdbfe', background: '#eff6ff', display: 'inline-flex', alignItems: 'center', gap: '3px', textDecoration: 'none' }}
+                    title="View official Energy Performance Certificate on GOV.UK"
+                  >
+                    <ExternalLink size={12} /> View Official GOV.UK Certificate ↗
+                  </a>
                   <button
                     onClick={handleReimportEpc}
                     className="btn btn-secondary btn-sm"
@@ -1034,7 +1053,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                 <input
                   className="form-control"
                   placeholder="Enter Postcode (e.g. WA15 8XL or SW1A 1AA)"
-                  value={epcSearchPostcode || postcode}
+                  value={epcSearchPostcode}
                   onChange={(e) => setEpcSearchPostcode(e.target.value)}
                   style={{ textTransform: 'uppercase', fontWeight: 600 }}
                 />
@@ -1087,12 +1106,13 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                         <th>Cert. Date</th>
                         <th>Property Type</th>
                         <th>Floor Area</th>
-                        <th>EPC Reference</th>
+                        <th>GOV.UK Link</th>
                       </tr>
                     </thead>
                     <tbody>
                       {epcSearchResults.map((rec) => {
                         const isSelected = selectedEpcRecord?.lmkKey === rec.lmkKey;
+                        const certRef = rec.certificateNumber || rec.lmkKey;
                         return (
                           <tr
                             key={rec.lmkKey}
@@ -1114,7 +1134,18 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                             <td>{rec.certificateDate}</td>
                             <td>{rec.builtForm ? `${rec.builtForm} (${rec.propertyType})` : rec.propertyType}</td>
                             <td>{rec.floorAreaSqM ? `${rec.floorAreaSqM} m²` : '—'}</td>
-                            <td style={{ fontSize: '0.7rem', color: '#64748b' }}>{rec.lmkKey}</td>
+                            <td>
+                              <a
+                                href={`https://find-energy-certificate.service.gov.uk/energy-certificate/${certRef}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.75rem' }}
+                                title="Open certificate on GOV.UK"
+                              >
+                                <ExternalLink size={12} /> View ↗
+                              </a>
+                            </td>
                           </tr>
                         );
                       })}
@@ -1289,26 +1320,38 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
               {/* EPC Annual Heating Energy kWh/yr */}
               <div className="form-group">
-                <label className="form-label">Annual space heating energy (EPC) (kWh/year)</label>
+                <label className="form-label">
+                  Annual space heating energy (EPC) (kWh/year) {renderEpcBadge('annualHeatingKwh')}
+                </label>
                 <input
                   type="number"
                   placeholder="e.g. 14120"
                   className="form-control font-mono"
                   value={annualHeatingKwh}
-                  onChange={(e) => setAnnualHeatingKwh(e.target.value === '' ? '' : Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? '' : String(e.target.value);
+                    setAnnualHeatingKwh(val);
+                    trackFieldChange('annualHeatingKwh', val);
+                  }}
                 />
                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                   SAP annual space energy consumption. (Not converted into peak kW)
                 </span>
               </div>
               <div className="form-group">
-                <label className="form-label">Annual water heating energy (EPC) (kWh/year)</label>
+                <label className="form-label">
+                  Annual water heating energy (EPC) (kWh/year) {renderEpcBadge('annualHotWaterKwh')}
+                </label>
                 <input
                   type="number"
                   placeholder="e.g. 1814"
                   className="form-control font-mono"
                   value={annualHotWaterKwh}
-                  onChange={(e) => setAnnualHotWaterKwh(e.target.value === '' ? '' : Number(e.target.value))}
+                  onChange={(e) => {
+                    const val = e.target.value === '' ? '' : String(e.target.value);
+                    setAnnualHotWaterKwh(val);
+                    trackFieldChange('annualHotWaterKwh', val);
+                  }}
                 />
               </div>
 

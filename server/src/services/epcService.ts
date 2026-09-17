@@ -21,6 +21,8 @@ export interface EpcPropertySearchResult {
   mainFuel?: string;
   wallsDescription?: string;
   roofDescription?: string;
+  annualHeatingKwh?: number;
+  annualHotWaterKwh?: number;
   rawRecord: Record<string, any>;
 }
 
@@ -28,6 +30,7 @@ export interface MappedEpcData {
   epcReference: string;
   certificateDate: string;
   epcSource: 'GOV.UK';
+  certificateUrl: string;
   selectedAddress: string;
   addressLine1: string;
   postcode: string;
@@ -68,6 +71,18 @@ function getBearerToken(): string | null {
   return token || null;
 }
 
+function parseFirstNumeric(values: any[]): number | undefined {
+  for (const v of values) {
+    if (v !== undefined && v !== null && v !== '') {
+      const num = parseFloat(String(v).replace(/[^0-9.]/g, ''));
+      if (!isNaN(num) && num > 0) {
+        return Math.round(num);
+      }
+    }
+  }
+  return undefined;
+}
+
 export async function fetchCertificateDetails(certificateNumber: string): Promise<Record<string, any> | null> {
   const token = getBearerToken();
   if (!token || !certificateNumber) return null;
@@ -101,6 +116,10 @@ export async function mapEpcRecordToModeA(record: EpcPropertySearchResult): Prom
     fullDetails = await fetchCertificateDetails(certNum);
   }
 
+  // Official GOV.UK Public Certificate Page URL
+  const epcRef = record.certificateNumber || record.lmkKey;
+  const certificateUrl = `https://find-energy-certificate.service.gov.uk/energy-certificate/${epcRef}`;
+
   // Address Line 1
   let addressLine1 = (fullDetails?.address_line_1 || raw.addressLine1 || record.address || '').trim();
   if (addressLine1.includes(',')) {
@@ -119,25 +138,37 @@ export async function mapEpcRecordToModeA(record: EpcPropertySearchResult): Prom
   const floorAreaRaw = fullDetails?.total_floor_area ?? record.floorAreaSqM;
   const epcFloorArea = floorAreaRaw && parseFloat(floorAreaRaw) > 0 ? parseFloat(floorAreaRaw) : undefined;
 
-  // Property Type Mapping
+  // Property Type Mapping (Robust & Accurate Classification)
   let propertyType: string | undefined = undefined;
-  const rawPropType = String(fullDetails?.property_type || fullDetails?.dwelling_type || record.propertyType || '').toLowerCase();
-  const rawBuiltForm = String(fullDetails?.built_form || record.builtForm || '').toLowerCase();
+  const rawPropType = String(fullDetails?.property_type || fullDetails?.dwelling_type || record.propertyType || raw['property-type'] || '').toLowerCase();
+  const rawBuiltForm = String(fullDetails?.built_form || record.builtForm || raw['built-form'] || '').toLowerCase();
 
-  if (rawBuiltForm.includes('detached') && !rawBuiltForm.includes('semi')) {
-    propertyType = 'Detached';
-  } else if (rawBuiltForm.includes('semi')) {
-    propertyType = 'Semi detached';
-  } else if (rawBuiltForm.includes('end-terrace') || rawBuiltForm.includes('end terrace')) {
-    propertyType = 'End terrace';
-  } else if (rawBuiltForm.includes('mid-terrace') || rawBuiltForm.includes('mid terrace') || rawBuiltForm.includes('enclosed')) {
-    propertyType = 'Mid terrace';
-  } else if (rawPropType.includes('bungalow')) {
+  if (rawPropType.includes('bungalow') || rawBuiltForm.includes('bungalow')) {
     propertyType = 'Bungalow';
-  } else if (rawPropType.includes('flat') || rawPropType.includes('maisonette')) {
+  } else if (rawPropType.includes('flat') || rawPropType.includes('maisonette') || rawBuiltForm.includes('flat')) {
     propertyType = 'Flat';
-  } else if (rawPropType.includes('house')) {
+  } else if (rawBuiltForm.includes('semi') || rawPropType.includes('semi')) {
+    propertyType = 'Semi detached';
+  } else if (rawBuiltForm.includes('end') || rawPropType.includes('end-terrace') || rawPropType.includes('end terrace')) {
+    propertyType = 'End terrace';
+  } else if (
+    rawBuiltForm.includes('mid') || rawBuiltForm.includes('terrace') ||
+    rawPropType.includes('mid-terrace') || rawPropType.includes('mid terrace') || rawPropType.includes('terrace')
+  ) {
+    propertyType = 'Mid terrace';
+  } else if (rawBuiltForm.includes('detached') || rawPropType.includes('detached')) {
     propertyType = 'Detached';
+  } else if (rawBuiltForm === '1') {
+    propertyType = 'Detached';
+  } else if (rawBuiltForm === '2') {
+    propertyType = 'Semi detached';
+  } else if (rawBuiltForm === '3') {
+    propertyType = 'End terrace';
+  } else if (rawBuiltForm === '4' || rawBuiltForm === '5') {
+    propertyType = 'Mid terrace';
+  } else if (rawPropType.includes('house')) {
+    // If built form is completely unstated for a house, leave unassigned so user can select, rather than assuming Detached
+    propertyType = undefined;
   }
 
   // Habitable Rooms & Bedroom heuristic
@@ -201,10 +232,34 @@ export async function mapEpcRecordToModeA(record: EpcPropertySearchResult): Prom
     existingHeatingSystem = 'Electric Storage Heaters';
   }
 
+  // Annual Space Heating & Water Heating Energy (kWh/year)
+  const annualHeatingKwh = parseFirstNumeric([
+    fullDetails?.space_heating_demand,
+    fullDetails?.space_heating_kwh,
+    fullDetails?.annual_space_heating,
+    fullDetails?.heating_demand,
+    fullDetails?.space_heating,
+    raw['space-heating-demand'],
+    raw['space-heating-raw'],
+    record.annualHeatingKwh
+  ]);
+
+  const annualHotWaterKwh = parseFirstNumeric([
+    fullDetails?.water_heating_demand,
+    fullDetails?.water_heating_kwh,
+    fullDetails?.annual_water_heating,
+    fullDetails?.hot_water_demand,
+    fullDetails?.water_heating,
+    raw['water-heating-demand'],
+    raw['water-heating-raw'],
+    record.annualHotWaterKwh
+  ]);
+
   return {
-    epcReference: record.certificateNumber || record.lmkKey,
+    epcReference: epcRef,
     certificateDate: fullDetails?.registration_date || fullDetails?.inspection_date || record.certificateDate,
     epcSource: 'GOV.UK',
+    certificateUrl,
     selectedAddress: record.address,
     addressLine1,
     postcode: fullDetails?.postcode || record.postcode,
@@ -216,7 +271,9 @@ export async function mapEpcRecordToModeA(record: EpcPropertySearchResult): Prom
     roofInsulation,
     existingHeatingSystem,
     existingFuelType,
-    onOffGasGrid
+    onOffGasGrid,
+    annualHeatingKwh,
+    annualHotWaterKwh
   };
 }
 
@@ -265,17 +322,19 @@ export async function searchEpcByPostcode(postcode: string): Promise<EpcSearchRe
             item.postTown
           ].filter(Boolean);
 
+          const certNum = item.certificateNumber || item['certificate-hash'] || item['lmk-key'] || '';
+
           return {
-            lmkKey: item.certificateNumber,
-            certificateNumber: item.certificateNumber,
+            lmkKey: certNum,
+            certificateNumber: certNum,
             address: addrParts.join(', ') || item.addressLine1 || 'Property Address',
             postcode: item.postcode || postcode.trim().toUpperCase(),
-            epcRating: (item.currentEnergyEfficiencyBand || 'D').toUpperCase(),
-            certificateDate: item.registrationDate || new Date().toISOString().split('T')[0],
-            propertyType: item.schemaType?.includes('SAP') ? 'House' : 'Domestic Property',
-            builtForm: 'Standard',
-            floorAreaSqM: 0, // Detail fetched on mapping
-            habitableRooms: undefined,
+            epcRating: (item.currentEnergyEfficiencyBand || item['current-energy-rating'] || 'D').toUpperCase(),
+            certificateDate: item.registrationDate || item['lodgement-date'] || new Date().toISOString().split('T')[0],
+            propertyType: item['property-type'] || (item.schemaType?.includes('SAP') ? 'House' : 'Domestic Property'),
+            builtForm: item['built-form'] || 'Standard',
+            floorAreaSqM: parseFloat(item['total-floor-area'] || '0') || 0,
+            habitableRooms: parseInt(item['number-habitable-rooms'] || '0', 10) || undefined,
             rawRecord: item
           };
         });
@@ -328,6 +387,8 @@ export async function searchEpcByPostcode(postcode: string): Promise<EpcSearchRe
       mainFuel: 'LPG',
       wallsDescription: 'Solid brick, as built, no insulation',
       roofDescription: 'Pitched, no insulation',
+      annualHeatingKwh: 14120,
+      annualHotWaterKwh: 1814,
       rawRecord: { certificateNumber: `8296-0436-4820-6406-4013` }
     },
     {
@@ -345,6 +406,8 @@ export async function searchEpcByPostcode(postcode: string): Promise<EpcSearchRe
       mainFuel: 'mains gas',
       wallsDescription: 'Cavity wall, filled cavity',
       roofDescription: 'Pitched, 250 mm loft insulation',
+      annualHeatingKwh: 9450,
+      annualHotWaterKwh: 1650,
       rawRecord: { certificateNumber: `1111-2222-3333-4444-5555` }
     }
   ];
