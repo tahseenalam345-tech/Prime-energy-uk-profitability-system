@@ -239,8 +239,13 @@ export async function mapEpcRecordToModeA(record: EpcPropertySearchResult): Prom
     fullDetails?.annual_space_heating,
     fullDetails?.heating_demand,
     fullDetails?.space_heating,
+    fullDetails?.estimated_energy_needed?.heating,
+    fullDetails?.estimated_energy_needed?.space_heating,
+    fullDetails?.heating?.estimated_demand,
+    fullDetails?.space_heating?.demand,
     raw['space-heating-demand'],
     raw['space-heating-raw'],
+    raw['space_heating_demand'],
     record.annualHeatingKwh
   ]);
 
@@ -250,8 +255,13 @@ export async function mapEpcRecordToModeA(record: EpcPropertySearchResult): Prom
     fullDetails?.annual_water_heating,
     fullDetails?.hot_water_demand,
     fullDetails?.water_heating,
+    fullDetails?.estimated_energy_needed?.hot_water,
+    fullDetails?.estimated_energy_needed?.water_heating,
+    fullDetails?.hot_water?.estimated_demand,
+    fullDetails?.water_heating?.demand,
     raw['water-heating-demand'],
     raw['water-heating-raw'],
+    raw['water_heating_demand'],
     record.annualHotWaterKwh
   ]);
 

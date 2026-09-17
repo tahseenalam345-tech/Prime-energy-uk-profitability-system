@@ -127,6 +127,17 @@ const dominantRadiatorTypeOptions: SelectOption[] = [
   { value: 'MIXED_UNKNOWN', label: 'Mixed / Don\'t know', sublabel: 'Combination or unverified' },
 ];
 
+const leadSourceOptions: SelectOption[] = [
+  { value: 'GOV.UK EPC Import', label: 'GOV.UK EPC Import', badge: 'EPC Import' },
+  { value: 'Meta Ads', label: 'Meta Ads (Facebook / Instagram)' },
+  { value: 'Google Ads', label: 'Google Ads / Search' },
+  { value: 'Lead Gen Agency', label: 'Lead Gen Agency (LeadGen)' },
+  { value: 'Phone Inquiry', label: 'Phone Inquiry' },
+  { value: 'Customer Referral', label: 'Customer Referral' },
+  { value: 'Website Form', label: 'Website Form' },
+  { value: 'Other', label: 'Other' },
+];
+
 interface NewLeadViewProps {
   onQuoteSaved?: (quoteId: string) => void;
   currentUserId: string;
@@ -429,6 +440,49 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         if (m.annualHeatingKwh !== undefined) { setAnnualHeatingKwh(String(m.annualHeatingKwh)); newImportedValues.annualHeatingKwh = String(m.annualHeatingKwh); }
         if (m.annualHotWaterKwh !== undefined) { setAnnualHotWaterKwh(String(m.annualHotWaterKwh)); newImportedValues.annualHotWaterKwh = String(m.annualHotWaterKwh); }
         if (m.epcReference) { setEpcCertificateNumber(m.epcReference); newImportedValues.epcCertificateNumber = m.epcReference; }
+
+        // Intelligent Automated Defaults on EPC Import:
+        // 1. Property Status -> 'Existing property'
+        setPropertyStatus('Existing property');
+
+        // 2. Country -> Check postcode / address, default to 'England'
+        const pc = (m.postcode || postcode || '').toUpperCase();
+        let guessedCountry = 'England';
+        if (/^(CF|LD|LL|NP|SA)\d/i.test(pc) || (m.selectedAddress || '').toLowerCase().includes('wales')) {
+          guessedCountry = 'Wales';
+        } else if (/^(AB|DD|DG|EH|FK|G|HS|IV|KA|KW|KY|PA|PH|TD|ZE)\d/i.test(pc) || (m.selectedAddress || '').toLowerCase().includes('scotland')) {
+          guessedCountry = 'Scotland';
+        }
+        setCountry(guessedCountry);
+
+        // 3. Storeys -> 1 if Bungalow, otherwise 2
+        if (m.propertyType === 'Bungalow') {
+          setStoreys('1');
+        } else if (!storeys) {
+          setStoreys('2');
+        }
+
+        // 4. Bathrooms -> Intelligent floor area / bedroom heuristic
+        const area = m.epcFloorArea || (m.bedrooms ? m.bedrooms * 30 : 100);
+        const beds = m.bedrooms || 3;
+        if (area > 180 || beds >= 4) {
+          setBathrooms(3);
+        } else if (area >= 90 || beds >= 3) {
+          setBathrooms(2);
+        } else {
+          setBathrooms(1);
+        }
+
+        // 5. Lead Source -> 'GOV.UK EPC Import' if empty
+        if (!leadSource) {
+          setLeadSource('GOV.UK EPC Import');
+        }
+
+        // 6. Boiler Type heuristic from heating system string
+        const heatingText = String(m.existingHeatingSystem || '').toLowerCase();
+        if (heatingText.includes('combi')) setBoilerType('Combi');
+        else if (heatingText.includes('system')) setBoilerType('System');
+        else if (heatingText.includes('boiler') || heatingText.includes('radiator')) setBoilerType('Regular');
 
         setEpcImportMeta({
           imported: true,
@@ -1171,11 +1225,12 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
               </div>
               <div className="form-group">
                 <label className="form-label">Lead Source</label>
-                <input
-                  className="form-control"
-                  placeholder="e.g. Website Form, Phone, Referral"
+                <SearchableSelect
+                  options={leadSourceOptions}
                   value={leadSource}
-                  onChange={(e) => setLeadSource(e.target.value)}
+                  onChange={(val) => setLeadSource(val || '')}
+                  placeholder="Select lead source..."
+                  searchPlaceholder="Search lead source..."
                 />
               </div>
               <div className="form-group">
