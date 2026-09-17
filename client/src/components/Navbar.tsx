@@ -52,9 +52,9 @@ export const Navbar: React.FC<NavbarProps> = ({
   ];
 
   const allowedItems = allNavItems.filter(item => {
-    // If not logged in, allow default READ_ONLY tabs
+    // If not logged in, allow default tabs including New Lead (Mode A) for preview/estimating
     if (!currentUser) {
-      return ['dashboard', 'submissions', 'submission-guide', 'leads', 'quotes', 'products', 'pricing', 'rules', 'reports'].includes(item.id);
+      return ['dashboard', 'new-lead', 'after-survey', 'submissions', 'submission-guide', 'leads', 'quotes', 'products', 'pricing', 'rules', 'reports'].includes(item.id);
     }
     return item.roles.includes(role);
   });
