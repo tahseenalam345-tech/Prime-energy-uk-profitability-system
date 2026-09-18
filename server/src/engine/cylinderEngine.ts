@@ -162,8 +162,10 @@ export async function selectRecommendedCylinder(inputs: CylinderInputs): Promise
 
   let targetLitres = 200;
 
-  if (beds <= 2 && baths <= 1) {
-    targetLitres = 180;
+  if (beds <= 1 && baths <= 1) {
+    targetLitres = 150;
+  } else if (beds <= 2 && baths <= 1) {
+    targetLitres = 150;
   } else if (beds <= 3 && baths <= 2) {
     targetLitres = 200;
   } else if (beds <= 4 && baths <= 2) {

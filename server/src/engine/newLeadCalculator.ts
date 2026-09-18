@@ -164,7 +164,7 @@ export async function calculateNewLeadEstimate(inputs: NewLeadPropertyInputs): P
 
   const commercialSettingsUsed = {
     version: settings?.version || 1,
-    targetGrossMargin: inputs.overrideTargetMargin ?? (settings?.target_gross_margin === 0.25 ? 0.07 : (settings?.target_gross_margin ?? 0.07)),
+    targetGrossMargin: inputs.overrideTargetMargin ?? 0.07,
     labourBaseline: settings?.labour_baseline ?? 1500.00,
     leadGenerationCost: settings?.lead_generation_cost ?? 300.00,
     extrasContingency: settings?.extras_contingency ?? 200.00,

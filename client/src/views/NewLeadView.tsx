@@ -134,21 +134,155 @@ const leadSourceOptions: SelectOption[] = [
   { value: 'Lead Gen Agency', label: 'Lead Gen Agency (LeadGen)' },
   { value: 'Phone Inquiry', label: 'Phone Inquiry' },
   { value: 'Customer Referral', label: 'Customer Referral' },
-  { value: 'Website Form', label: 'Website Form' },
-  { value: 'Other', label: 'Other' },
+  { value: 'Website Form', label: 'Website Form' }
 ];
 
-interface NewLeadViewProps {
-  onQuoteSaved?: (quoteId: string) => void;
-  currentUserId: string;
-  currentUser?: User | null;
-  selectedLead?: any | null;
-  onClearSelectedLead?: () => void;
-}
+const ProductDetailModal: React.FC<{
+  product: any;
+  onClose: () => void;
+}> = ({ product, onClose }) => {
+  if (!product) return null;
+
+  const brand = product.brand || product.manufacturer || 'Prime Brand';
+  const model = product.model || 'Model';
+  const category = product.family || (product.volumeLitres !== undefined || product.nominal_litres !== undefined ? 'CYLINDER' : 'ASHP');
+  const sku = product.sku || product.id || 'N/A';
+  const price = product.priceExVat || product.price_ex_vat || 0;
+  const kw = product.ratedOutputAtDesign ?? product.ratedOutputKw ?? product.rated_output_kw ?? product.marketingNominalKw ?? product.nominalCapacity ?? null;
+  const litres = product.volumeLitres ?? product.nominal_litres ?? product.capacityLitres ?? null;
+  const mcsStatus = product.mcs_status || product.mcsStatus || 'MCS_CERTIFIED';
+  const mcsRef = product.mcs_certificate_number || product.mcs_product_reference || product.mcsRef || null;
+  const mfgUrl = product.manufacturer_product_url || product.manufacturer_url || product.manufacturerUrl || null;
+  const manualUrl = product.technical_manual_url || product.manualUrl || null;
+  const brochureUrl = product.brochure_url || product.brochureUrl || null;
+  const supplierUrl = product.price_source_url || product.supplierUrl || null;
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.75)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1200, padding: '16px'
+    }}>
+      <div style={{
+        background: 'var(--bg-card)', color: 'var(--text-main)', border: '1px solid var(--border)',
+        borderRadius: '12px', maxWidth: '680px', width: '100%', boxShadow: 'var(--shadow-lg)', overflow: 'hidden'
+      }}>
+        {/* Header */}
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-panel)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span className="badge badge-primary" style={{ fontSize: '0.75rem', fontWeight: 800 }}>{category} PRODUCT PAGE</span>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, color: 'var(--text-main)' }}>
+              {brand} {model}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', fontSize: '0.8rem', fontWeight: 700 }}
+          >
+            ← Back to Mode A Lead
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: '20px', maxHeight: '72vh', overflowY: 'auto', fontSize: '0.875rem' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
+            <div style={{ background: 'var(--bg-panel)', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Brand & Manufacturer</div>
+              <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>{brand}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1px' }}>{product.manufacturer || brand}</div>
+            </div>
+
+            <div style={{ background: 'var(--bg-panel)', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Model & SKU</div>
+              <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>{model}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '1px', fontFamily: 'monospace' }}>SKU: {sku}</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px', marginBottom: '16px' }}>
+            {category === 'ASHP' && (
+              <div style={{ background: '#ecfdf5', border: '1px solid #a7f3d0', padding: '12px', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.7rem', color: '#047857', fontWeight: 700, textTransform: 'uppercase' }}>Rated Output kW</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#059669', marginTop: '2px' }}>{kw ? `${Number(kw).toFixed(1)} kW` : 'TBD'}</div>
+                <div style={{ fontSize: '0.68rem', color: '#047857' }}>@ {product.designCondition || 'A-2/W45'}</div>
+              </div>
+            )}
+
+            {category === 'CYLINDER' && (
+              <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', padding: '12px', borderRadius: '8px' }}>
+                <div style={{ fontSize: '0.7rem', color: '#0369a1', fontWeight: 700, textTransform: 'uppercase' }}>Volume Capacity</div>
+                <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#0284c7', marginTop: '2px' }}>{litres} Litres</div>
+                <div style={{ fontSize: '0.68rem', color: '#0369a1' }}>Unvented Heat Pump Coil</div>
+              </div>
+            )}
+
+            <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', padding: '12px', borderRadius: '8px' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Trade Price (ex VAT)</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-main)', marginTop: '2px' }}>£{Number(price).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>Supplier: {product.supplier || 'City Plumbing'}</div>
+            </div>
+
+            <div style={{ background: 'var(--bg-panel)', border: '1px solid var(--border)', padding: '12px', borderRadius: '8px' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Certification</div>
+              <div style={{ marginTop: '4px' }}>
+                <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>MCS CERTIFIED</span>
+              </div>
+              {mcsRef && (
+                <div style={{ fontSize: '0.68rem', color: '#059669', fontWeight: 700, fontFamily: 'monospace', marginTop: '4px' }}>
+                  {mcsRef}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* External Verification Links */}
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginTop: '14px' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
+              Official Manufacturer & Technical Datasheets:
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {mfgUrl && (
+                <a href={mfgUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <ExternalLink size={13} /> Manufacturer Product Page ↗
+                </a>
+              )}
+              {manualUrl && (
+                <a href={manualUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <ExternalLink size={13} /> Technical Manual PDF ↗
+                </a>
+              )}
+              {brochureUrl && (
+                <a href={brochureUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <ExternalLink size={13} /> Product Brochure PDF ↗
+                </a>
+              )}
+              {supplierUrl && (
+                <a href={supplierUrl} target="_blank" rel="noopener noreferrer" className="btn btn-secondary btn-sm" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <ExternalLink size={13} /> Supplier Merchant Page ↗
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', background: 'var(--bg-panel)' }}>
+          <button type="button" onClick={onClose} className="btn btn-primary" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
+            ← Back to Mode A Lead
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentUserId, currentUser, selectedLead, onClearSelectedLead }) => {
   // Active Lead ID state (if editing existing lead)
   const [activeLeadId, setActiveLeadId] = useState<string | null>(selectedLead?.id || null);
+
+  // Dedicated Product Page Inspection Modal
+  const [inspectingProductModal, setInspectingProductModal] = useState<any | null>(null);
 
   // 1. Form state - Customer & Property (Empty initial state)
   const [customerName, setCustomerName] = useState('');
@@ -248,11 +382,11 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   } | null>(null);
   const [showModeAPdfModal, setShowModeAPdfModal] = useState(false);
 
-
   // 7. GOV.UK EPC Import State & Provenance Tracking
   const [epcSearchPostcode, setEpcSearchPostcode] = useState('');
   const [epcSearching, setEpcSearching] = useState(false);
   const [epcSearchResults, setEpcSearchResults] = useState<any[]>([]);
+  const [isEpcResultsCollapsed, setIsEpcResultsCollapsed] = useState(false);
   const [epcSearchNotice, setEpcSearchNotice] = useState('');
   const [epcSearchError, setEpcSearchError] = useState('');
   const [selectedEpcRecord, setSelectedEpcRecord] = useState<any | null>(null);
@@ -452,12 +586,35 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
       setDescriptionOverrides({});
       setCustomLineItems([]);
       setActiveLeadId(null);
+
+      // FULL EPC & PROVENANCE RESET (Requirement 6)
+      setEpcImportMeta({
+        imported: false,
+        reference: '',
+        importedAt: '',
+        certificateDate: '',
+        selectedAddress: '',
+        importedValues: {},
+        manualEdits: {}
+      });
+      setEpcSearchPostcode('');
+      setEpcSearchResults([]);
+      setIsEpcResultsCollapsed(false);
+      setSelectedEpcRecord(null);
+      setEpcSearchNotice('');
+      setEpcSearchError('');
+      setModeAPdfResult(null);
+      setShowModeAPdfModal(false);
+      setQuotationResult(null);
+      setShowPdfModal(false);
+      setCalcError('');
+      setInspectingProductModal(null);
+
       if (onClearSelectedLead) {
         onClearSelectedLead();
       }
       setDraftStatus('IDLE');
       setResult(null);
-      setQuotationResult(null);
       setSavedQuoteRef(null);
     } catch (err) {
       console.error('Failed to discard draft', err);
@@ -1339,7 +1496,17 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
             {epcSearchResults.length > 0 && (
               <div style={{ background: '#ffffff', borderRadius: '8px', border: '1px solid #cbd5e1', padding: '12px', marginTop: '8px' }}>
                 <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span>Select Property Certificate ({epcSearchResults.length} found):</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setIsEpcResultsCollapsed(prev => !prev)}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: '#1e3a8a', display: 'inline-flex', alignItems: 'center', padding: '0 4px', fontWeight: 800 }}
+                      title={isEpcResultsCollapsed ? "Expand search results" : "Collapse search results"}
+                    >
+                      {isEpcResultsCollapsed ? '→' : '↓'}
+                    </button>
+                    <span>Select Property Certificate ({epcSearchResults.length} found):</span>
+                  </div>
                   <button
                     onClick={handleImportEpc}
                     disabled={!selectedEpcRecord}
@@ -1350,62 +1517,64 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   </button>
                 </div>
 
-                <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                  <table className="data-table" style={{ fontSize: '0.78rem' }}>
-                    <thead>
-                      <tr>
-                        <th style={{ width: '35px' }}></th>
-                        <th>Address</th>
-                        <th>EPC Rating</th>
-                        <th>Cert. Date</th>
-                        <th>Property Type</th>
-                        <th>Floor Area</th>
-                        <th>GOV.UK Link</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {epcSearchResults.map((rec) => {
-                        const isSelected = selectedEpcRecord?.lmkKey === rec.lmkKey;
-                        const certRef = rec.certificateNumber || rec.lmkKey;
-                        return (
-                          <tr
-                            key={rec.lmkKey}
-                            onClick={() => setSelectedEpcRecord(rec)}
-                            style={{ cursor: 'pointer', background: isSelected ? '#eff6ff' : undefined }}
-                          >
-                            <td>
-                              <input
-                                type="radio"
-                                name="epc_property_select"
-                                checked={isSelected}
-                                onChange={() => setSelectedEpcRecord(rec)}
-                              />
-                            </td>
-                            <td style={{ fontWeight: isSelected ? 700 : 500 }}>{rec.address}</td>
-                            <td>
-                              <Badge type="grade" value={rec.epcRating} />
-                            </td>
-                            <td>{rec.certificateDate}</td>
-                            <td>{rec.builtForm ? `${rec.builtForm} (${rec.propertyType})` : rec.propertyType}</td>
-                            <td>{rec.floorAreaSqM ? `${rec.floorAreaSqM} m²` : '—'}</td>
-                            <td>
-                              <a
-                                href={`https://find-energy-certificate.service.gov.uk/energy-certificate/${certRef}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
-                                style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.75rem' }}
-                                title="Open certificate on GOV.UK"
-                              >
-                                <ExternalLink size={12} /> View ↗
-                              </a>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                {!isEpcResultsCollapsed && (
+                  <div className="table-responsive" style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                    <table className="data-table" style={{ fontSize: '0.78rem' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ width: '35px' }}></th>
+                          <th>Address</th>
+                          <th>EPC Rating</th>
+                          <th>Cert. Date</th>
+                          <th>Property Type</th>
+                          <th>Floor Area</th>
+                          <th>GOV.UK Link</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {epcSearchResults.map((rec) => {
+                          const isSelected = selectedEpcRecord?.lmkKey === rec.lmkKey;
+                          const certRef = rec.certificateNumber || rec.lmkKey;
+                          return (
+                            <tr
+                              key={rec.lmkKey}
+                              onClick={() => setSelectedEpcRecord(rec)}
+                              style={{ cursor: 'pointer', background: isSelected ? '#eff6ff' : undefined }}
+                            >
+                              <td>
+                                <input
+                                  type="radio"
+                                  name="epc_property_select"
+                                  checked={isSelected}
+                                  onChange={() => setSelectedEpcRecord(rec)}
+                                />
+                              </td>
+                              <td style={{ fontWeight: isSelected ? 700 : 500 }}>{rec.address}</td>
+                              <td>
+                                <Badge type="grade" value={rec.epcRating} />
+                              </td>
+                              <td>{rec.certificateDate}</td>
+                              <td>{rec.builtForm ? `${rec.builtForm} (${rec.propertyType})` : rec.propertyType}</td>
+                              <td>{rec.floorAreaSqM ? `${rec.floorAreaSqM} m²` : '—'}</td>
+                              <td>
+                                <a
+                                  href={`https://find-energy-certificate.service.gov.uk/energy-certificate/${certRef}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px', fontSize: '0.75rem' }}
+                                  title="Open certificate on GOV.UK"
+                                >
+                                  <ExternalLink size={12} /> View ↗
+                                </a>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -2294,8 +2463,23 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                     <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
                       <button
                         type="button"
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowSuitableAshpsModal(true); }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const activeAshp = result.ashp?.selectedProduct || result.ashp?.recommendedProduct;
+                          if (activeAshp) setInspectingProductModal(activeAshp);
+                        }}
                         className="btn btn-primary btn-sm"
+                        style={{ fontSize: '0.75rem', padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#0f172a', color: '#ffffff', border: 'none' }}
+                        title="Open dedicated product page for this exact selected ASHP"
+                      >
+                        <Eye size={13} /> View Product
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowSuitableAshpsModal(true); }}
+                        className="btn btn-secondary btn-sm"
                         style={{ fontSize: '0.75rem', padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                       >
                         <Search size={14} /> VIEW ALL SUITABLE MODELS
@@ -2384,7 +2568,22 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const activeCyl = result.cylinder?.selectedProduct || result.cylinder?.recommendedProduct;
+                          if (activeCyl) setInspectingProductModal(activeCyl);
+                        }}
+                        className="btn btn-primary btn-sm"
+                        style={{ fontSize: '0.75rem', padding: '5px 12px', display: 'inline-flex', alignItems: 'center', gap: '5px', background: '#0f172a', color: '#ffffff', border: 'none' }}
+                        title="Open dedicated product page for this exact selected cylinder"
+                      >
+                        <Eye size={13} /> View Product
+                      </button>
+
                       <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowCylinderModal(true); }}
@@ -2909,6 +3108,13 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
             </div>
           </div>
         </div>
+      )}
+
+      {inspectingProductModal && (
+        <ProductDetailModal
+          product={inspectingProductModal}
+          onClose={() => setInspectingProductModal(null)}
+        />
       )}
     </div>
   );

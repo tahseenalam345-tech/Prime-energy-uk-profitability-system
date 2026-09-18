@@ -44,6 +44,91 @@ interface CostCompositionTableProps {
   onDeleteCustomLine: (idOrIndex: string | number) => void;
 }
 
+const InlineEditableAmount: React.FC<{
+  value: number;
+  isOverridden?: boolean;
+  onSave: (newVal: number) => void;
+}> = ({ value, isOverridden, onSave }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [tempVal, setTempVal] = useState(String(value));
+
+  const handleStart = () => {
+    setTempVal(String(value));
+    setIsEditing(true);
+  };
+
+  const handleCommit = () => {
+    setIsEditing(false);
+    const cleaned = tempVal.replace(/[^0-9.]/g, '');
+    const num = parseFloat(cleaned);
+    if (!isNaN(num) && num >= 0) {
+      onSave(Math.round(num * 100) / 100);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleCommit();
+    } else if (e.key === 'Escape') {
+      setIsEditing(false);
+      setTempVal(String(value));
+    }
+  };
+
+  if (isEditing) {
+    return (
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
+        <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>£</span>
+        <input
+          type="text"
+          autoFocus
+          value={tempVal}
+          onChange={(e) => setTempVal(e.target.value)}
+          onBlur={handleCommit}
+          onKeyDown={handleKeyDown}
+          className="form-control font-mono inline-amount-input"
+          style={{
+            textAlign: 'right',
+            padding: '3px 6px',
+            fontSize: '0.85rem',
+            width: '95px',
+            fontWeight: 700,
+            background: 'var(--bg-card)',
+            color: 'var(--text-main)',
+            border: '2px solid var(--primary)',
+            borderRadius: '4px'
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      onClick={handleStart}
+      title="Click directly to edit amount"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        cursor: 'pointer',
+        padding: '4px 8px',
+        borderRadius: '6px',
+        fontWeight: 700,
+        fontSize: '0.9rem',
+        fontFamily: 'monospace',
+        background: isOverridden ? 'rgba(245, 158, 11, 0.15)' : 'transparent',
+        border: isOverridden ? '1px dashed #f59e0b' : '1px solid transparent',
+        color: isOverridden ? '#d97706' : 'var(--text-main)',
+        transition: 'all 0.15s ease'
+      }}
+      className="editable-amount-cell"
+    >
+      <span>£{value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+    </div>
+  );
+};
+
 export const CostCompositionTable: React.FC<CostCompositionTableProps> = ({
   title = 'Commercial Cost Composition (ex VAT)',
   subtitle = 'Every cost field is manually editable. Edit amounts directly, edit line descriptions, delete lines, or add custom lines.',
@@ -184,27 +269,11 @@ export const CostCompositionTable: React.FC<CostCompositionTableProps> = ({
                   </td>
 
                   <td style={{ textAlign: 'right' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>£</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="10"
-                        className="form-control font-mono"
-                        style={{
-                          textAlign: 'right',
-                          padding: '4px 8px',
-                          fontSize: '0.8125rem',
-                          width: '105px',
-                          fontWeight: 700,
-                          backgroundColor: isOverridden ? '#fef3c7' : undefined,
-                          borderColor: isOverridden ? '#f59e0b' : undefined
-                        }}
-                        value={item.totalPriceExVat}
-                        onChange={(e) => onUpdateCost(item.id || item.category, Number(e.target.value))}
-                        title="Directly edit cost (ex VAT)"
-                      />
-                    </div>
+                    <InlineEditableAmount
+                      value={item.totalPriceExVat}
+                      isOverridden={isOverridden}
+                      onSave={(newVal) => onUpdateCost(item.id || item.category, newVal)}
+                    />
                   </td>
 
                   <td style={{ textAlign: 'center' }}>

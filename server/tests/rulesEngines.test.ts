@@ -12,9 +12,9 @@ describe('Specialized Rules Engines', () => {
   });
 
   describe('Cylinder Engine', () => {
-    it('sizes 1-2 bed property for 180L cylinder', async () => {
-      const result = await selectRecommendedCylinder({ bedrooms: 2, cylinderSpace: 'Yes' });
-      expect(result.recommendedVolumeLitres).toBe(180);
+    it('sizes 1-2 bed property for 150L cylinder', async () => {
+      const result = await selectRecommendedCylinder({ bedrooms: 2, bathrooms: 1, cylinderSpace: 'Yes' });
+      expect(result.recommendedVolumeLitres).toBe(150);
       expect(result.viabilityBlocker).toBe(false);
     });
 
