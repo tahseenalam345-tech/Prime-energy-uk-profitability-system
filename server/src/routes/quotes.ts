@@ -540,6 +540,24 @@ quotesRouter.post('/:id/regenerate', authenticateToken, requireRole('ADMIN', 'SA
   }
 });
 
+// Helper to resolve writable storage directory for Mode-A PDFs (works on Vercel Serverless & Local)
+function getModeAPdfStorageDir(): string {
+  try {
+    const primaryDir = path.join(process.cwd(), 'storage', 'mode_a_pdfs');
+    if (!fs.existsSync(primaryDir)) {
+      fs.mkdirSync(primaryDir, { recursive: true });
+    }
+    return primaryDir;
+  } catch (err) {
+    // Fallback to OS temp directory if process.cwd() is read-only (e.g. Vercel /var/task)
+    const fallbackDir = path.join(os.tmpdir(), 'mode_a_pdfs');
+    if (!fs.existsSync(fallbackDir)) {
+      fs.mkdirSync(fallbackDir, { recursive: true });
+    }
+    return fallbackDir;
+  }
+}
+
 // GENERATE MODE-A PRE-SURVEY ASSESSMENT PDF
 quotesRouter.post('/mode-a-pdf', optionalAuthenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
@@ -547,10 +565,7 @@ quotesRouter.post('/mode-a-pdf', optionalAuthenticateToken, async (req: Authenti
     const ref = (payload.quoteReference || payload.leadReference || `PE-A-${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '_');
     const filename = `Prime-Energy-Mode-A-${ref}.pdf`;
     
-    const storageDir = path.join(process.cwd(), 'storage', 'mode_a_pdfs');
-    if (!fs.existsSync(storageDir)) {
-      fs.mkdirSync(storageDir, { recursive: true });
-    }
+    const storageDir = getModeAPdfStorageDir();
 
     const { generateModeAPdfBuffer } = await import('../services/modeAPdfGenerator.js');
     const pdfBuffer = await generateModeAPdfBuffer(payload);
@@ -558,10 +573,14 @@ quotesRouter.post('/mode-a-pdf', optionalAuthenticateToken, async (req: Authenti
     const pdfFilePath = path.join(storageDir, filename);
     fs.writeFileSync(pdfFilePath, pdfBuffer);
 
+    const base64Str = pdfBuffer.toString('base64');
+    const dataUrl = `data:application/pdf;base64,${base64Str}`;
+
     res.json({
       success: true,
       filename,
       pdfUrl: `/api/quotes/mode-a-pdf/file/${encodeURIComponent(filename)}`,
+      dataUrl,
       generatedAt: new Date().toISOString()
     });
   } catch (err: any) {
@@ -574,10 +593,14 @@ quotesRouter.get('/mode-a-pdf/file/:filename', optionalAuthenticateToken, async 
   try {
     const rawFilename = req.params.filename;
     const safeFilename = path.basename(rawFilename);
-    const storageDir = path.join(process.cwd(), 'storage', 'mode_a_pdfs');
-    const filePath = path.join(storageDir, safeFilename);
+    
+    // Search both primary and os.tmpdir() locations
+    const primaryPath = path.join(process.cwd(), 'storage', 'mode_a_pdfs', safeFilename);
+    const tmpPath = path.join(os.tmpdir(), 'mode_a_pdfs', safeFilename);
 
-    if (!fs.existsSync(filePath)) {
+    const filePath = fs.existsSync(primaryPath) ? primaryPath : (fs.existsSync(tmpPath) ? tmpPath : null);
+
+    if (!filePath) {
       return res.status(404).json({ error: 'Mode-A PDF file not found.' });
     }
 
@@ -588,5 +611,6 @@ quotesRouter.get('/mode-a-pdf/file/:filename', optionalAuthenticateToken, async 
     safeErrorResponse(res, err, 'Failed to serve Mode-A PDF file');
   }
 });
+
 
 

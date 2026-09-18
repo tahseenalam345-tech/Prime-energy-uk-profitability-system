@@ -1078,10 +1078,11 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
       };
 
       const res = await api.generateModeAPdf(modeAPayload);
-      if (res && res.success && res.pdfUrl) {
+      if (res && res.success && (res.pdfUrl || res.dataUrl)) {
         setModeAPdfResult({
           filename: res.filename,
           pdfUrl: res.pdfUrl,
+          dataUrl: res.dataUrl,
           generatedAt: res.generatedAt || new Date().toISOString()
         });
         setShowModeAPdfModal(true);
@@ -2055,7 +2056,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                         </button>
 
                         <a
-                          href={modeAPdfResult.pdfUrl}
+                          href={modeAPdfResult.dataUrl || modeAPdfResult.pdfUrl}
                           download={modeAPdfResult.filename}
                           className="btn btn-primary"
                           style={{ padding: '9px 14px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none', background: '#0f172a', color: '#ffffff' }}
@@ -2879,7 +2880,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                 </button>
 
                 <a
-                  href={modeAPdfResult.pdfUrl}
+                  href={modeAPdfResult.dataUrl || modeAPdfResult.pdfUrl}
                   download={modeAPdfResult.filename}
                   className="btn btn-primary"
                   style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', background: '#059669', border: 'none', textDecoration: 'none', color: '#ffffff', fontWeight: 700 }}
@@ -2899,7 +2900,7 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
 
             <div style={{ flex: 1, backgroundColor: '#f8fafc', overflowY: 'auto' }}>
               <iframe
-                src={`${modeAPdfResult.pdfUrl}#toolbar=1&navpanes=0`}
+                src={modeAPdfResult.dataUrl || `${modeAPdfResult.pdfUrl}#toolbar=1&navpanes=0`}
                 title="Mode A PDF Preview"
                 width="100%"
                 height="100%"
