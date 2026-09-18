@@ -102,70 +102,38 @@ export async function generateModeAPdfBuffer(input: ModeAPdfInput): Promise<Buff
 
   const PAGE_WIDTH = 595.28;
   const PAGE_HEIGHT = 841.89;
-  const MARGIN_LEFT = 36;
-  const MARGIN_RIGHT = 36;
-  const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT; // 523.28
+  const MARGIN_LEFT = 32;
+  const MARGIN_RIGHT = 32;
+  const CONTENT_WIDTH = PAGE_WIDTH - MARGIN_LEFT - MARGIN_RIGHT; // 531.28
 
   let currentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-  let currentY = PAGE_HEIGHT - 36;
+  let currentY = PAGE_HEIGHT - 28; // Shifted upwards for 1-page fit
 
-  function checkPageBreak(requiredHeight: number): void {
-    if (currentY - requiredHeight < 50) {
-      drawFooter(currentPage, fontRegular, fontOblique, colorSlate);
-      currentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
-      currentY = PAGE_HEIGHT - 40;
-      drawSubHeader(currentPage, fontBold, fontRegular, colorNavy, colorSlate, input.quoteReference || input.leadReference || 'Mode A Assessment');
-    }
-  }
-
-  function drawFooter(page: PDFPage, fontReg: PDFFont, fontObl: PDFFont, slate: typeof colorSlate) {
+  function drawFooter(page: PDFPage) {
     const disclaimerText = 'Mode A is a pre-survey commercial/technical estimate. It is not a final MCS design or BS EN 12831 heat-loss calculation. Final equipment selection and installation design are subject to completed survey and design.';
     page.drawRectangle({
       x: MARGIN_LEFT,
-      y: 15,
+      y: 14,
       width: CONTENT_WIDTH,
-      height: 25,
+      height: 22,
       color: rgb(241 / 255, 245 / 255, 249 / 255),
       borderColor: colorBorder,
       borderWidth: 0.5
     });
     page.drawText(disclaimerText, {
       x: MARGIN_LEFT + 8,
-      y: 24,
-      size: 7,
-      font: fontObl,
-      color: slate,
+      y: 22,
+      size: 6.8,
+      font: fontOblique,
+      color: colorSlate,
       maxWidth: CONTENT_WIDTH - 16
     });
   }
 
-  function drawSubHeader(page: PDFPage, fontB: PDFFont, fontR: PDFFont, navy: typeof colorNavy, slate: typeof colorSlate, refText: string) {
-    page.drawText('PRIME ENERGY UK — Mode A Assessment', {
-      x: MARGIN_LEFT,
-      y: PAGE_HEIGHT - 25,
-      size: 9,
-      font: fontB,
-      color: navy
-    });
-    page.drawText(`Ref: ${refText}`, {
-      x: PAGE_WIDTH - MARGIN_RIGHT - 140,
-      y: PAGE_HEIGHT - 25,
-      size: 9,
-      font: fontR,
-      color: slate
-    });
-    page.drawLine({
-      start: { x: MARGIN_LEFT, y: PAGE_HEIGHT - 30 },
-      end: { x: PAGE_WIDTH - MARGIN_RIGHT, y: PAGE_HEIGHT - 30 },
-      thickness: 0.75,
-      color: colorBorder
-    });
-  }
-
   // ==========================================
-  // 1. TOP HEADER BANNER
+  // 1. TOP HEADER BANNER (Tightened & Sleek)
   // ==========================================
-  const headerHeight = 72;
+  const headerHeight = 64;
   currentPage.drawRectangle({
     x: MARGIN_LEFT,
     y: currentY - headerHeight,
@@ -177,17 +145,17 @@ export async function generateModeAPdfBuffer(input: ModeAPdfInput): Promise<Buff
 
   // Left side title
   currentPage.drawText('PRIME ENERGY UK', {
-    x: MARGIN_LEFT + 14,
-    y: currentY - 26,
-    size: 15,
+    x: MARGIN_LEFT + 12,
+    y: currentY - 22,
+    size: 14,
     font: fontBold,
     color: colorWhite
   });
 
   currentPage.drawText('Mode A — New Lead / Pre-Survey Assessment', {
-    x: MARGIN_LEFT + 14,
-    y: currentY - 44,
-    size: 10,
+    x: MARGIN_LEFT + 12,
+    y: currentY - 38,
+    size: 9.5,
     font: fontRegular,
     color: rgb(203 / 255, 213 / 255, 225 / 255)
   });
@@ -198,141 +166,110 @@ export async function generateModeAPdfBuffer(input: ModeAPdfInput): Promise<Buff
   const addressParts = [cleanString(input.addressLine1), cleanString(input.addressLine2), cleanString(input.postcode)].filter(Boolean);
   const propertyAddr = addressParts.length > 0 ? addressParts.join(', ') : 'Not specified';
   const preparedDate = input.date || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-  const preparedBy = cleanString(input.preparedBy) || 'Prime Energy Technical Assessment';
+  const preparedBy = cleanString(input.preparedBy) || 'Prime Energy Assessor';
 
-  const metaRightX = MARGIN_LEFT + CONTENT_WIDTH - 210;
-  currentPage.drawText(`Customer: ${customerName}`, { x: metaRightX, y: currentY - 20, size: 8.5, font: fontBold, color: colorWhite });
-  currentPage.drawText(`Ref: ${jobRef}`, { x: metaRightX, y: currentY - 32, size: 8.5, font: fontRegular, color: rgb(226 / 255, 232 / 255, 240 / 255) });
-  currentPage.drawText(`Address: ${propertyAddr.length > 32 ? propertyAddr.substring(0, 32) + '...' : propertyAddr}`, { x: metaRightX, y: currentY - 44, size: 8, font: fontRegular, color: rgb(203 / 255, 213 / 255, 225 / 255) });
-  currentPage.drawText(`Date: ${preparedDate} | By: ${preparedBy.length > 18 ? preparedBy.substring(0, 18) + '...' : preparedBy}`, { x: metaRightX, y: currentY - 56, size: 7.5, font: fontRegular, color: rgb(148 / 255, 163 / 255, 184 / 255) });
+  const metaRightX = MARGIN_LEFT + CONTENT_WIDTH - 220;
+  currentPage.drawText(`Customer: ${customerName}`, { x: metaRightX, y: currentY - 18, size: 8, font: fontBold, color: colorWhite });
+  currentPage.drawText(`Ref: ${jobRef}`, { x: metaRightX, y: currentY - 29, size: 8, font: fontRegular, color: rgb(226 / 255, 232 / 255, 240 / 255) });
+  currentPage.drawText(`Address: ${propertyAddr}`, { x: metaRightX, y: currentY - 40, size: 7.5, font: fontRegular, color: rgb(203 / 255, 213 / 255, 225 / 255), maxWidth: 210 });
+  currentPage.drawText(`Date: ${preparedDate} | By: ${preparedBy}`, { x: metaRightX, y: currentY - 51, size: 7, font: fontRegular, color: rgb(148 / 255, 163 / 255, 184 / 255) });
 
-  currentY -= (headerHeight + 14);
+  currentY -= (headerHeight + 10);
 
   // ==========================================
   // Helper: Section Heading
   // ==========================================
   function drawSectionHeading(title: string) {
-    checkPageBreak(30);
     currentPage.drawRectangle({
       x: MARGIN_LEFT,
-      y: currentY - 18,
-      width: 4,
-      height: 16,
+      y: currentY - 14,
+      width: 3.5,
+      height: 13,
       color: colorEmerald
     });
     currentPage.drawText(title.toUpperCase(), {
-      x: MARGIN_LEFT + 10,
-      y: currentY - 14,
-      size: 10,
+      x: MARGIN_LEFT + 8,
+      y: currentY - 11,
+      size: 9,
       font: fontBold,
       color: colorNavy
     });
     currentPage.drawLine({
-      start: { x: MARGIN_LEFT + 10 + fontBold.widthOfTextAtSize(title.toUpperCase(), 10) + 10, y: currentY - 10 },
-      end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: currentY - 10 },
+      start: { x: MARGIN_LEFT + 8 + fontBold.widthOfTextAtSize(title.toUpperCase(), 9) + 8, y: currentY - 8 },
+      end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: currentY - 8 },
       thickness: 0.5,
       color: colorBorder
     });
-    currentY -= 24;
+    currentY -= 18;
   }
 
   // ==========================================
-  // 2. PROPERTY DETAILS SECTION
+  // 2. PROPERTY DETAILS SECTION (Full EPC Ref & Full Insulation - No Truncation!)
   // ==========================================
   drawSectionHeading('Property Details');
 
-  const propertyFields: Array<{ label: string; value: string }> = [];
-
-  const propType = cleanString(input.propertyType);
-  if (propType) propertyFields.push({ label: 'Property Type', value: propType });
-
-  if (input.bedrooms && input.bedrooms > 0) propertyFields.push({ label: 'Bedrooms', value: `${input.bedrooms}` });
-  if (input.epcFloorArea && input.epcFloorArea > 0) propertyFields.push({ label: 'Floor Area', value: `${input.epcFloorArea} m²` });
-
-  const epcRating = cleanString(input.epcRating);
-  if (epcRating) propertyFields.push({ label: 'EPC Rating', value: epcRating });
-
-  const epcRef = cleanString(input.epcReference);
-  if (epcRef) propertyFields.push({ label: 'EPC Reference', value: epcRef });
-
-  const existingHeating = cleanString(input.existingHeatingSystem);
-  if (existingHeating) propertyFields.push({ label: 'Existing Heating', value: existingHeating });
-
-  const fuelType = cleanString(input.existingFuelType);
-  if (fuelType) propertyFields.push({ label: 'Heating Fuel', value: fuelType });
-
-  const gasGrid = cleanString(input.onOffGasGrid);
-  if (gasGrid) propertyFields.push({ label: 'Gas Grid Status', value: gasGrid });
+  const propType = cleanString(input.propertyType) || 'Not specified';
+  const bedroomsStr = (input.bedrooms && input.bedrooms > 0) ? `${input.bedrooms}` : 'Not specified';
+  const floorAreaStr = (input.epcFloorArea && input.epcFloorArea > 0) ? `${input.epcFloorArea} m²` : 'Not specified';
+  const epcRatingStr = cleanString(input.epcRating) || 'Not assessed';
+  const epcRefStr = cleanString(input.epcReference) || 'Not available';
+  const existingHeatingStr = cleanString(input.existingHeatingSystem) || 'Not specified';
+  const fuelTypeStr = cleanString(input.existingFuelType) || 'Not specified';
+  const gasGridStr = cleanString(input.onOffGasGrid) || 'Not specified';
 
   const wallIns = cleanString(input.wallInsulation);
   const roofIns = cleanString(input.roofInsulation);
-  const insSummary = [wallIns ? `Walls: ${wallIns}` : '', roofIns ? `Roof: ${roofIns}` : ''].filter(Boolean).join(' | ');
-  if (insSummary) propertyFields.push({ label: 'Insulation', value: insSummary });
+  const insSummaryStr = [wallIns ? `Walls: ${wallIns}` : '', roofIns ? `Roof: ${roofIns}` : ''].filter(Boolean).join('  |  ') || 'Not recorded';
 
-  if (propertyFields.length > 0) {
-    const colWidth = CONTENT_WIDTH / 3;
-    const rowHeight = 22;
-    const numRows = Math.ceil(propertyFields.length / 3);
-    const boxHeight = numRows * rowHeight + 8;
+  const propBoxHeight = 64;
 
-    checkPageBreak(boxHeight + 10);
+  currentPage.drawRectangle({
+    x: MARGIN_LEFT,
+    y: currentY - propBoxHeight,
+    width: CONTENT_WIDTH,
+    height: propBoxHeight,
+    color: colorBgLight,
+    borderColor: colorBorder,
+    borderWidth: 0.5,
+    borderRadius: 3
+  });
 
-    currentPage.drawRectangle({
-      x: MARGIN_LEFT,
-      y: currentY - boxHeight,
-      width: CONTENT_WIDTH,
-      height: boxHeight,
-      color: colorBgLight,
-      borderColor: colorBorder,
-      borderWidth: 0.5,
-      borderRadius: 3
-    });
+  // Row 1
+  let rY = currentY - 14;
+  currentPage.drawText('Property Type:', { x: MARGIN_LEFT + 8, y: rY, size: 7.5, font: fontBold, color: colorSlate });
+  currentPage.drawText(propType, { x: MARGIN_LEFT + 72, y: rY, size: 8, font: fontRegular, color: colorDarkText });
 
-    propertyFields.forEach((f, idx) => {
-      const r = Math.floor(idx / 3);
-      const c = idx % 3;
-      const x = MARGIN_LEFT + 10 + (c * colWidth);
-      const y = currentY - 16 - (r * rowHeight);
+  currentPage.drawText('Bedrooms:', { x: MARGIN_LEFT + 180, y: rY, size: 7.5, font: fontBold, color: colorSlate });
+  currentPage.drawText(bedroomsStr, { x: MARGIN_LEFT + 230, y: rY, size: 8, font: fontRegular, color: colorDarkText });
 
-      const labelStr = `${f.label}:`;
-      const labelW = fontBold.widthOfTextAtSize(labelStr, 8);
-      const availValW = colWidth - labelW - 14;
+  currentPage.drawText('Floor Area:', { x: MARGIN_LEFT + 340, y: rY, size: 7.5, font: fontBold, color: colorSlate });
+  currentPage.drawText(floorAreaStr, { x: MARGIN_LEFT + 395, y: rY, size: 8, font: fontRegular, color: colorDarkText });
 
-      let valStr = f.value;
-      if (fontRegular.widthOfTextAtSize(valStr, 8.5) > availValW) {
-        while (valStr.length > 3 && fontRegular.widthOfTextAtSize(valStr + '...', 8) > availValW) {
-          valStr = valStr.substring(0, valStr.length - 1);
-        }
-        valStr += '...';
-      }
+  // Row 2
+  rY -= 15;
+  currentPage.drawText('EPC Rating:', { x: MARGIN_LEFT + 8, y: rY, size: 7.5, font: fontBold, color: colorSlate });
+  currentPage.drawText(epcRatingStr, { x: MARGIN_LEFT + 62, y: rY, size: 8, font: fontRegular, color: colorDarkText });
 
-      currentPage.drawText(labelStr, {
-        x,
-        y,
-        size: 8,
-        font: fontBold,
-        color: colorSlate
-      });
-      currentPage.drawText(valStr, {
-        x: x + labelW + 4,
-        y,
-        size: 8.5,
-        font: fontRegular,
-        color: colorDarkText
-      });
-    });
+  currentPage.drawText('Existing Heating:', { x: MARGIN_LEFT + 180, y: rY, size: 7.5, font: fontBold, color: colorSlate });
+  currentPage.drawText(existingHeatingStr, { x: MARGIN_LEFT + 258, y: rY, size: 8, font: fontRegular, color: colorDarkText });
 
-    currentY -= (boxHeight + 12);
-  } else {
-    currentPage.drawText('No property details recorded for this lead.', {
-      x: MARGIN_LEFT + 10,
-      y: currentY - 10,
-      size: 8.5,
-      font: fontOblique,
-      color: colorSlate
-    });
-    currentY -= 20;
-  }
+  currentPage.drawText('Heating Fuel:', { x: MARGIN_LEFT + 340, y: rY, size: 7.5, font: fontBold, color: colorSlate });
+  currentPage.drawText(fuelTypeStr, { x: MARGIN_LEFT + 405, y: rY, size: 8, font: fontRegular, color: colorDarkText });
+
+  // Row 3
+  rY -= 15;
+  currentPage.drawText('Gas Grid Status:', { x: MARGIN_LEFT + 8, y: rY, size: 7.5, font: fontBold, color: colorSlate });
+  currentPage.drawText(gasGridStr, { x: MARGIN_LEFT + 80, y: rY, size: 8, font: fontRegular, color: colorDarkText });
+
+  currentPage.drawText('EPC Reference:', { x: MARGIN_LEFT + 180, y: rY, size: 7.5, font: fontBold, color: colorSlate });
+  currentPage.drawText(epcRefStr, { x: MARGIN_LEFT + 250, y: rY, size: 8, font: fontRegular, color: colorDarkText }); // FULL EPC REFERENCE!
+
+  // Row 4
+  rY -= 15;
+  currentPage.drawText('Insulation:', { x: MARGIN_LEFT + 8, y: rY, size: 7.5, font: fontBold, color: colorSlate });
+  currentPage.drawText(insSummaryStr, { x: MARGIN_LEFT + 60, y: rY, size: 7.8, font: fontRegular, color: colorDarkText }); // FULL INSULATION SUMMARY!
+
+  currentY -= (propBoxHeight + 10);
 
   // ==========================================
   // 3. PRELIMINARY HEAT DEMAND SECTION
@@ -340,8 +277,7 @@ export async function generateModeAPdfBuffer(input: ModeAPdfInput): Promise<Buff
   drawSectionHeading('Preliminary Heat Demand');
 
   const demandKw = input.estimatedHeatDemandKw && input.estimatedHeatDemandKw > 0 ? input.estimatedHeatDemandKw : null;
-  const demandBoxHeight = 36;
-  checkPageBreak(demandBoxHeight + 10);
+  const demandBoxHeight = 28;
 
   currentPage.drawRectangle({
     x: MARGIN_LEFT,
@@ -355,31 +291,31 @@ export async function generateModeAPdfBuffer(input: ModeAPdfInput): Promise<Buff
   });
 
   currentPage.drawText('Estimated Heat Demand:', {
-    x: MARGIN_LEFT + 14,
-    y: currentY - 22,
-    size: 10,
+    x: MARGIN_LEFT + 12,
+    y: currentY - 18,
+    size: 9.5,
     font: fontBold,
     color: colorNavy
   });
 
   const demandValStr = demandKw ? `${demandKw.toFixed(1)} kW` : 'Pending calculation';
   currentPage.drawText(demandValStr, {
-    x: MARGIN_LEFT + 145,
-    y: currentY - 24,
-    size: 14,
+    x: MARGIN_LEFT + 140,
+    y: currentY - 19,
+    size: 13,
     font: fontBold,
     color: demandKw ? colorEmerald : colorSlate
   });
 
   currentPage.drawText('Preliminary estimate — not an MCS/BS EN 12831 heat-load calculation.', {
-    x: MARGIN_LEFT + 245,
-    y: currentY - 22,
-    size: 7.5,
+    x: MARGIN_LEFT + 235,
+    y: currentY - 17,
+    size: 7.2,
     font: fontOblique,
     color: colorSlate
   });
 
-  currentY -= (demandBoxHeight + 14);
+  currentY -= (demandBoxHeight + 10);
 
   // ==========================================
   // 4. RECOMMENDED SYSTEM SECTION
@@ -397,8 +333,7 @@ export async function generateModeAPdfBuffer(input: ModeAPdfInput): Promise<Buff
   const cylName = (cylBrand || cylModel) ? `${cylBrand} ${cylModel}`.trim() : 'Unspecified Cylinder Model';
   const cylVol = input.cylinder?.capacityLitres ? `${input.cylinder.capacityLitres} Litres` : 'Standard Volume';
 
-  const sysBoxHeight = 50;
-  checkPageBreak(sysBoxHeight + 10);
+  const sysBoxHeight = 44;
 
   currentPage.drawRectangle({
     x: MARGIN_LEFT,
@@ -412,27 +347,43 @@ export async function generateModeAPdfBuffer(input: ModeAPdfInput): Promise<Buff
   });
 
   // ASHP Row
-  currentPage.drawText('ASHP Unit:', { x: MARGIN_LEFT + 14, y: currentY - 18, size: 9, font: fontBold, color: colorNavy });
-  currentPage.drawText(ashpName, { x: MARGIN_LEFT + 90, y: currentY - 18, size: 9, font: fontBold, color: colorDarkText });
-  currentPage.drawText(`Output: ${ashpKw} | Design Condition: ${ashpDesignCond}`, { x: MARGIN_LEFT + 280, y: currentY - 18, size: 8, font: fontRegular, color: colorSlate });
+  currentPage.drawText('ASHP Unit:', { x: MARGIN_LEFT + 12, y: currentY - 16, size: 8.5, font: fontBold, color: colorNavy });
+  
+  let drawAshpName = ashpName;
+  if (fontBold.widthOfTextAtSize(drawAshpName, 8) > 225) {
+    while (drawAshpName.length > 3 && fontBold.widthOfTextAtSize(drawAshpName + '...', 8) > 225) {
+      drawAshpName = drawAshpName.substring(0, drawAshpName.length - 1);
+    }
+    drawAshpName += '...';
+  }
+  currentPage.drawText(drawAshpName, { x: MARGIN_LEFT + 75, y: currentY - 16, size: 8, font: fontBold, color: colorDarkText });
+  currentPage.drawText(`Output: ${ashpKw} | Design: ${ashpDesignCond}`, { x: MARGIN_LEFT + 315, y: currentY - 16, size: 7.5, font: fontRegular, color: colorSlate });
 
   // Divider
   currentPage.drawLine({
-    start: { x: MARGIN_LEFT + 10, y: currentY - 26 },
-    end: { x: MARGIN_LEFT + CONTENT_WIDTH - 10, y: currentY - 26 },
+    start: { x: MARGIN_LEFT + 8, y: currentY - 23 },
+    end: { x: MARGIN_LEFT + CONTENT_WIDTH - 8, y: currentY - 23 },
     thickness: 0.5,
     color: colorBorder
   });
 
   // Cylinder Row
-  currentPage.drawText('Cylinder:', { x: MARGIN_LEFT + 14, y: currentY - 40, size: 9, font: fontBold, color: colorNavy });
-  currentPage.drawText(cylName, { x: MARGIN_LEFT + 90, y: currentY - 40, size: 9, font: fontBold, color: colorDarkText });
-  currentPage.drawText(`Capacity: ${cylVol}`, { x: MARGIN_LEFT + 280, y: currentY - 40, size: 8, font: fontRegular, color: colorSlate });
+  currentPage.drawText('Cylinder:', { x: MARGIN_LEFT + 12, y: currentY - 35, size: 8.5, font: fontBold, color: colorNavy });
+  
+  let drawCylName = cylName;
+  if (fontBold.widthOfTextAtSize(drawCylName, 8) > 225) {
+    while (drawCylName.length > 3 && fontBold.widthOfTextAtSize(drawCylName + '...', 8) > 225) {
+      drawCylName = drawCylName.substring(0, drawCylName.length - 1);
+    }
+    drawCylName += '...';
+  }
+  currentPage.drawText(drawCylName, { x: MARGIN_LEFT + 75, y: currentY - 35, size: 8, font: fontBold, color: colorDarkText });
+  currentPage.drawText(`Capacity: ${cylVol}`, { x: MARGIN_LEFT + 315, y: currentY - 35, size: 7.5, font: fontRegular, color: colorSlate });
 
-  currentY -= (sysBoxHeight + 14);
+  currentY -= (sysBoxHeight + 10);
 
   // ==========================================
-  // 5. SYSTEM & INSTALLATION COST TABLE
+  // 5. SYSTEM & INSTALLATION COST TABLE (FULL Item Descriptions - No Truncation!)
   // ==========================================
   drawSectionHeading('System & Installation Cost');
 
@@ -445,8 +396,7 @@ export async function generateModeAPdfBuffer(input: ModeAPdfInput): Promise<Buff
   });
 
   // Table Headers
-  const tableHeaderHeight = 18;
-  checkPageBreak(tableHeaderHeight + 20);
+  const tableHeaderHeight = 16;
 
   currentPage.drawRectangle({
     x: MARGIN_LEFT,
@@ -456,53 +406,80 @@ export async function generateModeAPdfBuffer(input: ModeAPdfInput): Promise<Buff
     color: colorNavy
   });
 
-  currentPage.drawText('ITEM DESCRIPTION', { x: MARGIN_LEFT + 10, y: currentY - 13, size: 8, font: fontBold, color: colorWhite });
-  currentPage.drawText('QTY', { x: MARGIN_LEFT + 320, y: currentY - 13, size: 8, font: fontBold, color: colorWhite });
-  currentPage.drawText('UNIT PRICE (EX VAT)', { x: MARGIN_LEFT + 365, y: currentY - 13, size: 8, font: fontBold, color: colorWhite });
-  currentPage.drawText('TOTAL (EX VAT)', { x: MARGIN_LEFT + 465, y: currentY - 13, size: 8, font: fontBold, color: colorWhite });
+  currentPage.drawText('ITEM DESCRIPTION', { x: MARGIN_LEFT + 10, y: currentY - 11, size: 7.5, font: fontBold, color: colorWhite });
+  currentPage.drawText('QTY', { x: MARGIN_LEFT + 340, y: currentY - 11, size: 7.5, font: fontBold, color: colorWhite });
+  currentPage.drawText('UNIT PRICE (EX VAT)', { x: MARGIN_LEFT + 380, y: currentY - 11, size: 7.5, font: fontBold, color: colorWhite });
+  currentPage.drawText('TOTAL (EX VAT)', { x: MARGIN_LEFT + 465, y: currentY - 11, size: 7.5, font: fontBold, color: colorWhite });
 
   currentY -= tableHeaderHeight;
 
-  const itemRowHeight = 18;
+  // Calculate dynamic line heights for table rows so long descriptions display 100% in full!
   filteredItems.forEach((item, index) => {
-    checkPageBreak(itemRowHeight + 15);
-
+    const descText = cleanString(item.description) || 'General Item';
     const isEven = index % 2 === 0;
+
+    // Measure text width to check if 2 lines needed
+    const descWidth = fontRegular.widthOfTextAtSize(descText, 7.8);
+    const maxDescWidth = 325;
+
+    let lines: string[] = [];
+    if (descWidth > maxDescWidth) {
+      // Split into two lines gracefully at spaces
+      const words = descText.split(' ');
+      let line1 = '';
+      let line2 = '';
+      for (const w of words) {
+        if (fontRegular.widthOfTextAtSize((line1 + ' ' + w).trim(), 7.8) <= maxDescWidth) {
+          line1 = (line1 + ' ' + w).trim();
+        } else {
+          line2 = (line2 + ' ' + w).trim();
+        }
+      }
+      lines = [line1, line2];
+    } else {
+      lines = [descText];
+    }
+
+    const rowH = lines.length > 1 ? 24 : 16;
+
     if (isEven) {
       currentPage.drawRectangle({
         x: MARGIN_LEFT,
-        y: currentY - itemRowHeight,
+        y: currentY - rowH,
         width: CONTENT_WIDTH,
-        height: itemRowHeight,
+        height: rowH,
         color: colorBgLight
       });
     }
 
-    const descText = cleanString(item.description) || 'General Item';
-    const truncatedDesc = descText.length > 52 ? descText.substring(0, 52) + '...' : descText;
+    if (lines.length === 1) {
+      currentPage.drawText(lines[0], { x: MARGIN_LEFT + 10, y: currentY - 11, size: 7.8, font: fontRegular, color: colorDarkText });
+    } else {
+      currentPage.drawText(lines[0], { x: MARGIN_LEFT + 10, y: currentY - 10, size: 7.5, font: fontRegular, color: colorDarkText });
+      currentPage.drawText(lines[1], { x: MARGIN_LEFT + 10, y: currentY - 20, size: 7.5, font: fontRegular, color: colorDarkText });
+    }
 
-    currentPage.drawText(truncatedDesc, { x: MARGIN_LEFT + 10, y: currentY - 13, size: 8, font: fontRegular, color: colorDarkText });
-    currentPage.drawText(`${item.quantity || 1}`, { x: MARGIN_LEFT + 328, y: currentY - 13, size: 8, font: fontRegular, color: colorDarkText });
-    currentPage.drawText(formatCurrency(item.unitPriceExVat), { x: MARGIN_LEFT + 365, y: currentY - 13, size: 8, font: fontRegular, color: colorDarkText });
-    currentPage.drawText(formatCurrency(item.totalPriceExVat), { x: MARGIN_LEFT + 465, y: currentY - 13, size: 8, font: fontBold, color: colorDarkText });
+    const textY = lines.length > 1 ? currentY - 15 : currentY - 11;
+    currentPage.drawText(`${item.quantity || 1}`, { x: MARGIN_LEFT + 348, y: textY, size: 7.8, font: fontRegular, color: colorDarkText });
+    currentPage.drawText(formatCurrency(item.unitPriceExVat), { x: MARGIN_LEFT + 380, y: textY, size: 7.8, font: fontRegular, color: colorDarkText });
+    currentPage.drawText(formatCurrency(item.totalPriceExVat), { x: MARGIN_LEFT + 465, y: textY, size: 8, font: fontBold, color: colorDarkText });
 
     currentPage.drawLine({
-      start: { x: MARGIN_LEFT, y: currentY - itemRowHeight },
-      end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: currentY - itemRowHeight },
+      start: { x: MARGIN_LEFT, y: currentY - rowH },
+      end: { x: MARGIN_LEFT + CONTENT_WIDTH, y: currentY - rowH },
       thickness: 0.5,
       color: colorBorder
     });
 
-    currentY -= itemRowHeight;
+    currentY -= rowH;
   });
 
-  currentY -= 6;
+  currentY -= 4;
 
   // ==========================================
   // 6. COST SUMMARY SECTION
   // ==========================================
-  const summaryBoxHeight = 58;
-  checkPageBreak(summaryBoxHeight + 15);
+  const summaryBoxHeight = 44;
 
   currentPage.drawRectangle({
     x: MARGIN_LEFT,
@@ -512,37 +489,36 @@ export async function generateModeAPdfBuffer(input: ModeAPdfInput): Promise<Buff
     color: colorBgLight,
     borderColor: colorBorder,
     borderWidth: 0.75,
-    borderRadius: 4
+    borderRadius: 3
   });
 
-  // Grid of 6 financial summary values: Total Job Cost, BUS Grant, Customer Contribution, Revenue, Gross Profit, Gross Margin
   const sumColW = CONTENT_WIDTH / 3;
 
   // Column 1
-  currentPage.drawText('Total Job Cost:', { x: MARGIN_LEFT + 12, y: currentY - 18, size: 8.5, font: fontBold, color: colorSlate });
-  currentPage.drawText(formatCurrency(input.totalJobCost), { x: MARGIN_LEFT + 105, y: currentY - 18, size: 9, font: fontBold, color: colorDarkText });
+  currentPage.drawText('Total Job Cost:', { x: MARGIN_LEFT + 10, y: currentY - 15, size: 8, font: fontBold, color: colorSlate });
+  currentPage.drawText(formatCurrency(input.totalJobCost), { x: MARGIN_LEFT + 95, y: currentY - 15, size: 8.5, font: fontBold, color: colorDarkText });
 
-  currentPage.drawText('BUS Grant:', { x: MARGIN_LEFT + 12, y: currentY - 38, size: 8.5, font: fontBold, color: colorSlate });
-  currentPage.drawText(`-${formatCurrency(input.busGrant)}`, { x: MARGIN_LEFT + 105, y: currentY - 38, size: 9, font: fontBold, color: colorEmerald });
+  currentPage.drawText('BUS Grant:', { x: MARGIN_LEFT + 10, y: currentY - 31, size: 8, font: fontBold, color: colorSlate });
+  currentPage.drawText(`-${formatCurrency(input.busGrant)}`, { x: MARGIN_LEFT + 95, y: currentY - 31, size: 8.5, font: fontBold, color: colorEmerald });
 
   // Column 2
   const col2X = MARGIN_LEFT + sumColW + 10;
-  currentPage.drawText('Customer Contribution:', { x: col2X, y: currentY - 18, size: 8.5, font: fontBold, color: colorNavy });
-  currentPage.drawText(formatCurrency(input.customerContribution), { x: col2X + 115, y: currentY - 18, size: 10, font: fontBold, color: colorNavy });
+  currentPage.drawText('Customer Contribution:', { x: col2X, y: currentY - 15, size: 8, font: fontBold, color: colorNavy });
+  currentPage.drawText(formatCurrency(input.customerContribution), { x: col2X + 110, y: currentY - 15, size: 9.5, font: fontBold, color: colorNavy });
 
   const revVal = input.revenue !== undefined ? input.revenue : input.customerContribution + input.busGrant;
-  currentPage.drawText('Total Revenue:', { x: col2X, y: currentY - 38, size: 8.5, font: fontBold, color: colorSlate });
-  currentPage.drawText(formatCurrency(revVal), { x: col2X + 115, y: currentY - 38, size: 9, font: fontBold, color: colorDarkText });
+  currentPage.drawText('Total Revenue:', { x: col2X, y: currentY - 31, size: 8, font: fontBold, color: colorSlate });
+  currentPage.drawText(formatCurrency(revVal), { x: col2X + 110, y: currentY - 31, size: 8.5, font: fontBold, color: colorDarkText });
 
   // Column 3
   const col3X = MARGIN_LEFT + (sumColW * 2) + 10;
-  currentPage.drawText('Gross Profit:', { x: col3X, y: currentY - 18, size: 8.5, font: fontBold, color: colorSlate });
-  currentPage.drawText(formatCurrency(input.grossProfit), { x: col3X + 75, y: currentY - 18, size: 9, font: fontBold, color: colorDarkText });
+  currentPage.drawText('Gross Profit:', { x: col3X, y: currentY - 15, size: 8, font: fontBold, color: colorSlate });
+  currentPage.drawText(formatCurrency(input.grossProfit), { x: col3X + 70, y: currentY - 15, size: 8.5, font: fontBold, color: colorDarkText });
 
-  currentPage.drawText('Gross Margin:', { x: col3X, y: currentY - 38, size: 8.5, font: fontBold, color: colorSlate });
-  currentPage.drawText(`${(input.grossMarginPercent || 0).toFixed(1)}%`, { x: col3X + 75, y: currentY - 38, size: 9, font: fontBold, color: colorDarkText });
+  currentPage.drawText('Gross Margin:', { x: col3X, y: currentY - 31, size: 8, font: fontBold, color: colorSlate });
+  currentPage.drawText(`${(input.grossMarginPercent || 0).toFixed(1)}%`, { x: col3X + 70, y: currentY - 31, size: 8.5, font: fontBold, color: colorDarkText });
 
-  currentY -= (summaryBoxHeight + 14);
+  currentY -= (summaryBoxHeight + 10);
 
   // ==========================================
   // 7. RADIATOR / EMITTER INFO (Optional)
@@ -550,8 +526,7 @@ export async function generateModeAPdfBuffer(input: ModeAPdfInput): Promise<Buff
   if (input.radiators && (input.radiators.count || input.radiators.mainType || input.radiators.estimatedCapacityKw)) {
     drawSectionHeading('Radiator & Emitter Assessment');
 
-    const radBoxHeight = 36;
-    checkPageBreak(radBoxHeight + 10);
+    const radBoxHeight = 28;
 
     currentPage.drawRectangle({
       x: MARGIN_LEFT,
@@ -570,37 +545,36 @@ export async function generateModeAPdfBuffer(input: ModeAPdfInput): Promise<Buff
     const radPlausStr = cleanString(input.radiators.plausibility) || 'Plausible';
 
     currentPage.drawText(`Existing Radiators: ${radCountStr} | Main Type: ${radTypeStr}`, {
-      x: MARGIN_LEFT + 12,
-      y: currentY - 16,
-      size: 8.5,
+      x: MARGIN_LEFT + 10,
+      y: currentY - 12,
+      size: 8,
       font: fontBold,
       color: colorDarkText
     });
 
     currentPage.drawText(`Estimated Capacity: ${radCapStr} | Emitter Plausibility: ${radPlausStr}`, {
-      x: MARGIN_LEFT + 12,
-      y: currentY - 28,
-      size: 8,
+      x: MARGIN_LEFT + 10,
+      y: currentY - 22,
+      size: 7.5,
       font: fontRegular,
       color: colorSlate
     });
 
     currentPage.drawText('Pre-survey emitter indicator only; not a building heat-loss calculation.', {
       x: MARGIN_LEFT + 250,
-      y: currentY - 22,
-      size: 7,
+      y: currentY - 17,
+      size: 6.8,
       font: fontOblique,
       color: colorSlate
     });
 
-    currentY -= (radBoxHeight + 12);
+    currentY -= (radBoxHeight + 10);
   }
 
   // ==========================================
-  // 8. KEY RESULT SUMMARY CALLOUT BOX
+  // 8. KEY RESULT SUMMARY CALLOUT BOX (FULL Recommended System Text - No Truncation!)
   // ==========================================
-  const keyBoxHeight = 44;
-  checkPageBreak(keyBoxHeight + 10);
+  const keyBoxHeight = 52;
 
   currentPage.drawRectangle({
     x: MARGIN_LEFT,
@@ -613,63 +587,64 @@ export async function generateModeAPdfBuffer(input: ModeAPdfInput): Promise<Buff
     borderRadius: 4
   });
 
+  // Line 1: Header + Heat Demand
   currentPage.drawText('KEY ASSESSMENT SUMMARY', {
-    x: MARGIN_LEFT + 14,
-    y: currentY - 16,
+    x: MARGIN_LEFT + 12,
+    y: currentY - 14,
     size: 8.5,
     font: fontBold,
     color: colorEmerald
   });
 
-  const recSummaryStr = `Recommended: ${ashpName} (${ashpKw}) + ${cylName} (${cylVol})`;
-  currentPage.drawText(recSummaryStr.length > 70 ? recSummaryStr.substring(0, 70) + '...' : recSummaryStr, {
-    x: MARGIN_LEFT + 14,
-    y: currentY - 32,
-    size: 8.5,
-    font: fontBold,
-    color: colorNavy
-  });
-
-  currentPage.drawText(`Heat Demand: ${demandValStr}`, {
-    x: MARGIN_LEFT + 340,
-    y: currentY - 16,
+  currentPage.drawText(`Estimated Heat Demand: ${demandValStr}`, {
+    x: MARGIN_LEFT + 320,
+    y: currentY - 14,
     size: 8.5,
     font: fontBold,
     color: colorDarkText
   });
 
+  // Line 2: Full Recommended System string (ASHP + Cylinder) without ANY truncation!
+  const fullRecStr = `Recommended: ${ashpName} (${ashpKw}) + ${cylName} (${cylVol})`;
+  currentPage.drawText(fullRecStr, {
+    x: MARGIN_LEFT + 12,
+    y: currentY - 28,
+    size: 8.2,
+    font: fontBold,
+    color: colorNavy,
+    maxWidth: CONTENT_WIDTH - 24
+  });
+
+  // Line 3: Net Customer Contribution
   currentPage.drawText(`Customer Net Contribution: ${formatCurrency(input.customerContribution)}`, {
-    x: MARGIN_LEFT + 340,
-    y: currentY - 32,
+    x: MARGIN_LEFT + 12,
+    y: currentY - 42,
     size: 9.5,
     font: fontBold,
     color: colorEmerald
   });
 
-  currentY -= (keyBoxHeight + 12);
+  currentY -= (keyBoxHeight + 10);
 
   // ==========================================
   // 9. SHORT NOTE SUMMARY (1 - 1.5 lines)
   // ==========================================
-  checkPageBreak(24);
   const pTypeNote = propType || 'Property';
-  const fuelNote = fuelType ? `${fuelType} boiler` : 'existing heating';
-  const epcKwhNote = input.annualHeatingKwh ? `EPC ${input.annualHeatingKwh.toLocaleString()} kWh/yr` : (epcRating ? `EPC Rating ${epcRating}` : 'pre-survey assessment');
+  const fuelNote = fuelTypeStr !== 'Not specified' ? `${fuelTypeStr} boiler` : 'existing heating';
+  const epcKwhNote = input.annualHeatingKwh ? `EPC ${input.annualHeatingKwh.toLocaleString()} kWh/yr` : (epcRatingStr !== 'Not assessed' ? `EPC Rating ${epcRatingStr}` : 'pre-survey assessment');
   const shortNoteText = `Summary: ${pTypeNote}, ${fuelNote}, ${epcKwhNote}; estimated heat demand ${demandValStr}, recommended ${ashpName} + ${cylVol}.`;
 
-  currentPage.drawText(shortNoteText.length > 120 ? shortNoteText.substring(0, 120) + '...' : shortNoteText, {
+  currentPage.drawText(shortNoteText, {
     x: MARGIN_LEFT,
-    y: currentY - 10,
-    size: 8,
+    y: currentY - 8,
+    size: 7.5,
     font: fontOblique,
     color: colorSlate,
     maxWidth: CONTENT_WIDTH
   });
 
-  currentY -= 20;
-
-  // Draw footer on final page
-  drawFooter(currentPage, fontRegular, fontOblique, colorSlate);
+  // Draw bottom footer on single page
+  drawFooter(currentPage);
 
   const pdfBytes = await pdfDoc.save();
   return Buffer.from(pdfBytes);
