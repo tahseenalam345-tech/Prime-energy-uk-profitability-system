@@ -1022,7 +1022,6 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         customerEmail: email ? email.trim() : undefined,
         customerPhone: phone ? phone.trim() : undefined,
         addressLine1: addressLine1 ? addressLine1.trim() : undefined,
-        addressLine2: addressLine2 ? addressLine2.trim() : undefined,
         postcode: postcode ? postcode.trim().toUpperCase() : undefined,
         preparedBy: currentUser?.name || 'Prime Energy Technical Assessor',
         date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
