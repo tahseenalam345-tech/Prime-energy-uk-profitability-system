@@ -2837,6 +2837,11 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODE-A PRE-SURVEY ASSESSMENT PDF PREVIEW MODAL */}
       {showModeAPdfModal && modeAPdfResult && (
         <div style={{
