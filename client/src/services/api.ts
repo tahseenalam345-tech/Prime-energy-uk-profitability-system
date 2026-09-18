@@ -604,5 +604,15 @@ export const api = {
       body: JSON.stringify({ record })
     });
     return res.json();
+  },
+
+  async generateModeAPdf(payload: any) {
+    const res = await fetch(`${BASE_URL}/quotes/mode-a-pdf`, {
+      method: 'POST',
+      headers: getHeaders(),
+      body: JSON.stringify(payload)
+    });
+    return res.json();
   }
 };
+

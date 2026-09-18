@@ -540,3 +540,53 @@ quotesRouter.post('/:id/regenerate', authenticateToken, requireRole('ADMIN', 'SA
   }
 });
 
+// GENERATE MODE-A PRE-SURVEY ASSESSMENT PDF
+quotesRouter.post('/mode-a-pdf', optionalAuthenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const payload = req.body || {};
+    const ref = (payload.quoteReference || payload.leadReference || `PE-A-${Date.now()}`).replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `Prime-Energy-Mode-A-${ref}.pdf`;
+    
+    const storageDir = path.join(process.cwd(), 'storage', 'mode_a_pdfs');
+    if (!fs.existsSync(storageDir)) {
+      fs.mkdirSync(storageDir, { recursive: true });
+    }
+
+    const { generateModeAPdfBuffer } = await import('../services/modeAPdfGenerator.js');
+    const pdfBuffer = await generateModeAPdfBuffer(payload);
+
+    const pdfFilePath = path.join(storageDir, filename);
+    fs.writeFileSync(pdfFilePath, pdfBuffer);
+
+    res.json({
+      success: true,
+      filename,
+      pdfUrl: `/api/quotes/mode-a-pdf/file/${encodeURIComponent(filename)}`,
+      generatedAt: new Date().toISOString()
+    });
+  } catch (err: any) {
+    safeErrorResponse(res, err, 'Failed to generate Mode-A PDF summary');
+  }
+});
+
+// SERVE MODE-A PDF FILE
+quotesRouter.get('/mode-a-pdf/file/:filename', optionalAuthenticateToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const rawFilename = req.params.filename;
+    const safeFilename = path.basename(rawFilename);
+    const storageDir = path.join(process.cwd(), 'storage', 'mode_a_pdfs');
+    const filePath = path.join(storageDir, safeFilename);
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Mode-A PDF file not found.' });
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${safeFilename}"`);
+    fs.createReadStream(filePath).pipe(res);
+  } catch (err: any) {
+    safeErrorResponse(res, err, 'Failed to serve Mode-A PDF file');
+  }
+});
+
+

@@ -239,6 +239,16 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
   const [showPdfModal, setShowPdfModal] = useState(false);
   const [inputsChanged, setInputsChanged] = useState(false);
 
+  // Mode-A Job Summary PDF State
+  const [generatingModeAPdf, setGeneratingModeAPdf] = useState(false);
+  const [modeAPdfResult, setModeAPdfResult] = useState<{
+    filename: string;
+    pdfUrl: string;
+    generatedAt: string;
+  } | null>(null);
+  const [showModeAPdfModal, setShowModeAPdfModal] = useState(false);
+
+
   // 7. GOV.UK EPC Import State & Provenance Tracking
   const [epcSearchPostcode, setEpcSearchPostcode] = useState('');
   const [epcSearching, setEpcSearching] = useState(false);
@@ -996,6 +1006,96 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
       setGeneratingQuotation(false);
     }
   };
+
+  const handleGenerateModeAPdf = async () => {
+    if (!result) {
+      alert('Please perform commercial calculation first before generating Mode-A PDF summary.');
+      return;
+    }
+
+    setGeneratingModeAPdf(true);
+    try {
+      const modeAPayload = {
+        quoteReference: savedQuoteRef || (activeLeadId ? `PE-A-${activeLeadId}` : `PE-A-${Math.floor(1000 + Math.random() * 9000)}`),
+        leadReference: activeLeadId || undefined,
+        customerName: customerName ? customerName.trim() : 'Valued Customer',
+        customerEmail: email ? email.trim() : undefined,
+        customerPhone: phone ? phone.trim() : undefined,
+        addressLine1: addressLine1 ? addressLine1.trim() : undefined,
+        addressLine2: addressLine2 ? addressLine2.trim() : undefined,
+        postcode: postcode ? postcode.trim().toUpperCase() : undefined,
+        preparedBy: currentUser?.name || 'Prime Energy Technical Assessor',
+        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+
+        propertyType: propertyType || undefined,
+        bedrooms: bedrooms ? Number(bedrooms) : undefined,
+        epcFloorArea: epcFloorArea ? Number(epcFloorArea) : undefined,
+        epcRating: epcRating || undefined,
+        epcReference: epcImportMeta?.imported ? epcImportMeta.reference : (epcCertificateNumber || undefined),
+        existingHeatingSystem: existingHeatingSystem || undefined,
+        existingFuelType: existingFuelType || undefined,
+        onOffGasGrid: onOffGasGrid || undefined,
+        wallInsulation: wallInsulation || undefined,
+        roofInsulation: roofInsulation || undefined,
+        annualHeatingKwh: annualHeatingKwh ? Number(annualHeatingKwh) : undefined,
+
+        estimatedHeatDemandKw: result?.heatLossKw || (peakHeatLossKw !== '' ? Number(peakHeatLossKw) : undefined),
+
+        ashp: {
+          brand: result?.ashp?.selectedProduct?.brand || 'Prime Recommended',
+          model: result?.ashp?.selectedProduct?.model || 'ASHP Unit',
+          ratedOutputKw: result?.ashp?.selectedProduct?.ratedOutputKw || result?.ashp?.designOutputKw,
+          designCondition: '-3°C / 55°C Flow Design'
+        },
+        cylinder: {
+          brand: result?.cylinder?.selectedCylinder?.brand || 'Prime Recommended',
+          model: result?.cylinder?.selectedCylinder?.model || 'Unvented Cylinder',
+          capacityLitres: result?.cylinder?.selectedCylinder?.capacityLitres || result?.cylinder?.recommendedVolumeLitres
+        },
+
+        radiators: (radiatorCount || mainRadiatorType || estimatedEmitterCapacityKw) ? {
+          count: radiatorCount ? Number(radiatorCount) : undefined,
+          mainType: mainRadiatorType || undefined,
+          estimatedCapacityKw: estimatedEmitterCapacityKw ? Number(estimatedEmitterCapacityKw) : undefined,
+          plausibility: emitterPlausibility || undefined
+        } : undefined,
+
+        lineItems: result?.lineItems || (result?.costBreakdown ? [
+          { description: `ASHP: ${result?.ashp?.selectedProduct?.brand || ''} ${result?.ashp?.selectedProduct?.model || 'Heat Pump Unit'}`.trim(), quantity: 1, unitPriceExVat: result.costBreakdown.ashpCost || 0, totalPriceExVat: result.costBreakdown.ashpCost || 0 },
+          { description: `Cylinder: ${result?.cylinder?.selectedCylinder?.brand || ''} ${result?.cylinder?.selectedCylinder?.model || 'Hot Water Cylinder'}`.trim(), quantity: 1, unitPriceExVat: result.costBreakdown.cylinderCost || 0, totalPriceExVat: result.costBreakdown.cylinderCost || 0 },
+          ...(result.costBreakdown.radiatorCost > 0 ? [{ description: 'Radiators & Emitters Upgrade', quantity: 1, unitPriceExVat: result.costBreakdown.radiatorCost, totalPriceExVat: result.costBreakdown.radiatorCost }] : []),
+          { description: 'Accessories, Controls & Hydraulic Fittings', quantity: 1, unitPriceExVat: result.costBreakdown.accessoriesCost || 0, totalPriceExVat: result.costBreakdown.accessoriesCost || 0 },
+          { description: 'Installation Labour & Electrical Infrastructure', quantity: 1, unitPriceExVat: result.costBreakdown.labourCost || 0, totalPriceExVat: result.costBreakdown.labourCost || 0 },
+          { description: 'Lead Generation Allowance', quantity: 1, unitPriceExVat: result.costBreakdown.leadGenCost || 0, totalPriceExVat: result.costBreakdown.leadGenCost || 0 },
+          { description: 'Extras & Project Contingency', quantity: 1, unitPriceExVat: result.costBreakdown.extrasContingency || 0, totalPriceExVat: result.costBreakdown.extrasContingency || 0 }
+        ] : []),
+
+        totalJobCost: result?.costBreakdown?.totalJobCost || 0,
+        busGrant: result?.bus?.grantAmount || 7500,
+        customerContribution: result?.commercials?.customerContribution || 0,
+        revenue: result?.commercials?.actualRevenue || result?.commercials?.requiredRevenue || 0,
+        grossProfit: result?.commercials?.grossProfit || 0,
+        grossMarginPercent: result?.commercials?.grossMarginPercent || 0
+      };
+
+      const res = await api.generateModeAPdf(modeAPayload);
+      if (res && res.success && res.pdfUrl) {
+        setModeAPdfResult({
+          filename: res.filename,
+          pdfUrl: res.pdfUrl,
+          generatedAt: res.generatedAt || new Date().toISOString()
+        });
+        setShowModeAPdfModal(true);
+      } else {
+        throw new Error(res?.error || 'Failed to generate Mode-A PDF document.');
+      }
+    } catch (err: any) {
+      alert('Error generating Mode-A PDF: ' + (err.message || err));
+    } finally {
+      setGeneratingModeAPdf(false);
+    }
+  };
+
 
   // Filtered & Deduplicated ASHPs for selection modal with column header sorting
   const deduplicatedAshpCatalog = (() => {
@@ -1918,8 +2018,67 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                 </div>
               </div>
 
+              {/* MODE A PRE-SURVEY ASSESSMENT PDF CARD */}
+              <div className="card" style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.06), rgba(15,23,42,0.03))', border: '1.5px solid #10b981', marginBottom: '20px', padding: '18px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
+                  <div>
+                    <h3 className="card-title" style={{ fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, color: '#065f46' }}>
+                      <FileText size={20} color="#10b981" /> Mode A — Pre-Survey Assessment PDF
+                    </h3>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.8rem', color: 'var(--text-secondary, #64748b)' }}>
+                      Clean and professional UK heat-pump pre-survey summary document for this job.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={handleGenerateModeAPdf}
+                      disabled={generatingModeAPdf}
+                      className="btn btn-primary"
+                      style={{
+                        padding: '10px 18px', fontSize: '0.9rem', fontWeight: 700,
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        background: 'linear-gradient(135deg, #059669, #047857)', border: 'none', color: '#ffffff'
+                      }}
+                    >
+                      <FileText size={17} />
+                      {generatingModeAPdf ? 'GENERATING MODE-A PDF...' : modeAPdfResult ? 'REGENERATE MODE-A PDF' : 'GENERATE MODE-A PDF'}
+                    </button>
+
+                    {modeAPdfResult && (
+                      <>
+                        <button
+                          onClick={() => setShowModeAPdfModal(true)}
+                          className="btn btn-secondary"
+                          style={{ padding: '9px 14px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <Eye size={15} /> Preview PDF
+                        </button>
+
+                        <a
+                          href={modeAPdfResult.pdfUrl}
+                          download={modeAPdfResult.filename}
+                          className="btn btn-primary"
+                          style={{ padding: '9px 14px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px', textDecoration: 'none', background: '#0f172a', color: '#ffffff' }}
+                        >
+                          <Download size={15} /> Download PDF
+                        </a>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                {modeAPdfResult && (
+                  <div style={{ display: 'flex', gap: '16px', background: 'var(--surface-color, #fff)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border-color, #e2e8f0)', fontSize: '0.825rem', marginTop: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div><span style={{ color: '#64748b' }}>Filename:</span> <strong>{modeAPdfResult.filename}</strong></div>
+                    <div><span style={{ color: '#64748b' }}>Generated:</span> <strong>{new Date(modeAPdfResult.generatedAt).toLocaleTimeString('en-GB')}</strong></div>
+                  </div>
+                )}
+              </div>
+
               {/* MODE A AUTOMATIC QUOTATION GENERATION (Requirement 2, 17, 18) */}
               <div className="card" style={{ background: 'linear-gradient(135deg, rgba(37,99,235,0.04), rgba(16,185,129,0.04))', border: '1.5px solid var(--primary, #2563eb)', marginBottom: '20px', padding: '18px' }}>
+
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '12px' }}>
                   <div>
                     <h3 className="card-title" style={{ fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, color: 'var(--primary-dark, #1e40af)' }}>
@@ -2678,6 +2837,70 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
                   </div>
                 </div>
               )}
+      {/* MODE-A PRE-SURVEY ASSESSMENT PDF PREVIEW MODAL */}
+      {showModeAPdfModal && modeAPdfResult && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.8)', backdropFilter: 'blur(4px)',
+          zIndex: 9999, display: 'flex', flexDirection: 'column',
+          justifyContent: 'center', alignItems: 'center', padding: '20px'
+        }}>
+          <div style={{
+            width: '95%', maxWidth: '1050px', height: '90vh',
+            backgroundColor: '#ffffff', borderRadius: '12px',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          }}>
+            <div style={{
+              padding: '14px 20px', background: '#0f172a', color: '#ffffff',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+            }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px', color: '#f8fafc' }}>
+                  <FileText size={20} color="#10b981" /> Mode A — Pre-Survey Assessment PDF
+                </h3>
+                <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
+                  Customer: {customerName || 'Customer'} | BUS Grant: £{(result?.bus?.grantAmount || 7500).toLocaleString()} | Customer Contribution: £{(result?.commercials?.customerContribution || 0).toLocaleString()}
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <button
+                  onClick={handleGenerateModeAPdf}
+                  disabled={generatingModeAPdf}
+                  className="btn btn-secondary"
+                  style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', background: '#334155', border: 'none', color: '#ffffff', cursor: 'pointer' }}
+                >
+                  <RotateCcw size={15} /> {generatingModeAPdf ? 'Regenerating...' : 'Regenerate PDF'}
+                </button>
+
+                <a
+                  href={modeAPdfResult.pdfUrl}
+                  download={modeAPdfResult.filename}
+                  className="btn btn-primary"
+                  style={{ padding: '8px 14px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', background: '#059669', border: 'none', textDecoration: 'none', color: '#ffffff', fontWeight: 700 }}
+                >
+                  <Download size={15} /> Download PDF
+                </a>
+
+                <button
+                  onClick={() => setShowModeAPdfModal(false)}
+                  style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: '4px', borderRadius: '4px', display: 'flex', alignItems: 'center' }}
+                  title="Close Preview"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            <div style={{ flex: 1, backgroundColor: '#f8fafc', overflowY: 'auto' }}>
+              <iframe
+                src={`${modeAPdfResult.pdfUrl}#toolbar=1&navpanes=0`}
+                title="Mode A PDF Preview"
+                width="100%"
+                height="100%"
+                style={{ border: 'none' }}
+              />
             </div>
           </div>
         </div>
@@ -2685,3 +2908,4 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
     </div>
   );
 };
+
