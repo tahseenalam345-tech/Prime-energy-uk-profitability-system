@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 import { db } from '../db/connection.js';
 import { saveCalculationSnapshot, getCalculationSnapshot, verifyHistoricalSnapshotReproduction } from '../engine/snapshotEngine.js';
 import { authenticateToken, optionalAuthenticateToken, requireRole, AuthenticatedRequest } from '../middleware/auth.js';
