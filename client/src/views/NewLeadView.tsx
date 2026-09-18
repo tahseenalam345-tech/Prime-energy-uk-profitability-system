@@ -1018,17 +1018,17 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
       const modeAPayload = {
         quoteReference: savedQuoteRef || (activeLeadId ? `PE-A-${activeLeadId}` : `PE-A-${Math.floor(1000 + Math.random() * 9000)}`),
         leadReference: activeLeadId || undefined,
-        customerName: customerName ? customerName.trim() : 'Valued Customer',
-        customerEmail: email ? email.trim() : undefined,
-        customerPhone: phone ? phone.trim() : undefined,
-        addressLine1: addressLine1 ? addressLine1.trim() : undefined,
-        postcode: postcode ? postcode.trim().toUpperCase() : undefined,
+        customerName: (typeof customerName !== 'undefined' && customerName) ? customerName.trim() : 'Valued Customer',
+        customerEmail: (typeof email !== 'undefined' && email) ? email.trim() : undefined,
+        customerPhone: (typeof phone !== 'undefined' && phone) ? phone.trim() : undefined,
+        addressLine1: (typeof addressLine1 !== 'undefined' && addressLine1) ? addressLine1.trim() : undefined,
+        postcode: (typeof postcode !== 'undefined' && postcode) ? postcode.trim().toUpperCase() : undefined,
         preparedBy: currentUser?.name || 'Prime Energy Technical Assessor',
         date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
 
         propertyType: propertyType || undefined,
-        bedrooms: bedrooms ? Number(bedrooms) : undefined,
-        epcFloorArea: epcFloorArea ? Number(epcFloorArea) : undefined,
+        bedrooms: (bedrooms && !isNaN(Number(bedrooms))) ? Number(bedrooms) : undefined,
+        epcFloorArea: (epcFloorArea && !isNaN(Number(epcFloorArea))) ? Number(epcFloorArea) : undefined,
         epcRating: epcRating || undefined,
         epcReference: epcImportMeta?.imported ? epcImportMeta.reference : (epcCertificateNumber || undefined),
         existingHeatingSystem: existingHeatingSystem || undefined,
@@ -1036,27 +1036,27 @@ export const NewLeadView: React.FC<NewLeadViewProps> = ({ onQuoteSaved, currentU
         onOffGasGrid: onOffGasGrid || undefined,
         wallInsulation: wallInsulation || undefined,
         roofInsulation: roofInsulation || undefined,
-        annualHeatingKwh: annualHeatingKwh ? Number(annualHeatingKwh) : undefined,
+        annualHeatingKwh: (annualHeatingKwh && !isNaN(Number(annualHeatingKwh))) ? Number(annualHeatingKwh) : undefined,
 
-        estimatedHeatDemandKw: result?.heatLossKw || (peakHeatLossKw !== '' ? Number(peakHeatLossKw) : undefined),
+        estimatedHeatDemandKw: result?.heatLossKw || result?.heatDemand?.estimatedDesignHeatLossKw || result?.estimatedDesignHeatLossKw || undefined,
 
         ashp: {
-          brand: result?.ashp?.selectedProduct?.brand || 'Prime Recommended',
-          model: result?.ashp?.selectedProduct?.model || 'ASHP Unit',
-          ratedOutputKw: result?.ashp?.selectedProduct?.ratedOutputKw || result?.ashp?.designOutputKw,
+          brand: result?.ashp?.selectedProduct?.brand || result?.ashp?.recommendedProduct?.brand || 'Prime Recommended',
+          model: result?.ashp?.selectedProduct?.model || result?.ashp?.recommendedProduct?.model || 'ASHP Unit',
+          ratedOutputKw: result?.ashp?.selectedProduct?.ratedOutputKw || result?.ashp?.recommendedProduct?.ratedOutputKw || result?.ashp?.designOutputKw,
           designCondition: '-3°C / 55°C Flow Design'
         },
         cylinder: {
-          brand: result?.cylinder?.selectedCylinder?.brand || 'Prime Recommended',
-          model: result?.cylinder?.selectedCylinder?.model || 'Unvented Cylinder',
-          capacityLitres: result?.cylinder?.selectedCylinder?.capacityLitres || result?.cylinder?.recommendedVolumeLitres
+          brand: result?.cylinder?.selectedCylinder?.brand || result?.cylinder?.recommendedProduct?.brand || 'Prime Recommended',
+          model: result?.cylinder?.selectedCylinder?.model || result?.cylinder?.recommendedProduct?.model || 'Unvented Cylinder',
+          capacityLitres: result?.cylinder?.selectedCylinder?.capacityLitres || result?.cylinder?.recommendedProduct?.capacityLitres || result?.cylinder?.recommendedVolumeLitres
         },
 
-        radiators: (radiatorCount || mainRadiatorType || estimatedEmitterCapacityKw) ? {
-          count: radiatorCount ? Number(radiatorCount) : undefined,
-          mainType: mainRadiatorType || undefined,
-          estimatedCapacityKw: estimatedEmitterCapacityKw ? Number(estimatedEmitterCapacityKw) : undefined,
-          plausibility: emitterPlausibility || undefined
+        radiators: (existingRadiatorCount || dominantRadiatorType || result?.radiators?.estimatedExistingCapacityKw || result?.radiatorAssessment?.estimatedExistingCapacityKw) ? {
+          count: (existingRadiatorCount && !isNaN(Number(existingRadiatorCount))) ? Number(existingRadiatorCount) : (result?.radiators?.count || result?.radiatorAssessment?.count || undefined),
+          mainType: dominantRadiatorType || result?.radiators?.mainType || result?.radiatorAssessment?.mainType || undefined,
+          estimatedCapacityKw: result?.radiators?.estimatedExistingCapacityKw || result?.radiatorAssessment?.estimatedExistingCapacityKw || undefined,
+          plausibility: result?.radiators?.plausibilityScore || result?.radiatorAssessment?.plausibilityScore || result?.radiatorAssessment?.plausibility || undefined
         } : undefined,
 
         lineItems: result?.lineItems || (result?.costBreakdown ? [
